@@ -16,23 +16,18 @@ public class PostController {
         this.service = service;
     }
 
-    @PutMapping("/{id}")
-    public Post atualizar(@PathVariable Long id, @RequestBody Post post) {
-        return service.atualizar(id, post);
-    }
-
     @GetMapping
     public List<Post> listar() {
         return service.listar();
     }
 
     @PostMapping
-    public Post criar(@RequestBody Post post) {
+    public Post salvar(@RequestBody Post post) {
         return service.salvar(post);
     }
 
     @GetMapping("/{id}")
-    public Post buscar(@PathVariable Long id) {
+    public Post buscarPorId(@PathVariable Long id) {
         return service.buscarPorId(id);
     }
 
@@ -40,6 +35,4 @@ public class PostController {
     public void deletar(@PathVariable Long id) {
         service.deletar(id);
     }
-
-
 }

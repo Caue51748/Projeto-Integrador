@@ -27,7 +27,7 @@ public class VotoController {
     }
 
     @DeleteMapping("/{id}")
-    public void deletar(@PathVariable Integer id) {
+    public void deletar(@PathVariable Long id) {
         service.deletar(id);
     }
 }

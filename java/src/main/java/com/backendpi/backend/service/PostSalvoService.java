@@ -23,7 +23,7 @@ public class PostSalvoService {
         return repository.save(postSalvo);
     }
 
-    public void deletar(Integer id) {
+    public void deletar(Long id) {
         repository.deleteById(id);
     }
 }

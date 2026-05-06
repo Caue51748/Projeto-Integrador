@@ -1,6 +1,7 @@
 package com.backendpi.backend.model;
 
 import jakarta.persistence.*;
+import java.sql.Timestamp;
 
 @Entity
 @Table(name = "usuarios")
@@ -12,10 +13,13 @@ public class Usuario {
     private Long idUsuario;
 
     private String nome;
+
     private String email;
+
     private String senha;
 
-    public Usuario() {}
+    @Column(name = "data_criacao", insertable = false, updatable = false)
+    private Timestamp dataCriacao;
 
     public Long getIdUsuario() {
         return idUsuario;

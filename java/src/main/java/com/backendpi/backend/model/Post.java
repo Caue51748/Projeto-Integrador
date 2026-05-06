@@ -1,6 +1,7 @@
 package com.backendpi.backend.model;
 
 import jakarta.persistence.*;
+import java.sql.Timestamp;
 
 @Entity
 @Table(name = "posts")
@@ -12,6 +13,7 @@ public class Post {
     private Long idPost;
 
     private String titulo;
+
     private String conteudo;
 
     @Column(name = "id_usuario")
@@ -20,7 +22,8 @@ public class Post {
     @Column(name = "id_comunidade")
     private Long idComunidade;
 
-    public Post() {}
+    @Column(name = "data_postagem", insertable = false, updatable = false)
+    private Timestamp dataPostagem;
 
     public Long getIdPost() {
         return idPost;

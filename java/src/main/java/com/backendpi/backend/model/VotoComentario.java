@@ -10,18 +10,39 @@ public class VotoComentario {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private Long usuarioId;
-    private Long comentarioId;
+    @Column(name = "id_usuario")
+    private Long idUsuario;
+
+    @Column(name = "id_comentario")
+    private Long idComentario;
+
     private Boolean positivo;
 
-    public Long getId() { return id; }
+    public Long getId() {
+        return id;
+    }
 
-    public Long getUsuarioId() { return usuarioId; }
-    public void setUsuarioId(Long usuarioId) { this.usuarioId = usuarioId; }
+    public Long getIdUsuario() {
+        return idUsuario;
+    }
 
-    public Long getComentarioId() { return comentarioId; }
-    public void setComentarioId(Long comentarioId) { this.comentarioId = comentarioId; }
+    public void setIdUsuario(Long idUsuario) {
+        this.idUsuario = idUsuario;
+    }
 
-    public Boolean getPositivo() { return positivo; }
-    public void setPositivo(Boolean positivo) { this.positivo = positivo; }
+    public Long getIdComentario() {
+        return idComentario;
+    }
+
+    public void setIdComentario(Long idComentario) {
+        this.idComentario = idComentario;
+    }
+
+    public Boolean getPositivo() {
+        return positivo;
+    }
+
+    public void setPositivo(Boolean positivo) {
+        this.positivo = positivo;
+    }
 }

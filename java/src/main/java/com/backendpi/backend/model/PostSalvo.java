@@ -8,37 +8,31 @@ public class PostSalvo {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer id;
+    private Long id;
 
     @Column(name = "id_usuario")
-    private Integer idUsuario;
+    private Long idUsuario;
 
     @Column(name = "id_post")
-    private Integer idPost;
+    private Long idPost;
 
-    public PostSalvo() {}
-
-    public Integer getId() {
+    public Long getId() {
         return id;
     }
 
-    public void setId(Integer id) {
-        this.id = id;
-    }
-
-    public Integer getIdUsuario() {
+    public Long getIdUsuario() {
         return idUsuario;
     }
 
-    public void setIdUsuario(Integer idUsuario) {
+    public void setIdUsuario(Long idUsuario) {
         this.idUsuario = idUsuario;
     }
 
-    public Integer getIdPost() {
+    public Long getIdPost() {
         return idPost;
     }
 
-    public void setIdPost(Integer idPost) {
+    public void setIdPost(Long idPost) {
         this.idPost = idPost;
     }
 }

@@ -19,8 +19,6 @@ public class Voto {
     @Column(name = "id_post")
     private Long idPost;
 
-    public Voto() {}
-
     public Long getIdVoto() {
         return idVoto;
     }

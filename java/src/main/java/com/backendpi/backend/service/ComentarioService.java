@@ -25,11 +25,14 @@ public class ComentarioService {
 
     public Comentario atualizar(Long id, Comentario novo) {
         return repository.findById(id).map(c -> {
+
             c.setConteudo(novo.getConteudo());
-            c.setUsuarioId(novo.getUsuarioId());
-            c.setPostId(novo.getPostId());
+            c.setIdUsuario(novo.getIdUsuario());
+            c.setIdPost(novo.getIdPost());
+
             return repository.save(c);
-        }).orElseThrow();
+
+        }).orElseThrow(() -> new RuntimeException("Comentário não encontrado"));
     }
 
     public void deletar(Long id) {

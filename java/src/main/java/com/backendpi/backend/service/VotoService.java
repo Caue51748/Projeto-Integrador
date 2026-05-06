@@ -23,7 +23,7 @@ public class VotoService {
         return repository.save(voto);
     }
 
-    public void deletar(Integer id) {
+    public void deletar(Long id) {
         repository.deleteById(id);
     }
 }

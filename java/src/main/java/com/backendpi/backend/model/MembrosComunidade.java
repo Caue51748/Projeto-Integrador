@@ -11,24 +11,32 @@ public class MembrosComunidade {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "id_usuario")
     private Long idUsuario;
+
+    @Column(name = "id_comunidade")
     private Long idComunidade;
 
     @Column(name = "data_entrada", insertable = false, updatable = false)
     private Timestamp dataEntrada;
 
-    public MembrosComunidade() {}
+    public Long getId() {
+        return id;
+    }
 
-    // Getters e Setters (importante para o Spring conseguir ler os dados)
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    public Long getIdUsuario() {
+        return idUsuario;
+    }
 
-    public Long getIdUsuario() { return idUsuario; }
-    public void setIdUsuario(Long idUsuario) { this.idUsuario = idUsuario; }
+    public void setIdUsuario(Long idUsuario) {
+        this.idUsuario = idUsuario;
+    }
 
-    public Long getIdComunidade() { return idComunidade; }
-    public void setIdComunidade(Long idComunidade) { this.idComunidade = idComunidade; }
+    public Long getIdComunidade() {
+        return idComunidade;
+    }
 
-    public Timestamp getDataEntrada() { return dataEntrada; }
-    public void setDataEntrada(Timestamp dataEntrada) { this.dataEntrada = dataEntrada; }
+    public void setIdComunidade(Long idComunidade) {
+        this.idComunidade = idComunidade;
+    }
 }

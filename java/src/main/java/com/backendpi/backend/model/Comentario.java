@@ -1,6 +1,7 @@
 package com.backendpi.backend.model;
 
 import jakarta.persistence.*;
+import java.sql.Timestamp;
 
 @Entity
 @Table(name = "comentarios")
@@ -18,6 +19,9 @@ public class Comentario {
 
     @Column(name = "id_post")
     private Long idPost;
+
+    @Column(name = "data_comentario", insertable = false, updatable = false)
+    private Timestamp dataComentario;
 
     public Long getIdComentario() {
         return idComentario;
@@ -49,5 +53,13 @@ public class Comentario {
 
     public void setIdPost(Long idPost) {
         this.idPost = idPost;
+    }
+
+    public Timestamp getDataComentario() {
+        return dataComentario;
+    }
+
+    public void setDataComentario(Timestamp dataComentario) {
+        this.dataComentario = dataComentario;
     }
 }
