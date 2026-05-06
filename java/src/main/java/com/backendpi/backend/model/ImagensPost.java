@@ -8,19 +8,37 @@ public class ImagensPost {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long idImagem;
+    private Long id;
 
+    @Column(name = "id_post")
     private Long idPost;
-    private String urlImagem;
+
+    @Column(name = "url")
+    private String url;
 
     public ImagensPost() {}
 
-    public Long getIdImagem() { return idImagem; }
-    public void setIdImagem(Long idImagem) { this.idImagem = idImagem; }
+    public Long getId() {
+        return id;
+    }
 
-    public Long getIdPost() { return idPost; }
-    public void setIdPost(Long idPost) { this.idPost = idPost; }
+    public void setId(Long id) {
+        this.id = id;
+    }
 
-    public String getUrlImagem() { return urlImagem; }
-    public void setUrlImagem(String urlImagem) { this.urlImagem = urlImagem; }
+    public Long getIdPost() {
+        return idPost;
+    }
+
+    public void setIdPost(Long idPost) {
+        this.idPost = idPost;
+    }
+
+    public String getUrl() {
+        return url;
+    }
+
+    public void setUrl(String url) {
+        this.url = url;
+    }
 }

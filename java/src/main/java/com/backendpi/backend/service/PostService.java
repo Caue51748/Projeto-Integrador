@@ -30,4 +30,18 @@ public class PostService {
     public void deletar(Long id) {
         repository.deleteById(id);
     }
+
+    public Post atualizar(Long id, Post novo) {
+
+        return repository.findById(id).map(post -> {
+
+            post.setTitulo(novo.getTitulo());
+            post.setConteudo(novo.getConteudo());
+            post.setIdUsuario(novo.getIdUsuario());
+            post.setIdComunidade(novo.getIdComunidade());
+
+            return repository.save(post);
+
+        }).orElseThrow();
+    }
 }

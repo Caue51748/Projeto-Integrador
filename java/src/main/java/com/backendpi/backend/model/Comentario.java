@@ -8,20 +8,46 @@ public class Comentario {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "id_comentario")
+    private Long idComentario;
 
     private String conteudo;
-    private Long usuarioId;
-    private Long postId;
 
-    public Long getId() { return id; }
+    @Column(name = "id_usuario")
+    private Long idUsuario;
 
-    public String getConteudo() { return conteudo; }
-    public void setConteudo(String conteudo) { this.conteudo = conteudo; }
+    @Column(name = "id_post")
+    private Long idPost;
 
-    public Long getUsuarioId() { return usuarioId; }
-    public void setUsuarioId(Long usuarioId) { this.usuarioId = usuarioId; }
+    public Long getIdComentario() {
+        return idComentario;
+    }
 
-    public Long getPostId() { return postId; }
-    public void setPostId(Long postId) { this.postId = postId; }
+    public void setIdComentario(Long idComentario) {
+        this.idComentario = idComentario;
+    }
+
+    public String getConteudo() {
+        return conteudo;
+    }
+
+    public void setConteudo(String conteudo) {
+        this.conteudo = conteudo;
+    }
+
+    public Long getIdUsuario() {
+        return idUsuario;
+    }
+
+    public void setIdUsuario(Long idUsuario) {
+        this.idUsuario = idUsuario;
+    }
+
+    public Long getIdPost() {
+        return idPost;
+    }
+
+    public void setIdPost(Long idPost) {
+        this.idPost = idPost;
+    }
 }
