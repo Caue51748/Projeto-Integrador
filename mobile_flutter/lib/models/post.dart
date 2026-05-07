@@ -1,3 +1,5 @@
+// lib/models/post.dart
+
 class Post {
   final int? idPost;
   final String titulo;
@@ -16,8 +18,8 @@ class Post {
   factory Post.fromJson(Map<String, dynamic> json) {
     return Post(
       idPost: json['idPost'],
-      titulo: json['titulo'],
-      conteudo: json['conteudo'],
+      titulo: json['titulo'] ?? '',
+      conteudo: json['conteudo'] ?? '',
       idUsuario: json['idUsuario'],
       idComunidade: json['idComunidade'],
     );

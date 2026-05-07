@@ -1,8 +1,11 @@
+// lib/models/usuario.dart
+
 class Usuario {
-  final int? idUsuario;
-  final String nome;
-  final String email;
-  final String senha;
+
+  int? idUsuario;
+  String nome;
+  String email;
+  String senha;
 
   Usuario({
     this.idUsuario,
@@ -16,16 +19,16 @@ class Usuario {
       idUsuario: json['idUsuario'],
       nome: json['nome'],
       email: json['email'],
-      senha: json['senha'] ?? '',
+      senha: json['senha'],
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'idUsuario': idUsuario,
-      'nome': nome,
-      'email': email,
-      'senha': senha,
+      "idUsuario": idUsuario,
+      "nome": nome,
+      "email": email,
+      "senha": senha,
     };
   }
 }

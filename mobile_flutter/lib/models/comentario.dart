@@ -1,3 +1,5 @@
+// lib/models/comentario.dart
+
 class Comentario {
   final int? idComentario;
   final String conteudo;
@@ -14,7 +16,7 @@ class Comentario {
   factory Comentario.fromJson(Map<String, dynamic> json) {
     return Comentario(
       idComentario: json['idComentario'],
-      conteudo: json['conteudo'],
+      conteudo: json['conteudo'] ?? '',
       idUsuario: json['idUsuario'],
       idPost: json['idPost'],
     );

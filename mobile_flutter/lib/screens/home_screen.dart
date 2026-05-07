@@ -1,3 +1,5 @@
+// lib/screens/home_screen.dart
+
 import 'package:flutter/material.dart';
 
 import 'feed_page.dart';
@@ -21,21 +23,28 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+
     return Scaffold(
+
       body: paginas[paginaAtual],
 
       bottomNavigationBar: BottomNavigationBar(
+
         currentIndex: paginaAtual,
+
         onTap: (index) {
           setState(() {
             paginaAtual = index;
           });
         },
+
         items: const [
+
           BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Feed',
+            icon: Icon(Icons.article),
+            label: 'Posts',
           ),
+
           BottomNavigationBarItem(
             icon: Icon(Icons.people),
             label: 'Usuários',
