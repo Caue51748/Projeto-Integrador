@@ -1,9 +1,9 @@
 // lib/screens/home_screen.dart
 
 import 'package:flutter/material.dart';
+import 'package:login_front/screens/usuarios_screen.dart';
 
 import 'feed_page.dart';
-import 'usuarios_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -18,7 +18,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final paginas = [
     const FeedPage(),
-    const UsuariosScreen(),
+    const UsuarioScreen(),
   ];
 
   @override

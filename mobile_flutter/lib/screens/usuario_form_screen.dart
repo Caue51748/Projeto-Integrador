@@ -65,17 +65,14 @@ class _UsuarioFormScreenState
 
     if (editando) {
 
-      await service.atualizarUsuario(
-        usuario.idUsuario!,
-        usuario,
-      );
+      await service.atualizarUsuario(usuario);
 
     } else {
 
       await service.criarUsuario(usuario);
     }
 
-    Navigator.pop(context);
+    Navigator.pop(context, true);
   }
 
   @override
