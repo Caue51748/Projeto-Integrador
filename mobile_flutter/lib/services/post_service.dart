@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import 'package:http/http.dart' as http;
 
 import '../models/post.dart';
@@ -6,58 +7,38 @@ import '../models/post.dart';
 class PostService {
 
   static const String baseUrl =
-      "http://192.168.1.218:8080/posts";
+      'http:192.168.1.218:8080';
 
   Future<List<Post>> listarPosts() async {
 
     final response = await http.get(
-      Uri.parse(baseUrl),
+      Uri.parse('$baseUrl/posts'),
     );
 
-    if (response.statusCode == 200) {
+    final List lista =
+    jsonDecode(response.body);
 
-      List jsonResponse =
-      json.decode(response.body);
-
-      return jsonResponse
-          .map((p) => Post.fromJson(p))
-          .toList();
-
-    } else {
-
-      throw Exception(
-        "Erro ao listar posts",
-      );
-    }
+    return lista
+        .map((e) => Post.fromJson(e))
+        .toList();
   }
 
   Future<void> criarPost(
-      Post post
+      Post post,
       ) async {
 
-    final response = await http.post(
+    await http.post(
 
-      Uri.parse(baseUrl),
+      Uri.parse('$baseUrl/posts'),
 
       headers: {
-        "Content-Type":
-        "application/json",
+        'Content-Type':
+        'application/json',
       },
 
       body: jsonEncode(
         post.toJson(),
       ),
     );
-
-    print(response.statusCode);
-    print(response.body);
-
-    if (response.statusCode != 200 &&
-        response.statusCode != 201) {
-
-      throw Exception(
-        "Erro ao criar post",
-      );
-    }
   }
 }

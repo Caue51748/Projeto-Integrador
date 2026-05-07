@@ -3,6 +3,7 @@ class Post {
   int? idPost;
 
   String titulo;
+
   String conteudo;
 
   int idUsuario;
@@ -12,12 +13,14 @@ class Post {
     this.idPost,
 
     required this.titulo,
+
     required this.conteudo,
+
     required this.idUsuario,
   });
 
   factory Post.fromJson(
-      Map<String, dynamic> json
+      Map<String, dynamic> json,
       ) {
 
     return Post(
@@ -36,13 +39,13 @@ class Post {
 
     return {
 
-      "idPost": idPost,
+      'idPost': idPost,
 
-      "titulo": titulo,
+      'titulo': titulo,
 
-      "conteudo": conteudo,
+      'conteudo': conteudo,
 
-      "idUsuario": idUsuario,
+      'idUsuario': idUsuario,
     };
   }
 }

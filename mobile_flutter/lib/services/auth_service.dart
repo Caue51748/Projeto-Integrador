@@ -5,4 +5,6 @@ class AuthService {
   static int? idUsuario;
 
   static String? nomeUsuario;
+
+  static String? emailUsuario;
 }

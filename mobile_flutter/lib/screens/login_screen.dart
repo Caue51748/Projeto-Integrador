@@ -1,6 +1,9 @@
+// lib/screens/login_screen.dart
+
 import 'package:flutter/material.dart';
 
 import '../models/usuario.dart';
+import '../services/auth_service.dart';
 import '../services/usuario_service.dart';
 
 import 'home_screen.dart';
@@ -48,6 +51,15 @@ class _LoginScreenState
 
       return;
     }
+
+    // SALVA LOGIN
+    AuthService.logado = true;
+
+    AuthService.idUsuario =
+        usuario.idUsuario;
+
+    AuthService.nomeUsuario =
+        usuario.nome;
 
     Navigator.pushReplacement(
 
