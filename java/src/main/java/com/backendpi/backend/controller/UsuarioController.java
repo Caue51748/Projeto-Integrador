@@ -1,40 +1,45 @@
+// UsuarioController.java
+
 package com.backendpi.backend.controller;
 
 import com.backendpi.backend.model.Usuario;
-import com.backendpi.backend.service.UsuarioService;
-
+import com.backendpi.backend.repository.UsuarioRepository;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/usuarios")
-@CrossOrigin(origins = "*")
+@CrossOrigin("*")
 public class UsuarioController {
 
-    private final UsuarioService service;
+    private final UsuarioRepository usuarioRepository;
 
-    public UsuarioController(UsuarioService service) {
-        this.service = service;
+    public UsuarioController(UsuarioRepository usuarioRepository) {
+        this.usuarioRepository = usuarioRepository;
     }
 
     @GetMapping
     public List<Usuario> listar() {
-        return service.listar();
+        return usuarioRepository.findAll();
     }
 
     @PostMapping
     public Usuario criar(@RequestBody Usuario usuario) {
-        return service.salvar(usuario);
+        return usuarioRepository.save(usuario);
+    }
+
+    @PutMapping("/{id}")
+    public Usuario atualizar(
+            @PathVariable Long id,
+            @RequestBody Usuario usuario
+    ) {
+        usuario.setIdUsuario(id);
+        return usuarioRepository.save(usuario);
     }
 
     @DeleteMapping("/{id}")
     public void deletar(@PathVariable Long id) {
-        service.deletar(id);
-    }
-
-    @PostMapping("/login")
-    public Usuario login(@RequestBody Usuario usuario) {
-        return service.login(usuario.getEmail(), usuario.getSenha());
+        usuarioRepository.deleteById(id);
     }
 }
