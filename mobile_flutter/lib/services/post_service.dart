@@ -1,55 +1,63 @@
-// lib/services/post_service.dart
-
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../models/post.dart';
-import 'api_service.dart';
 
 class PostService {
+
+  static const String baseUrl =
+      "http://192.168.1.218:8080/posts";
 
   Future<List<Post>> listarPosts() async {
 
     final response = await http.get(
-      Uri.parse(ApiService.posts),
+      Uri.parse(baseUrl),
     );
 
     if (response.statusCode == 200) {
 
-      List lista = json.decode(response.body);
+      List jsonResponse =
+      json.decode(response.body);
 
-      return lista
-          .map((e) => Post.fromJson(e))
+      return jsonResponse
+          .map((p) => Post.fromJson(p))
           .toList();
-    }
 
-    throw Exception('Erro ao listar posts');
+    } else {
+
+      throw Exception(
+        "Erro ao listar posts",
+      );
+    }
   }
 
-  Future<void> criarPost(Post post) async {
+  Future<void> criarPost(
+      Post post
+      ) async {
 
     final response = await http.post(
-      Uri.parse(ApiService.posts),
+
+      Uri.parse(baseUrl),
+
       headers: {
-        'Content-Type': 'application/json'
+        "Content-Type":
+        "application/json",
       },
-      body: json.encode(post.toJson()),
+
+      body: jsonEncode(
+        post.toJson(),
+      ),
     );
+
+    print(response.statusCode);
+    print(response.body);
 
     if (response.statusCode != 200 &&
         response.statusCode != 201) {
-      throw Exception('Erro ao criar post');
-    }
-  }
 
-  Future<void> deletarPost(int id) async {
-
-    final response = await http.delete(
-      Uri.parse('${ApiService.posts}/$id'),
-    );
-
-    if (response.statusCode != 200) {
-      throw Exception('Erro ao deletar post');
+      throw Exception(
+        "Erro ao criar post",
+      );
     }
   }
 }
