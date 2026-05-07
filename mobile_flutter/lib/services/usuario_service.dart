@@ -7,7 +7,7 @@ import '../models/usuario.dart';
 class UsuarioService {
 
   // TROQUE PELO SEU IP
-  static const String baseUrl = "http://192.168.0.10:8080/usuarios";
+  static const String baseUrl = "http://192.168.1.218:8080/usuarios";
 
   Future<List<Usuario>> listarUsuarios() async {
     final response = await http.get(Uri.parse(baseUrl));
