@@ -6,7 +6,6 @@ import '../models/usuario.dart';
 import '../services/usuario_service.dart';
 
 class UsuarioFormScreen extends StatefulWidget {
-
   final Usuario? usuario;
 
   const UsuarioFormScreen({
@@ -15,13 +14,10 @@ class UsuarioFormScreen extends StatefulWidget {
   });
 
   @override
-  State<UsuarioFormScreen> createState() =>
-      _UsuarioFormScreenState();
+  State<UsuarioFormScreen> createState() => _UsuarioFormScreenState();
 }
 
-class _UsuarioFormScreenState
-    extends State<UsuarioFormScreen> {
-
+class _UsuarioFormScreenState extends State<UsuarioFormScreen> {
   final nomeController = TextEditingController();
   final emailController = TextEditingController();
   final senhaController = TextEditingController();
@@ -35,40 +31,30 @@ class _UsuarioFormScreenState
     super.initState();
 
     if (widget.usuario != null) {
-
       editando = true;
 
-      nomeController.text =
-          widget.usuario!.nome;
+      nomeController.text = widget.usuario!.nome;
 
-      emailController.text =
-          widget.usuario!.email;
+      emailController.text = widget.usuario!.email;
 
-      senhaController.text =
-          widget.usuario!.senha;
+      senhaController.text = widget.usuario!.senha;
     }
   }
 
   Future<void> salvar() async {
-
     Usuario usuario = Usuario(
-
-      idUsuario:
-      widget.usuario?.idUsuario,
-
+      idUsuario: widget.usuario?.idUsuario,
       nome: nomeController.text,
-
       email: emailController.text,
-
       senha: senhaController.text,
     );
 
     if (editando) {
-
-      await service.atualizarUsuario(usuario);
-
+      await service.atualizarUsuario(
+        usuario.idUsuario!,
+        usuario,
+      );
     } else {
-
       await service.criarUsuario(usuario);
     }
 
@@ -77,58 +63,37 @@ class _UsuarioFormScreenState
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
-
       appBar: AppBar(
-
         title: Text(
-          editando
-              ? 'Editar Usuário'
-              : 'Novo Usuário',
+          editando ? 'Editar Usuário' : 'Novo Usuário',
         ),
       ),
-
       body: Padding(
-
         padding: const EdgeInsets.all(16),
-
         child: Column(
-
           children: [
-
             TextField(
               controller: nomeController,
-
-              decoration:
-              const InputDecoration(
+              decoration: const InputDecoration(
                 labelText: 'Nome',
               ),
             ),
-
             TextField(
               controller: emailController,
-
-              decoration:
-              const InputDecoration(
+              decoration: const InputDecoration(
                 labelText: 'Email',
               ),
             ),
-
             TextField(
               controller: senhaController,
-
-              decoration:
-              const InputDecoration(
+              decoration: const InputDecoration(
                 labelText: 'Senha',
               ),
             ),
-
             const SizedBox(height: 20),
-
             ElevatedButton(
               onPressed: salvar,
-
               child: const Text('Salvar'),
             ),
           ],
