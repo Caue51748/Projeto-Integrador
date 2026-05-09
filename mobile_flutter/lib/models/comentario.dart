@@ -1,10 +1,10 @@
 // lib/models/comentario.dart
 
 class Comentario {
-  final int? idComentario;
-  final String conteudo;
-  final int idUsuario;
-  final int idPost;
+  int? idComentario;
+  String conteudo;
+  int idUsuario;
+  int idPost;
 
   Comentario({
     this.idComentario,
@@ -15,19 +15,19 @@ class Comentario {
 
   factory Comentario.fromJson(Map<String, dynamic> json) {
     return Comentario(
-      idComentario: json['idComentario'],
+      idComentario: json['idComentario'] ?? json['id_comentario'],
       conteudo: json['conteudo'] ?? '',
-      idUsuario: json['idUsuario'],
-      idPost: json['idPost'],
+      idUsuario: json['idUsuario'] ?? json['id_usuario'],
+      idPost: json['idPost'] ?? json['id_post'],
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'idComentario': idComentario,
-      'conteudo': conteudo,
-      'idUsuario': idUsuario,
-      'idPost': idPost,
+      "idComentario": idComentario,
+      "conteudo": conteudo,
+      "idUsuario": idUsuario,
+      "idPost": idPost,
     };
   }
 }
