@@ -13,19 +13,19 @@ class Post {
 
   factory Post.fromJson(Map<String, dynamic> json) {
     return Post(
-      idPost: json['id_post'] ?? json['idPost'],
-      idUsuario: json['id_usuario'] ?? json['idUsuario'],
+      idPost: json['idPost'] ?? json['id_post'],
+      idUsuario: json['idUsuario'] ?? json['id_usuario'],
       titulo: json['titulo'] ?? '',
       conteudo: json['conteudo'] ?? '',
     );
   }
 
   Map<String, dynamic> toJson() {
+    // Aqui está o segredo: enviamos APENAS os mesmos nomes das variáveis do Post.java
     return {
-      'idUsuario': idUsuario, // Padrão que o Spring Boot geralmente lê
-      'id_usuario': idUsuario, // Padrão backup para garantir
       'titulo': titulo,
       'conteudo': conteudo,
+      'idUsuario': idUsuario,
     };
   }
 }

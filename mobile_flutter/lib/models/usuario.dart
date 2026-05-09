@@ -1,7 +1,4 @@
-// lib/models/usuario.dart
-
 class Usuario {
-
   int? idUsuario;
   String nome;
   String email;
@@ -16,10 +13,11 @@ class Usuario {
 
   factory Usuario.fromJson(Map<String, dynamic> json) {
     return Usuario(
-      idUsuario: json['idUsuario'],
-      nome: json['nome'],
-      email: json['email'],
-      senha: json['senha'],
+      // A mágica: se não achar 'idUsuario', tenta 'id_usuario'
+      idUsuario: json['idUsuario'] ?? json['id_usuario'],
+      nome: json['nome'] ?? '',
+      email: json['email'] ?? '',
+      senha: json['senha'] ?? '',
     );
   }
 
