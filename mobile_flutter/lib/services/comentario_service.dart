@@ -1,5 +1,3 @@
-// lib/services/comentario_service.dart
-
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/comentario.dart';
@@ -8,24 +6,32 @@ class ComentarioService {
   static const String baseUrl = 'http://192.168.1.218:8080';
 
   Future<List<Comentario>> listarComentarios() async {
-    final response = await http.get(Uri.parse('$baseUrl/comentarios'));
+    try {
+      final response = await http.get(Uri.parse('$baseUrl/comentarios'));
 
-    if (response.statusCode == 200) {
-      final List lista = jsonDecode(response.body);
-      return lista.map((e) => Comentario.fromJson(e)).toList();
+      if (response.statusCode == 200) {
+        final List lista = jsonDecode(response.body);
+        return lista.map((e) => Comentario.fromJson(e)).toList();
+      } else {
+        print("Erro no servidor: ${response.statusCode}");
+      }
+    } catch (e) {
+      print("ERRO AO BUSCAR COMENTÁRIOS: $e");
     }
     return [];
   }
 
   Future<bool> criarComentario(Comentario comentario) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/comentarios'),
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode(comentario.toJson()),
-    );
-
-    return response.statusCode == 200 || response.statusCode == 201;
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/comentarios'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(comentario.toJson()),
+      );
+      return response.statusCode == 200 || response.statusCode == 201;
+    } catch (e) {
+      print("ERRO AO CRIAR COMENTÁRIO: $e");
+      return false;
+    }
   }
 }
