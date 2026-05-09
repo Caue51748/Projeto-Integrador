@@ -1,51 +1,31 @@
 class Post {
-
   int? idPost;
-
+  int? idUsuario;
   String titulo;
-
   String conteudo;
 
-  int idUsuario;
-
   Post({
-
     this.idPost,
-
+    this.idUsuario,
     required this.titulo,
-
     required this.conteudo,
-
-    required this.idUsuario,
   });
 
-  factory Post.fromJson(
-      Map<String, dynamic> json,
-      ) {
-
+  factory Post.fromJson(Map<String, dynamic> json) {
     return Post(
-
-      idPost: json['idPost'],
-
-      titulo: json['titulo'],
-
-      conteudo: json['conteudo'],
-
-      idUsuario: json['idUsuario'],
+      idPost: json['id_post'] ?? json['idPost'],
+      idUsuario: json['id_usuario'] ?? json['idUsuario'],
+      titulo: json['titulo'] ?? '',
+      conteudo: json['conteudo'] ?? '',
     );
   }
 
   Map<String, dynamic> toJson() {
-
     return {
-
-      'idPost': idPost,
-
+      'idUsuario': idUsuario, // Padrão que o Spring Boot geralmente lê
+      'id_usuario': idUsuario, // Padrão backup para garantir
       'titulo': titulo,
-
       'conteudo': conteudo,
-
-      'idUsuario': idUsuario,
     };
   }
 }
