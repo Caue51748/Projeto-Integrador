@@ -8,6 +8,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/comentarios")
+@CrossOrigin(origins = "*")
 public class ComentarioController {
 
     private final ComentarioService service;
