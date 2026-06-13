@@ -1,109 +1,108 @@
 // app.js
-
 import { ApiService } from './api_service.js';
 
 class AppController {
     constructor() {
         this.listaUsuariosCompleta = [];
         this.usuariosMap = {};
+        this.comunidadesMap = {}; // Guarda id -> nome da comunidade
         this.comentariosPorPost = {};
         this.posts = [];
         this.modoCadastro = false;
+        
+        // Estado da comunidade ativa (estilo Subreddit)
+        this.comunidadeAtivaId = null; 
     }
 
     async inicializar() {
-        this.atualizarCabecalho();
-        await this.carregarDados();
-        await this.carregarComunidades();
+        this.atualizarMenuLateral();
+        await this.carregarDadosGlobais();
     }
 
-    // --- NAVEGAÇÃO DE ABAS ---
+    // --- MENU E NAVEGAÇÃO ---
     mudarAba(nomeAba) {
         document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
-        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
         
         document.getElementById(`view-${nomeAba}`).classList.add('active');
-        document.getElementById(`tab-${nomeAba}`).classList.add('active');
+        if(document.getElementById(`tab-${nomeAba}`)) {
+            document.getElementById(`tab-${nomeAba}`).classList.add('active');
+        }
+
+        this.comunidadeAtivaId = null; // Reseta se sair da tela de subreddit
 
         if(nomeAba === 'busca') this.renderizarUsuarios(this.listaUsuariosCompleta);
+        if(nomeAba === 'feed') this.renderizarFeedGeral();
+        if(nomeAba === 'comunidades') this.carregarComunidades();
     }
 
-    // --- CABEÇALHO E MODAIS ---
-    atualizarCabecalho() {
+    atualizarMenuLateral() {
         const container = document.getElementById('header-buttons');
-        if (ApiService.getUsuarioLogado()) {
+        const user = ApiService.getUsuarioLogado();
+        if (user) {
             container.innerHTML = `
-                <button class="btn-outline" onclick="app.fazerLogout()">Sair</button>
-                <button onclick="app.abrirModal('post-modal')">Publicar</button>
+                <div style="font-size:14px; margin-bottom:8px; color:#cbd5e1;">Logado como: <b>${user.nome}</b></div>
+                <button class="btn-primary" style="width:100%; background:#ef4444;" onclick="app.fazerLogout()">Sair do Sistema</button>
             `;
         } else {
-            container.innerHTML = `<button onclick="app.abrirModal('auth-modal')">Entrar</button>`;
+            container.innerHTML = `<button class="btn-primary" style="width:100%;" onclick="app.abrirModal('auth-modal')">Fazer Login</button>`;
         }
     }
 
     abrirModal(id) { document.getElementById(id).style.display = 'flex'; }
     fecharModal(id) { document.getElementById(id).style.display = 'none'; }
 
-    alternarAuth() {
-        this.modoCadastro = !this.modoCadastro;
-        document.getElementById('auth-title').innerText = this.modoCadastro ? 'Criar Conta' : 'Bem-vindo de volta';
-        document.getElementById('auth-nome').style.display = this.modoCadastro ? 'block' : 'none';
-        document.getElementById('auth-toggle-btn').innerText = this.modoCadastro ? 'Já tem conta? Entrar' : 'Não tem conta? Inscreva-se';
+    abrirModalPost() {
+        if (!ApiService.getUsuarioLogado()) return alert("Faça login primeiro!");
+        const tituloEl = document.getElementById('modal-post-title');
+        
+        if (this.comunidadeAtivaId) {
+            tituloEl.innerText = `Postar em: ${this.comunidadesMap[this.comunidadeAtivaId]}`;
+        } else {
+            tituloEl.innerText = "Nova Publicação Global";
+        }
+        this.abrirModal('post-modal');
     }
 
-    // --- AUTENTICAÇÃO ---
-    async processarAuth() {
-        const emailOuNome = document.getElementById('auth-email').value.trim();
-        const senha = document.getElementById('auth-senha').value.trim();
-        const nome = document.getElementById('auth-nome').value.trim();
+    // --- AUTH --- (Igual ao anterior, resumido para focar na lógica)
+    alternarAuth() {
+        this.modoCadastro = !this.modoCadastro;
+        document.getElementById('auth-title').innerText = this.modoCadastro ? 'Nova Conta' : 'Acesso ao Painel';
+        document.getElementById('auth-nome').style.display = this.modoCadastro ? 'block' : 'none';
+        document.getElementById('auth-toggle-btn').innerText = this.modoCadastro ? 'Já tem conta? Entrar' : 'Criar nova conta';
+    }
 
-        if (!emailOuNome || !senha) return alert("Preencha o usuário/email e a senha!");
+    async processarAuth() {
+        const e = document.getElementById('auth-email').value.trim();
+        const s = document.getElementById('auth-senha').value.trim();
+        const n = document.getElementById('auth-nome').value.trim();
 
         try {
             if (this.modoCadastro) {
-                if (!nome) return alert("Preencha seu nome completo!");
-                const res = await ApiService.criarUsuario(nome, emailOuNome, senha);
-                if(res.ok) {
-                    const novoUsuario = await res.json();
-                    ApiService.salvarSessao(novoUsuario);
-                    this.posLogin();
-                } else {
-                    alert("Erro ao criar conta: " + await res.text());
-                }
+                const res = await ApiService.criarUsuario(n, e, s);
+                if(res.ok) { ApiService.salvarSessao(await res.json()); this.posLogin(); }
             } else {
                 const lista = await ApiService.listarUsuarios();
-                const userEncontrado = lista.find(u => (u.nome === emailOuNome || u.email === emailOuNome) && u.senha === senha);
-                
-                if (userEncontrado) {
-                    ApiService.salvarSessao(userEncontrado);
-                    this.posLogin();
-                } else alert("Credenciais incorretas!");
+                const user = lista.find(u => (u.nome === e || u.email === e) && u.senha === s);
+                if (user) { ApiService.salvarSessao(user); this.posLogin(); } else alert("Credenciais inválidas");
             }
-        } catch (e) { alert("Erro ao conectar com o banco de dados."); }
+        } catch (err) { alert("Erro de conexão."); }
     }
 
-    posLogin() {
-        this.fecharModal('auth-modal');
-        document.getElementById('auth-senha').value = '';
-        this.atualizarCabecalho();
-        this.renderizarFeed();
-    }
+    posLogin() { this.fecharModal('auth-modal'); this.atualizarMenuLateral(); this.carregarDadosGlobais(); }
+    fazerLogout() { ApiService.fazerLogout(); this.atualizarMenuLateral(); this.mudarAba('feed'); }
 
-    fazerLogout() {
-        ApiService.fazerLogout();
-        this.atualizarCabecalho();
-        this.renderizarFeed();
-    }
-
-    // --- DADOS DO FEED E BUSCA ---
-    async carregarDados() {
+    // --- CARREGAMENTO GLOBAL ---
+    async carregarDadosGlobais() {
         try {
             this.listaUsuariosCompleta = await ApiService.listarUsuarios();
-            this.usuariosMap = {};
-            this.listaUsuariosCompleta.forEach(u => {
-                let id = u.idUsuario || u.id_usuario || u.id;
-                this.usuariosMap[id] = u.nome;
-            });
+            this.listaUsuariosCompleta.forEach(u => this.usuariosMap[u.idUsuario || u.id] = u.nome);
+
+            // Tenta carregar comunidades para mapear os nomes (Para mostrar no Feed Geral)
+            try {
+                const coms = await ApiService.listarComunidades();
+                coms.forEach(c => this.comunidadesMap[c.idComunidade || c.id] = c.nome);
+            } catch(e) { console.warn("API de Comunidades não encontrada ainda."); }
 
             const listaComentarios = await ApiService.listarComentarios();
             this.comentariosPorPost = {};
@@ -113,159 +112,176 @@ class AppController {
                 this.comentariosPorPost[idPost].push(c);
             });
 
-            const listaPosts = await ApiService.listarPosts();
-            this.posts = listaPosts.reverse();
+            this.posts = (await ApiService.listarPosts()).reverse();
+            
+            // Se estiver dentro de uma comunidade recarrega ela, se não, feed geral
+            if (this.comunidadeAtivaId) this.renderizarSubreddit(this.comunidadeAtivaId);
+            else this.renderizarFeedGeral();
 
-            this.renderizarFeed();
-        } catch (erro) {
-            document.getElementById('feed-container').innerHTML = `<div class="loader">Erro de conexão com servidor.</div>`;
+        } catch (e) {
+            console.error(e);
+            document.getElementById('feed-container').innerHTML = `Erro de conexão com servidor.`;
         }
     }
 
-    // --- ABA BUSCA ---
-    filtrarUsuarios() {
-        const texto = document.getElementById('search-input').value.toLowerCase();
-        const filtrados = this.listaUsuariosCompleta.filter(u => u.nome.toLowerCase().includes(texto));
-        this.renderizarUsuarios(filtrados);
-    }
-
-    renderizarUsuarios(lista) {
-        const container = document.getElementById('users-container');
-        container.innerHTML = '';
-        if (lista.length === 0) {
-            container.innerHTML = '<div class="loader">Nenhum usuário encontrado.</div>';
-            return;
-        }
-        lista.forEach(u => {
-            const inicial = u.nome.charAt(0).toUpperCase();
-            const div = document.createElement('div');
-            div.className = 'user-row';
-            div.innerHTML = `
-                <div class="avatar">${inicial}</div>
-                <div class="user-info">
-                    <span class="user-name">${u.nome}</span>
-                    <span class="user-handle">@${u.nome.toLowerCase().replace(/\s/g, '')}</span>
-                </div>
-            `;
-            container.appendChild(div);
-        });
-    }
-
-    // --- ABA COMUNIDADES ---
+    // --- LÓGICA DE SUBREDDIT E COMUNIDADES ---
     async carregarComunidades() {
         const container = document.getElementById('comunidades-container');
-        const comunidades = await ApiService.listarComunidades();
-        
-        container.innerHTML = '';
-        comunidades.forEach(c => {
-            const div = document.createElement('div');
-            div.className = 'card community-card';
-            div.innerHTML = `
-                <div class="community-info">
-                    <h3>${c.nome}</h3>
-                    <p>${c.descricao}</p>
-                </div>
-                <button class="btn-join">Participar</button>
-            `;
-            container.appendChild(div);
-        });
+        try {
+            const comunidades = await ApiService.listarComunidades();
+            container.innerHTML = '';
+            comunidades.forEach(c => {
+                const idCom = c.idComunidade || c.id;
+                const div = document.createElement('div');
+                div.className = 'list-item';
+                div.innerHTML = `
+                    <div class="list-item-info">
+                        <h3 onclick="app.entrarSubreddit(${idCom}, '${c.nome}', '${c.descricao}')">${c.nome}</h3>
+                        <p>${c.descricao}</p>
+                    </div>
+                    <button class="btn-primary" onclick="app.entrarSubreddit(${idCom}, '${c.nome}', '${c.descricao}')">Acessar</button>
+                `;
+                container.appendChild(div);
+            });
+        } catch (e) {
+            container.innerHTML = "<p style='padding:16px;'>Crie a tabela Comunidade no Java primeiro!</p>";
+        }
     }
 
     async criarComunidade() {
         if (!ApiService.getUsuarioLogado()) return alert("Faça login!");
         const nome = document.getElementById('comunidade-nome').value.trim();
         const desc = document.getElementById('comunidade-desc').value.trim();
-        if(!nome) return alert("Preencha o nome!");
-
         const res = await ApiService.criarComunidadeAPI(nome, desc);
-        if(res.ok) {
-            this.fecharModal('comunidade-modal');
-            await this.carregarComunidades();
-        } else {
-            alert("Atenção: " + (await res.text() || "Crie o backend de Comunidades no Spring Boot primeiro."));
-        }
+        if(res.ok) { this.fecharModal('comunidade-modal'); this.carregarComunidades(); }
+        else alert("Crie o backend de Comunidades no Spring Boot.");
     }
 
-    // --- POSTS E COMENTÁRIOS ---
+    entrarSubreddit(id, nome, desc) {
+        this.comunidadeAtivaId = id;
+        document.getElementById('sub-titulo').innerText = nome;
+        document.getElementById('sub-desc').innerText = desc;
+        
+        document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+        document.getElementById('view-subreddit').classList.add('active');
+        
+        this.renderizarSubreddit(id);
+    }
+
+   async participarComunidade() {
+        const idLogado = ApiService.getIdUsuarioLogado();
+        if (!idLogado) return alert("Faça login primeiro!");
+        
+        const btn = document.getElementById('btn-participar');
+        
+        try {
+            // Chama a nova rota que criamos no Java
+            await fetch(`http://localhost:8080/comunidades/${this.comunidadeAtivaId}/participar/${idLogado}`, {
+                method: 'POST'
+            });
+
+            btn.innerText = "Participando";
+            btn.style.background = "#059669"; // Fica Verde
+            
+        } catch (e) {
+            alert("Erro ao entrar na comunidade.");
+        }
+    }
+    
+    renderizarSubreddit(idComunidade) {
+        // Filtra os posts para mostrar apenas os desta comunidade
+        const postsDestaComunidade = this.posts.filter(p => p.idComunidade == idComunidade || p.id_comunidade == idComunidade);
+        this.montarCardsPosts(postsDestaComunidade, 'subreddit-feed-container', false);
+    }
+
+    renderizarFeedGeral() {
+        // Mostra todos
+        this.montarCardsPosts(this.posts, 'feed-container', true);
+    }
+
+    // --- FUNÇÕES DE POSTS/COMENTARIOS REUTILIZÁVEIS ---
     async enviarPost() {
         const idLogado = ApiService.getIdUsuarioLogado();
-        if (!idLogado) return alert("Sua sessão expirou!");
         const titulo = document.getElementById('post-titulo').value.trim();
         const conteudo = document.getElementById('post-conteudo').value.trim();
-        if (!titulo || !conteudo) return alert("Preencha tudo!");
-
-        const res = await ApiService.criarPost(titulo, conteudo, idLogado);
+        
+        // Se this.comunidadeAtivaId existir, envia o post vinculado à comunidade
+        const res = await ApiService.criarPost(titulo, conteudo, idLogado, this.comunidadeAtivaId);
         if (res.ok) {
             this.fecharModal('post-modal');
             document.getElementById('post-titulo').value = '';
             document.getElementById('post-conteudo').value = '';
-            await this.carregarDados();
-        } else alert(`Erro: ${await res.text()}`);
+            await this.carregarDadosGlobais();
+        } else alert(`O Java recusou o post. Adicionou a coluna id_comunidade na tabela?`);
     }
 
     async enviarComentario(idPost) {
         const idLogado = ApiService.getIdUsuarioLogado();
-        if (!idLogado) return alert("Faça login para comentar!");
+        if (!idLogado) return alert("Logue primeiro!");
         const input = document.getElementById(`input-comment-${idPost}`);
-        const conteudo = input.value.trim();
-        if (!conteudo) return;
-
-        const res = await ApiService.criarComentario(conteudo, idLogado, idPost);
-        if (res.ok) {
-            input.value = ''; 
-            await this.carregarDados();
-        } else alert(`Erro: ${await res.text()}`);
+        const res = await ApiService.criarComentario(input.value.trim(), idLogado, idPost);
+        if (res.ok) await this.carregarDadosGlobais();
     }
 
-    renderizarFeed() {
-        const container = document.getElementById('feed-container');
+    montarCardsPosts(listaPosts, idContainer, mostrarTagComunidade) {
+        const container = document.getElementById(idContainer);
         container.innerHTML = '';
-        if (this.posts.length === 0) return container.innerHTML = '<div class="loader">Nenhum post encontrado.</div>';
+        if (listaPosts.length === 0) return container.innerHTML = '<p style="color:var(--text-muted)">Nenhuma publicação ainda.</p>';
 
-        this.posts.forEach(post => {
-            let idUsuarioPost = post.idUsuario || post.id_usuario;
+        listaPosts.forEach(post => {
+            let idAutor = post.idUsuario || post.id_usuario;
             let idPost = post.idPost || post.id;
-            let nomeAutor = this.usuariosMap[idUsuarioPost] || 'Desconhecido';
-            let inicial = nomeAutor.charAt(0).toUpperCase();
+            let idComunidade = post.idComunidade || post.id_comunidade;
+
+            let nomeAutor = this.usuariosMap[idAutor] || 'Desconhecido';
+            let nomeComunidade = this.comunidadesMap[idComunidade];
             
-            let comentariosDestePost = this.comentariosPorPost[idPost] || [];
-            let previews = comentariosDestePost.slice(0, 3);
+            let htmlComentarios = (this.comentariosPorPost[idPost] || []).map(c => 
+                `<div class="comment-preview"><span>${this.usuariosMap[c.idUsuario || c.id_usuario] || 'User'}:</span>${c.conteudo}</div>`
+            ).join('');
 
-            let comentariosHTML = '';
-            previews.forEach(c => {
-                let idUsuarioComentario = c.idUsuario || c.id_usuario;
-                let nomeComentarista = this.usuariosMap[idUsuarioComentario] || 'Desconhecido';
-                comentariosHTML += `<div class="comment-preview"><span>${nomeComentarista}</span> ${c.conteudo}</div>`;
-            });
-
-            let inputComentarioHTML = '';
-            if (ApiService.getIdUsuarioLogado()) {
-                inputComentarioHTML = `
-                    <div class="comment-input-container">
-                        <input type="text" id="input-comment-${idPost}" placeholder="Escreva um comentário...">
-                        <button onclick="app.enviarComentario(${idPost})">Enviar</button>
-                    </div>
-                `;
-            }
-
-            const postDiv = document.createElement('div');
-            postDiv.className = 'card post';
-            postDiv.innerHTML = `
+            const div = document.createElement('div');
+            div.className = 'card';
+            div.innerHTML = `
                 <div class="post-header-area">
-                    <div class="avatar">${inicial}</div>
-                    <div class="post-header">${nomeAutor}</div>
+                    <div class="avatar">${nomeAutor.charAt(0).toUpperCase()}</div>
+                    <div>
+                        <span class="post-author">${nomeAutor}</span>
+                        ${mostrarTagComunidade && nomeComunidade ? `<span class="post-community-tag">em c/${nomeComunidade}</span>` : ''}
+                    </div>
                 </div>
                 <div class="post-title">${post.titulo}</div>
                 <div class="post-body">${post.conteudo}</div>
-                <div class="post-actions">
-                    <i class="material-icons">favorite_border</i>
-                    <i class="material-icons">chat_bubble_outline</i>
-                    <i class="material-icons">share</i>
-                </div>
-                ${comentariosHTML ? `<div>${comentariosHTML}</div>` : ''}
-                ${inputComentarioHTML}
+                ${htmlComentarios}
+                ${ApiService.getIdUsuarioLogado() ? `
+                    <div class="comment-input-container">
+                        <input type="text" id="input-comment-${idPost}" placeholder="Comentar...">
+                        <button onclick="app.enviarComentario(${idPost})">Enviar</button>
+                    </div>` : ''}
             `;
-            container.appendChild(postDiv);
+            container.appendChild(div);
+        });
+    }
+
+    // --- ABA BUSCA ---
+    filtrarUsuarios() {
+        const txt = document.getElementById('search-input').value.toLowerCase();
+        this.renderizarUsuarios(this.listaUsuariosCompleta.filter(u => u.nome.toLowerCase().includes(txt)));
+    }
+
+    renderizarUsuarios(lista) {
+        const container = document.getElementById('users-container');
+        container.innerHTML = '';
+        lista.forEach(u => {
+            const div = document.createElement('div');
+            div.className = 'list-item';
+            div.innerHTML = `
+                <div style="display:flex; align-items:center;">
+                    <div class="avatar" style="width:32px; height:32px; margin-right:12px;">${u.nome.charAt(0).toUpperCase()}</div>
+                    <span style="font-weight:600;">${u.nome}</span>
+                </div>
+            `;
+            container.appendChild(div);
         });
     }
 }
