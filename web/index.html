@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Feed - Rede Social Web</title>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link rel="stylesheet" href="style.css"> 
+</head>
+<body>
+
+    <div id="app">
+        <header>
+            <div class="header-title">Feed</div>
+            <div class="header-actions" id="header-buttons"></div>
+        </header>
+        <div id="feed-container">
+            <div class="loader">Carregando posts...</div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="auth-modal">
+        <div class="modal">
+            <h2 id="auth-title">Entrar</h2>
+            <input type="text" id="auth-nome" placeholder="Seu Nome" style="display: none;">
+            <input type="text" id="auth-email" placeholder="Email ou Nome de Usuário">
+            <button class="btn-full" onclick="app.processarAuth()">Continuar</button>
+            <button class="btn-cancel" onclick="app.fecharModal('auth-modal')">Cancelar</button>
+            <span class="toggle-auth" id="auth-toggle-btn" onclick="app.alternarAuth()">Não tem conta? Criar conta</span>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="post-modal">
+        <div class="modal">
+            <h2>Novo Post</h2>
+            <input type="text" id="post-titulo" placeholder="Título do post">
+            <textarea id="post-conteudo" placeholder="O que está acontecendo?"></textarea>
+            <button class="btn-full" onclick="app.enviarPost()">Publicar</button>
+            <button class="btn-cancel" onclick="app.fecharModal('post-modal')">Cancelar</button>
+        </div>
+    </div>
+
+    <script type="module" src="app.js"></script>
+</body>
+</html>
