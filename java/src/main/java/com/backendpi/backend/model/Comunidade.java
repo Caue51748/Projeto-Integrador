@@ -1,7 +1,8 @@
 package com.backendpi.backend.model;
 
 import jakarta.persistence.*;
-import java.sql.Timestamp;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "comunidades")
@@ -9,45 +10,29 @@ public class Comunidade {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id_comunidade")
-    private Long idComunidade;
+    private Long id;
 
     private String nome;
-
     private String descricao;
 
-    @Column(name = "data_criacao", insertable = false, updatable = false)
-    private Timestamp dataCriacao;
+    @ManyToMany
+    @JoinTable(
+            name = "usuario_comunidade",
+            joinColumns = @JoinColumn(name = "comunidade_id"),
+            inverseJoinColumns = @JoinColumn(name = "usuario_id")
+    )
+    private List<Usuario> membros = new ArrayList<>();
 
-    public Long getIdComunidade() {
-        return idComunidade;
-    }
+    // --- GETTERS E SETTERS ---
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
 
-    public void setIdComunidade(Long idComunidade) {
-        this.idComunidade = idComunidade;
-    }
+    public String getNome() { return nome; }
+    public void setNome(String nome) { this.nome = nome; }
 
-    public String getNome() {
-        return nome;
-    }
+    public String getDescricao() { return descricao; }
+    public void setDescricao(String descricao) { this.descricao = descricao; }
 
-    public void setNome(String nome) {
-        this.nome = nome;
-    }
-
-    public String getDescricao() {
-        return descricao;
-    }
-
-    public void setDescricao(String descricao) {
-        this.descricao = descricao;
-    }
-
-    public Timestamp getDataCriacao() {
-        return dataCriacao;
-    }
-
-    public void setDataCriacao(Timestamp dataCriacao) {
-        this.dataCriacao = dataCriacao;
-    }
+    public List<Usuario> getMembros() { return membros; }
+    public void setMembros(List<Usuario> membros) { this.membros = membros; }
 }

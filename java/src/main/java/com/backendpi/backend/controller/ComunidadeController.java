@@ -8,6 +8,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/comunidades")
+@CrossOrigin(origins = "*") // Muito importante para não dar erro de conexão com o JS!
 public class ComunidadeController {
 
     private final ComunidadeService service;
@@ -34,5 +35,11 @@ public class ComunidadeController {
     @DeleteMapping("/{id}")
     public void deletar(@PathVariable Long id) {
         service.deletar(id);
+    }
+
+    // NOVA ROTA PARA VINCULAR USUARIO E COMUNIDADE
+    @PostMapping("/{idComunidade}/participar/{idUsuario}")
+    public void participarDaComunidade(@PathVariable Long idComunidade, @PathVariable Long idUsuario) {
+        service.adicionarMembro(idComunidade, idUsuario);
     }
 }

@@ -1,7 +1,9 @@
 package com.backendpi.backend.service;
 
 import com.backendpi.backend.model.Comunidade;
+import com.backendpi.backend.model.Usuario;
 import com.backendpi.backend.repository.ComunidadeRepository;
+import com.backendpi.backend.repository.UsuarioRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -10,9 +12,12 @@ import java.util.List;
 public class ComunidadeService {
 
     private final ComunidadeRepository repository;
+    private final UsuarioRepository usuarioRepository;
 
-    public ComunidadeService(ComunidadeRepository repository) {
+    // Construtor atualizado recebendo os DOIS repositórios
+    public ComunidadeService(ComunidadeRepository repository, UsuarioRepository usuarioRepository) {
         this.repository = repository;
+        this.usuarioRepository = usuarioRepository;
     }
 
     public List<Comunidade> listar() {
@@ -28,10 +33,24 @@ public class ComunidadeService {
             c.setNome(nova.getNome());
             c.setDescricao(nova.getDescricao());
             return repository.save(c);
-        }).orElseThrow();
+        }).orElseThrow(() -> new RuntimeException("Comunidade não encontrada"));
     }
 
     public void deletar(Long id) {
         repository.deleteById(id);
+    }
+
+    // NOVO MÉTODO PARA ENTRAR NA COMUNIDADE
+    public void adicionarMembro(Long idComunidade, Long idUsuario) {
+        Comunidade comunidade = repository.findById(idComunidade)
+                .orElseThrow(() -> new RuntimeException("Comunidade não encontrada"));
+
+        Usuario usuario = usuarioRepository.findById(idUsuario)
+                .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+
+        if (!comunidade.getMembros().contains(usuario)) {
+            comunidade.getMembros().add(usuario);
+            repository.save(comunidade);
+        }
     }
 }

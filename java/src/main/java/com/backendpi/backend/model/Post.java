@@ -25,43 +25,19 @@ public class Post {
     @Column(name = "data_postagem", insertable = false, updatable = false)
     private Timestamp dataPostagem;
 
-    public Long getIdPost() {
-        return idPost;
-    }
+    // --- GETTERS E SETTERS ---
+    public Long getIdPost() { return idPost; }
+    public void setIdPost(Long idPost) { this.idPost = idPost; }
 
-    public void setIdPost(Long idPost) {
-        this.idPost = idPost;
-    }
+    public String getTitulo() { return titulo; }
+    public void setTitulo(String titulo) { this.titulo = titulo; }
 
-    public String getTitulo() {
-        return titulo;
-    }
+    public String getConteudo() { return conteudo; }
+    public void setConteudo(String conteudo) { this.conteudo = conteudo; }
 
-    public void setTitulo(String titulo) {
-        this.titulo = titulo;
-    }
+    public Long getIdUsuario() { return idUsuario; }
+    public void setIdUsuario(Long idUsuario) { this.idUsuario = idUsuario; }
 
-    public String getConteudo() {
-        return conteudo;
-    }
-
-    public void setConteudo(String conteudo) {
-        this.conteudo = conteudo;
-    }
-
-    public Long getIdUsuario() {
-        return idUsuario;
-    }
-
-    public void setIdUsuario(Long idUsuario) {
-        this.idUsuario = idUsuario;
-    }
-
-    public Long getIdComunidade() {
-        return idComunidade;
-    }
-
-    public void setIdComunidade(Long idComunidade) {
-        this.idComunidade = idComunidade;
-    }
+    public Long getIdComunidade() { return idComunidade; }
+    public void setIdComunidade(Long idComunidade) { this.idComunidade = idComunidade; }
 }
