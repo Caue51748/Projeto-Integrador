@@ -3,42 +3,80 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Feed - Rede Social Web</title>
+    <title>Rede Social Web</title>
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link rel="stylesheet" href="style.css"> 
 </head>
 <body>
 
-    <div id="app">
-        <header>
-            <div class="header-title">Feed</div>
+    <header>
+        <div class="header-top">
+            <div class="header-title">Connecta</div>
             <div class="header-actions" id="header-buttons"></div>
-        </header>
-        <div id="feed-container">
-            <div class="loader">Carregando posts...</div>
+        </div>
+        <nav class="top-nav">
+            <button class="tab-btn active" id="tab-feed" onclick="app.mudarAba('feed')">
+                <i class="material-icons">home</i> Feed
+            </button>
+            <button class="tab-btn" id="tab-comunidades" onclick="app.mudarAba('comunidades')">
+                <i class="material-icons">group</i> Comunidades
+            </button>
+            <button class="tab-btn" id="tab-busca" onclick="app.mudarAba('busca')">
+                <i class="material-icons">search</i> Buscar
+            </button>
+        </nav>
+    </header>
+
+    <div id="app">
+        <div id="view-feed" class="view-section active">
+            <div id="feed-container"><div class="loader">Carregando posts...</div></div>
+        </div>
+
+        <div id="view-comunidades" class="view-section">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h2 style="margin: 0; font-size: 20px;">Descobrir Comunidades</h2>
+                <button onclick="app.abrirModal('comunidade-modal')" style="background: var(--primary-color); color: #fff; border: none; padding: 8px 16px; border-radius: 20px; font-weight: bold; cursor: pointer;">Criar</button>
+            </div>
+            <div id="comunidades-container"><div class="loader">Carregando...</div></div>
+        </div>
+
+        <div id="view-busca" class="view-section">
+            <input type="text" class="search-bar" id="search-input" placeholder="Buscar usuários pelo nome..." onkeyup="app.filtrarUsuarios()">
+            <div class="card" style="padding: 0;">
+                <div id="users-container"><div class="loader">Carregando usuários...</div></div>
+            </div>
         </div>
     </div>
 
     <div class="modal-overlay" id="auth-modal">
         <div class="modal">
-            <h2 id="auth-title">Entrar</h2>
+            <h2 id="auth-title">Bem-vindo de volta</h2>
             <input type="text" id="auth-nome" placeholder="Seu Nome Completo" style="display: none;">
             <input type="text" id="auth-email" placeholder="Email ou Nome de Usuário">
             <input type="password" id="auth-senha" placeholder="Sua Senha">
-            
             <button class="btn-full" onclick="app.processarAuth()">Continuar</button>
             <button class="btn-cancel" onclick="app.fecharModal('auth-modal')">Cancelar</button>
-            <span class="toggle-auth" id="auth-toggle-btn" onclick="app.alternarAuth()">Não tem conta? Criar conta</span>
+            <span class="toggle-auth" id="auth-toggle-btn" onclick="app.alternarAuth()">Não tem conta? Inscreva-se</span>
         </div>
     </div>
 
     <div class="modal-overlay" id="post-modal">
         <div class="modal">
-            <h2>Novo Post</h2>
-            <input type="text" id="post-titulo" placeholder="Título do post">
-            <textarea id="post-conteudo" placeholder="O que está acontecendo?"></textarea>
+            <h2>Criar Publicação</h2>
+            <input type="text" id="post-titulo" placeholder="Título da sua publicação">
+            <textarea id="post-conteudo" placeholder="O que você quer compartilhar?"></textarea>
             <button class="btn-full" onclick="app.enviarPost()">Publicar</button>
             <button class="btn-cancel" onclick="app.fecharModal('post-modal')">Cancelar</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="comunidade-modal">
+        <div class="modal">
+            <h2>Nova Comunidade</h2>
+            <input type="text" id="comunidade-nome" placeholder="Nome da comunidade">
+            <textarea id="comunidade-desc" placeholder="Sobre o que é esta comunidade?"></textarea>
+            <button class="btn-full" onclick="app.criarComunidade()">Criar Comunidade</button>
+            <button class="btn-cancel" onclick="app.fecharModal('comunidade-modal')">Cancelar</button>
         </div>
     </div>
 
