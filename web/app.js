@@ -39,37 +39,46 @@ class AppController {
 
     async processarAuth() {
         const emailOuNome = document.getElementById('auth-email').value.trim();
+        const senha = document.getElementById('auth-senha').value.trim();
         const nome = document.getElementById('auth-nome').value.trim();
 
-        if (!emailOuNome) return alert("Preencha o campo principal!");
+        if (!emailOuNome || !senha) return alert("Preencha o usuário/email e a senha!");
 
         try {
             if (this.modoCadastro) {
-                if (!nome) return alert("Preencha seu nome!");
-                const res = await ApiService.criarUsuario(nome, emailOuNome, "123");
+                if (!nome) return alert("Preencha seu nome completo!");
+                const res = await ApiService.criarUsuario(nome, emailOuNome, senha);
                 if(res.ok) {
                     const novoUsuario = await res.json();
                     ApiService.salvarSessao(novoUsuario);
                     this.posLogin();
-                } else alert("Erro ao criar conta");
+                } else {
+                    const erro = await res.text();
+                    alert("Erro ao criar conta: " + erro);
+                }
             } else {
+                // LÓGICA REAL DE LOGIN: Busca o usuário e checa a senha
                 const lista = await ApiService.listarUsuarios();
-                const userEncontrado = lista.find(u => u.nome === emailOuNome || u.email === emailOuNome);
+                const userEncontrado = lista.find(u => 
+                    (u.nome === emailOuNome || u.email === emailOuNome) && u.senha === senha
+                );
                 
                 if (userEncontrado) {
                     ApiService.salvarSessao(userEncontrado);
                     this.posLogin();
                 } else {
-                    alert("Usuário não encontrado!");
+                    alert("Credenciais incorretas! Verifique se a senha e o nome estão certos.");
                 }
             }
         } catch (e) {
-            alert("Erro ao conectar com o servidor.");
+            console.error(e);
+            alert("Erro ao conectar com o banco de dados.");
         }
     }
 
     posLogin() {
         this.fecharModal('auth-modal');
+        document.getElementById('auth-senha').value = ''; // Limpa a senha
         this.atualizarCabecalho();
         this.renderizarFeed();
     }
@@ -81,37 +90,51 @@ class AppController {
     }
 
     async enviarPost() {
-        if (!ApiService.getUsuarioLogado()) return alert("Faça login primeiro!");
+        const idLogado = ApiService.getIdUsuarioLogado();
+        if (!idLogado) return alert("Sua sessão expirou, faça login novamente!");
         
         const titulo = document.getElementById('post-titulo').value.trim();
         const conteudo = document.getElementById('post-conteudo').value.trim();
         
-        if (!titulo || !conteudo) return alert("Preencha tudo!");
+        if (!titulo || !conteudo) return alert("Preencha o título e o conteúdo!");
 
-        const res = await ApiService.criarPost(titulo, conteudo, ApiService.getIdUsuarioLogado());
-        if (res.ok) {
-            this.fecharModal('post-modal');
-            document.getElementById('post-titulo').value = '';
-            document.getElementById('post-conteudo').value = '';
-            await this.carregarDados();
-        } else {
-            alert("Erro ao publicar post.");
+        try {
+            const res = await ApiService.criarPost(titulo, conteudo, idLogado);
+            if (res.ok) {
+                this.fecharModal('post-modal');
+                document.getElementById('post-titulo').value = '';
+                document.getElementById('post-conteudo').value = '';
+                await this.carregarDados();
+            } else {
+                const erro = await res.text();
+                alert(`O servidor recusou o post. Erro: ${erro}`);
+            }
+        } catch(e) {
+            console.error(e);
+            alert("Erro fatal ao tentar enviar o post.");
         }
     }
 
     async enviarComentario(idPost) {
-        if (!ApiService.getUsuarioLogado()) return alert("Faça login para comentar!");
+        const idLogado = ApiService.getIdUsuarioLogado();
+        if (!idLogado) return alert("Faça login para comentar!");
         
         const input = document.getElementById(`input-comment-${idPost}`);
         const conteudo = input.value.trim();
         if (!conteudo) return;
 
-        const res = await ApiService.criarComentario(conteudo, ApiService.getIdUsuarioLogado(), idPost);
-        if (res.ok) {
-            input.value = ''; 
-            await this.carregarDados();
-        } else {
-            alert("Erro ao enviar comentário.");
+        try {
+            const res = await ApiService.criarComentario(conteudo, idLogado, idPost);
+            if (res.ok) {
+                input.value = ''; 
+                await this.carregarDados();
+            } else {
+                const erro = await res.text();
+                alert(`O servidor recusou o comentário. Erro: ${erro}`);
+            }
+        } catch(e) {
+            console.error(e);
+            alert("Erro fatal ao tentar enviar o comentário.");
         }
     }
 
@@ -138,7 +161,7 @@ class AppController {
             this.renderizarFeed();
         } catch (erro) {
             document.getElementById('feed-container').innerHTML = 
-                `<div class="loader" style="color: red;">Erro ao conectar com o servidor.</div>`;
+                `<div class="loader" style="color: red;">Erro ao conectar com o servidor (Spring Boot).</div>`;
         }
     }
 
@@ -168,7 +191,7 @@ class AppController {
             });
 
             let inputComentarioHTML = '';
-            if (ApiService.getUsuarioLogado()) {
+            if (ApiService.getIdUsuarioLogado()) {
                 inputComentarioHTML = `
                     <div class="comment-input-container">
                         <input type="text" id="input-comment-${idPost}" placeholder="Adicione um comentário...">
@@ -198,6 +221,5 @@ class AppController {
     }
 }
 
-// Inicia o app e joga a classe na janela (window) para o HTML conseguir enxergar as funções nos botões
 window.app = new AppController();
 window.app.inicializar();

@@ -22,8 +22,10 @@
     <div class="modal-overlay" id="auth-modal">
         <div class="modal">
             <h2 id="auth-title">Entrar</h2>
-            <input type="text" id="auth-nome" placeholder="Seu Nome" style="display: none;">
+            <input type="text" id="auth-nome" placeholder="Seu Nome Completo" style="display: none;">
             <input type="text" id="auth-email" placeholder="Email ou Nome de Usuário">
+            <input type="password" id="auth-senha" placeholder="Sua Senha">
+            
             <button class="btn-full" onclick="app.processarAuth()">Continuar</button>
             <button class="btn-cancel" onclick="app.fecharModal('auth-modal')">Cancelar</button>
             <span class="toggle-auth" id="auth-toggle-btn" onclick="app.alternarAuth()">Não tem conta? Criar conta</span>

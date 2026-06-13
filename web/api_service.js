@@ -3,7 +3,6 @@
 export class ApiService {
     static API_URL = 'http://localhost:8080';
 
-    // --- AUTENTICAÇÃO LOCAL ---
     static getUsuarioLogado() {
         return JSON.parse(localStorage.getItem('usuarioLogado'));
     }
@@ -18,22 +17,22 @@ export class ApiService {
 
     static getIdUsuarioLogado() {
         const user = this.getUsuarioLogado();
-        return user ? (user.idUsuario || user.id_usuario || user.id) : null;
+        if (!user) return null;
+        // Pega o ID não importa como o Java mande (idUsuario, id_usuario ou só id)
+        return user.idUsuario || user.id_usuario || user.id;
     }
 
-    // --- REQUISIÇÕES AO BANCO ---
     static async listarUsuarios() {
         const res = await fetch(`${this.API_URL}/usuarios`);
         return await res.json();
     }
 
     static async criarUsuario(nome, email, senha) {
-        const res = await fetch(`${this.API_URL}/usuarios`, {
+        return await fetch(`${this.API_URL}/usuarios`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ nome, email, senha })
         });
-        return res;
     }
 
     static async listarPosts() {
@@ -42,12 +41,12 @@ export class ApiService {
     }
 
     static async criarPost(titulo, conteudo, idUsuario) {
-        const res = await fetch(`${this.API_URL}/posts`, {
+        return await fetch(`${this.API_URL}/posts`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ titulo, conteudo, idUsuario })
+            // Garante que o ID vá como número
+            body: JSON.stringify({ titulo, conteudo, idUsuario: parseInt(idUsuario) }) 
         });
-        return res;
     }
 
     static async listarComentarios() {
@@ -56,11 +55,10 @@ export class ApiService {
     }
 
     static async criarComentario(conteudo, idUsuario, idPost) {
-        const res = await fetch(`${this.API_URL}/comentarios`, {
+        return await fetch(`${this.API_URL}/comentarios`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ conteudo, idUsuario, idPost })
+            body: JSON.stringify({ conteudo, idUsuario: parseInt(idUsuario), idPost: parseInt(idPost) })
         });
-        return res;
     }
 }
