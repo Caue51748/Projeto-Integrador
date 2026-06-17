@@ -3,8 +3,7 @@ import 'package:http/http.dart' as http;
 import '../models/post.dart';
 
 class PostService {
-  // ATENÇÃO: Garanta que tem as duas barras // depois do http:
-  static const String baseUrl = 'http://192.168.1.218:8080';
+  static const String baseUrl = 'http://localhost:8080';
 
   Future<List<Post>> listarPosts() async {
     try {

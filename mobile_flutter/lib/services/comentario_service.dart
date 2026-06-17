@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import '../models/comentario.dart';
 
 class ComentarioService {
-  static const String baseUrl = 'http://192.168.1.218:8080';
+  static const String baseUrl = 'http://localhost:8080';
 
   Future<List<Comentario>> listarComentarios() async {
     try {
