@@ -1,5 +1,3 @@
-// lib/screens/feed_page.dart
-
 import 'package:flutter/material.dart';
 import '../models/post.dart';
 import '../models/comentario.dart';
@@ -9,7 +7,7 @@ import '../services/usuario_service.dart';
 import '../services/comentario_service.dart';
 import 'login_screen.dart';
 import 'create_post_page.dart';
-import 'post_detail_screen.dart'; // Importa a tela nova
+import 'post_detail_screen.dart';
 
 class FeedPage extends StatefulWidget {
   const FeedPage({super.key});
@@ -25,7 +23,7 @@ class _FeedPageState extends State<FeedPage> {
   
   List<Post> posts = [];
   Map<int, String> nomesUsuarios = {};
-  Map<int, List<Comentario>> comentariosPorPost = {}; // Organiza os comentários por Post ID
+  Map<int, List<Comentario>> comentariosPorPost = {};
   bool carregando = true;
 
   @override
@@ -46,7 +44,6 @@ class _FeedPageState extends State<FeedPage> {
 
       final listaPosts = await postService.listarPosts();
       
-      // Busca todos os comentários do banco para mostrar no feed
       final listaComentarios = await comentarioService.listarComentarios();
       Map<int, List<Comentario>> mapaComentarios = {};
       
@@ -86,7 +83,6 @@ class _FeedPageState extends State<FeedPage> {
     if (postCriado == true) carregarDados();
   }
 
-  // Navega para a nova tela de detalhes
   void irParaDetalhes(Post post, String nomeAutor) {
     Navigator.push(
       context,
@@ -98,7 +94,6 @@ class _FeedPageState extends State<FeedPage> {
         ),
       ),
     ).then((_) {
-      // Quando voltar da tela de detalhes, recarrega o feed para atualizar a quantidade de comentários
       carregarDados(); 
     });
   }
@@ -106,127 +101,170 @@ class _FeedPageState extends State<FeedPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF2F4F7), // Fundo Cinza estilo site
       appBar: AppBar(
-        title: const Text("Feed", style: TextStyle(fontWeight: FontWeight.w600, letterSpacing: -0.5)),
-        centerTitle: true,
-        elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        title: const Text("Explorar"),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
           child: Container(color: Colors.grey[200], height: 1),
         ),
         actions: [
-          IconButton(icon: const Icon(Icons.refresh, size: 22), onPressed: carregarDados),
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded), 
+            onPressed: carregarDados,
+            color: Colors.grey.shade700,
+          ),
           if (!AuthService.logado)
-            IconButton(
-              icon: const Icon(Icons.login, size: 22),
-              onPressed: () async {
-                await Navigator.push(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
-                setState(() {});
-              },
+            Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: TextButton.icon(
+                icon: const Icon(Icons.login, size: 20),
+                label: const Text("Entrar"),
+                style: TextButton.styleFrom(foregroundColor: const Color(0xFFEA3F74)),
+                onPressed: () async {
+                  await Navigator.push(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
+                  setState(() {});
+                },
+              ),
             ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: irParaCriarPost,
-        backgroundColor: Colors.black,
-        elevation: 2,
-        child: const Icon(Icons.add, color: Colors.white),
+        backgroundColor: const Color(0xFFEA3F74), // Botão na sua cor principal
+        elevation: 3,
+        icon: const Icon(Icons.add, color: Colors.white),
+        label: const Text("Novo Evento", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
       ),
       body: carregando
-          ? const Center(child: CircularProgressIndicator(color: Colors.black))
+          ? const Center(child: CircularProgressIndicator(color: Color(0xFFEA3F74)))
           : posts.isEmpty
               ? const Center(child: Text("Nenhum post encontrado.", style: TextStyle(fontSize: 16, color: Colors.grey)))
-              : ListView.separated(
-                  padding: const EdgeInsets.only(bottom: 80),
+              : ListView.builder(
+                  padding: const EdgeInsets.only(top: 12, bottom: 80),
                   itemCount: posts.length,
-                  separatorBuilder: (context, index) => Divider(height: 1, color: Colors.grey[200]),
                   itemBuilder: (context, index) {
                     final post = posts[index];
                     final nomeAutor = nomesUsuarios[post.idUsuario] ?? 'Desconhecido';
                     final inicial = nomeAutor.isNotEmpty ? nomeAutor[0].toUpperCase() : '?';
                     
-                    // Pega os comentários desse post específico
                     final comentariosDoPost = comentariosPorPost[post.idPost] ?? [];
-                    // Mostra só os 2 primeiros no feed
                     final previews = comentariosDoPost.take(2).toList(); 
 
-                    return InkWell(
-                      // Deixa o card inteiro clicável para abrir os detalhes
-                      onTap: () => irParaDetalhes(post, nomeAutor), 
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            CircleAvatar(
-                              backgroundColor: Colors.grey[100],
-                              radius: 22,
-                              child: Text(inicial, style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.bold, fontSize: 18)),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                    return Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.grey.shade200),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.02),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(16),
+                        onTap: () => irParaDetalhes(post, nomeAutor), 
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
                                 children: [
-                                  Text(nomeAutor, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black)),
-                                  const SizedBox(height: 4),
-                                  Text(post.titulo, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black87)),
-                                  const SizedBox(height: 4),
-                                  Text(post.conteudo, style: const TextStyle(fontSize: 15, color: Colors.black87, height: 1.4)),
-                                  
-                                  const SizedBox(height: 12),
-                                  
-                                  // --- SEÇÃO DE COMENTÁRIOS NO FEED ---
-                                  if (previews.isNotEmpty) ...[
-                                    for (var c in previews)
-                                      Padding(
-                                        padding: const EdgeInsets.only(bottom: 4),
-                                        child: RichText(
-                                          text: TextSpan(
-                                            style: const TextStyle(fontSize: 14, color: Colors.black87),
-                                            children: [
-                                              TextSpan(
-                                                text: "${nomesUsuarios[c.idUsuario] ?? 'Desconhecido'} ",
-                                                style: const TextStyle(fontWeight: FontWeight.bold),
-                                              ),
-                                              TextSpan(text: c.conteudo),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    
-                                    if (comentariosDoPost.length > 2)
-                                      Padding(
-                                        padding: const EdgeInsets.only(top: 4),
-                                        child: Text(
-                                          "Ver todos os ${comentariosDoPost.length} comentários",
-                                          style: const TextStyle(color: Colors.grey, fontSize: 14, fontWeight: FontWeight.w500),
-                                        ),
-                                      ),
-                                  ],
-
-                                  const SizedBox(height: 12),
-                                  Row(
-                                    children: [
-                                      const Icon(Icons.favorite_border, color: Colors.grey, size: 18),
-                                      const SizedBox(width: 24),
-                                      const Icon(Icons.chat_bubble_outline, color: Colors.grey, size: 18),
-                                      const SizedBox(width: 24),
-                                      const Icon(Icons.share_outlined, color: Colors.grey, size: 18),
-                                    ],
+                                  CircleAvatar(
+                                    backgroundColor: const Color(0xFFFFABC5).withOpacity(0.4), // Subtom aqui
+                                    radius: 20,
+                                    child: Text(inicial, style: const TextStyle(color: Color(0xFFEA3F74), fontWeight: FontWeight.bold, fontSize: 16)),
                                   ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(nomeAutor, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.black87)),
+                                        Text("Há poucas horas", style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+                                      ],
+                                    ),
+                                  ),
+                                  const Icon(Icons.more_horiz, color: Colors.grey),
                                 ],
                               ),
-                            ),
-                          ],
+                              const SizedBox(height: 12),
+                              Text(post.titulo, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: Colors.black87)),
+                              const SizedBox(height: 6),
+                              Text(post.conteudo, style: TextStyle(fontSize: 15, color: Colors.grey.shade800, height: 1.5)),
+                              
+                              const SizedBox(height: 16),
+                              
+                              if (previews.isNotEmpty) ...[
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF2F4F7),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      for (var c in previews)
+                                        Padding(
+                                          padding: const EdgeInsets.only(bottom: 6),
+                                          child: RichText(
+                                            text: TextSpan(
+                                              style: const TextStyle(fontSize: 13, color: Colors.black87),
+                                              children: [
+                                                TextSpan(
+                                                  text: "${nomesUsuarios[c.idUsuario] ?? 'Desconhecido'} ",
+                                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                                ),
+                                                TextSpan(text: c.conteudo),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      if (comentariosDoPost.length > 2)
+                                        Text(
+                                          "Ver todos os ${comentariosDoPost.length} comentários",
+                                          style: const TextStyle(color: Color(0xFFEA3F74), fontSize: 13, fontWeight: FontWeight.w600),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                              ],
+
+                              Divider(color: Colors.grey.shade100, height: 1),
+                              const SizedBox(height: 12),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                children: [
+                                  _buildAcaoPost(Icons.favorite_border, "Curtir"),
+                                  _buildAcaoPost(Icons.chat_bubble_outline, "${comentariosDoPost.length} Comentários"),
+                                  _buildAcaoPost(Icons.share_outlined, "Compartilhar"),
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     );
                   },
                 ),
+    );
+  }
+
+  // Widget para os botões de ação do post ficarem bonitos
+  Widget _buildAcaoPost(IconData icone, String texto) {
+    return Row(
+      children: [
+        Icon(icone, color: Colors.grey.shade600, size: 20),
+        const SizedBox(width: 6),
+        Text(texto, style: TextStyle(color: Colors.grey.shade600, fontSize: 13, fontWeight: FontWeight.w500)),
+      ],
     );
   }
 }
