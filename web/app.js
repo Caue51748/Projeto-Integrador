@@ -9,6 +9,7 @@ class AppController {
         this.comentariosPorPost = {};
         this.posts = [];
         this.modoCadastro = false;
+        this.telaBoasVindasVisivel = true;
         
         // Estado da comunidade ativa (estilo Subreddit)
         this.comunidadeAtivaId = null; 
@@ -16,10 +17,46 @@ class AppController {
 
     async inicializar() {
         this.atualizarMenuLateral();
-        await this.carregarDadosGlobais();
+        this.mostrarTelaBoasVindas();
     }
 
     // --- MENU E NAVEGAÇÃO ---
+    mostrarTelaBoasVindas() {
+        document.getElementById('welcome-screen').classList.add('active');
+        document.getElementById('app-shell').classList.remove('active');
+        this.telaBoasVindasVisivel = true;
+    }
+
+    esconderTelaBoasVindas() {
+        document.getElementById('welcome-screen').classList.remove('active');
+        document.getElementById('app-shell').classList.add('active');
+        this.telaBoasVindasVisivel = false;
+    }
+
+    selecionarOpcao(opcao) {
+        this.esconderTelaBoasVindas();
+
+        if (opcao === 'login') {
+            this.modoCadastro = false;
+            this.atualizarAuthUI();
+            this.abrirModal('auth-modal');
+        } else if (opcao === 'cadastro') {
+            this.modoCadastro = true;
+            this.atualizarAuthUI();
+            this.abrirModal('auth-modal');
+        } else {
+            this.atualizarMenuLateral();
+            this.carregarDadosGlobais();
+        }
+    }
+
+    atualizarAuthUI() {
+        const nomeInput = document.getElementById('auth-nome');
+        document.getElementById('auth-title').innerText = this.modoCadastro ? 'Nova Conta' : 'Acesso ao Painel';
+        nomeInput.style.display = this.modoCadastro ? 'block' : 'none';
+        if (!this.modoCadastro) nomeInput.value = '';
+        document.getElementById('auth-toggle-btn').innerText = this.modoCadastro ? 'Já tem conta? Entrar' : 'Criar nova conta';
+    }
     mudarAba(nomeAba) {
         document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
         document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
@@ -67,9 +104,7 @@ class AppController {
     // --- AUTH --- (Igual ao anterior, resumido para focar na lógica)
     alternarAuth() {
         this.modoCadastro = !this.modoCadastro;
-        document.getElementById('auth-title').innerText = this.modoCadastro ? 'Nova Conta' : 'Acesso ao Painel';
-        document.getElementById('auth-nome').style.display = this.modoCadastro ? 'block' : 'none';
-        document.getElementById('auth-toggle-btn').innerText = this.modoCadastro ? 'Já tem conta? Entrar' : 'Criar nova conta';
+        this.atualizarAuthUI();
     }
 
     async processarAuth() {
@@ -89,8 +124,19 @@ class AppController {
         } catch (err) { alert("Erro de conexão."); }
     }
 
-    posLogin() { this.fecharModal('auth-modal'); this.atualizarMenuLateral(); this.carregarDadosGlobais(); }
-    fazerLogout() { ApiService.fazerLogout(); this.atualizarMenuLateral(); this.mudarAba('feed'); }
+    posLogin() {
+        this.fecharModal('auth-modal');
+        this.esconderTelaBoasVindas();
+        this.atualizarMenuLateral();
+        this.carregarDadosGlobais();
+    }
+
+    fazerLogout() {
+        ApiService.fazerLogout();
+        this.atualizarMenuLateral();
+        this.mudarAba('feed');
+        this.mostrarTelaBoasVindas();
+    }
 
     // --- CARREGAMENTO GLOBAL ---
     async carregarDadosGlobais() {
