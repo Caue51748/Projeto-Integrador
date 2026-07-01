@@ -1,8 +1,15 @@
 package com.backendpi.backend.model;
 
-import jakarta.persistence.*;
 import java.util.ArrayList;
 import java.util.List;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 
 @Entity
 @Table(name = "comunidades")
@@ -10,20 +17,23 @@ public class Comunidade {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id_comunidade")
     private Long id;
 
     private String nome;
     private String descricao;
 
-    @ManyToMany
-    @JoinTable(
-            name = "usuario_comunidade",
-            joinColumns = @JoinColumn(name = "comunidade_id"),
-            inverseJoinColumns = @JoinColumn(name = "usuario_id")
-    )
-    private List<Usuario> membros = new ArrayList<>();
+    //@ManyToMany
+    //@JoinTable(
+      //      name = "usuario_comunidade",
+      //      joinColumns = @JoinColumn(name = "comunidade_id"),
+      //      inverseJoinColumns = @JoinColumn(name = "usuario_id")
+    //)
+    //private List<Usuario> membros = new ArrayList<>();
+    @Transient
+private List<Usuario> membros = new ArrayList<>();
 
-    // --- GETTERS E SETTERS ---
+    
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 

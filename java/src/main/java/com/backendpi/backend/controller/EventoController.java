@@ -18,7 +18,7 @@ import com.backendpi.backend.service.EventoService;
 
 @RestController
 @RequestMapping("/api/eventos")
-@CrossOrigin(origins = "*")
+@CrossOrigin(origins = {"http://127.0.0.1:5500", "http://localhost:5500"})
 public class EventoController {
 
     @Autowired

@@ -3,6 +3,8 @@ package com.backendpi.backend.model;
 import java.time.LocalDate;
 import java.time.LocalTime;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -16,6 +18,7 @@ public class Evento {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id_evento")
     private Long id;
 
     @Column(nullable = false, length = 150)
@@ -25,9 +28,11 @@ public class Evento {
     private String descricao;
 
     @Column(name = "data_evento", nullable = false)
+    @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate dataEvento;
 
     @Column(nullable = false)
+    @JsonFormat(pattern = "HH:mm:ss")
     private LocalTime horario;
 
     @Column(name = "local_evento", nullable = false)
