@@ -176,6 +176,8 @@ class AppController {
         const container = document.getElementById('comunidades-container');
         try {
             const comunidades = await ApiService.listarComunidades();
+            this.listaComunidades = comunidades;
+            console.log(comunidades);
             container.innerHTML = '';
             comunidades.forEach(c => {
                 const idCom = c.idComunidade || c.id;
@@ -205,6 +207,21 @@ class AppController {
     }
 
     entrarSubreddit(id, nome, desc) {
+        const usuarioLogado = ApiService.getIdUsuarioLogado();
+        const botao = document.getElementById("btn-participar");
+        const comunidade = this.listaComunidades.find(c => (c.idComunidade || c.id) == id);
+
+        const participa = comunidade &&
+            comunidade.membros &&
+            comunidade.membros.some(m => (m.idUsuario || m.id) == usuarioLogado);
+
+        if (participa) {
+            botao.innerText = "Participando";
+            botao.style.background = "#059669";
+        } else {
+            botao.innerText = "Entrar";
+            botao.style.background = "#111827";
+        }
         this.comunidadeAtivaId = id;
         document.getElementById('sub-titulo').innerText = nome;
         document.getElementById('sub-desc').innerText = desc;
@@ -217,20 +234,26 @@ class AppController {
 
     async participarComunidade() {
         const idLogado = ApiService.getIdUsuarioLogado();
+
+        console.log("ID do usuário:", idLogado);
+        console.log("ID da comunidade:", this.comunidadeAtivaId);
+
         if (!idLogado) return alert("Faça login primeiro!");
 
         const btn = document.getElementById('btn-participar');
 
         try {
-            // Chama a nova rota que criamos no Java
-            await fetch(`http://localhost:8080/comunidades/${this.comunidadeAtivaId}/participar/${idLogado}`, {
+            const resposta = await fetch(`http://localhost:8080/comunidades/${this.comunidadeAtivaId}/participar/${idLogado}`, {
                 method: 'POST'
             });
 
+            console.log(resposta.status);
+
             btn.innerText = "Participando";
-            btn.style.background = "#059669"; // Fica Verde
+            btn.style.background = "#059669";
 
         } catch (e) {
+            console.error(e);
             alert("Erro ao entrar na comunidade.");
         }
     }
