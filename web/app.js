@@ -10,9 +10,8 @@ class AppController {
         this.posts = [];
         this.modoCadastro = false;
         this.telaBoasVindasVisivel = true;
-
-        // Estado da comunidade ativa (estilo Subreddit)
         this.comunidadeAtivaId = null;
+        this.usuarioParticipaDaComunidade = false;
     }
 
     async inicializar() {
@@ -207,22 +206,28 @@ class AppController {
     }
 
     entrarSubreddit(id, nome, desc) {
+        console.log("Entrou no método entrarSubreddit");
+
         const usuarioLogado = ApiService.getIdUsuarioLogado();
         const botao = document.getElementById("btn-participar");
+
+        this.comunidadeAtivaId = id;
+
         const comunidade = this.listaComunidades.find(c => (c.idComunidade || c.id) == id);
 
-        const participa = comunidade &&
+        this.usuarioParticipaDaComunidade =
+            comunidade &&
             comunidade.membros &&
             comunidade.membros.some(m => (m.idUsuario || m.id) == usuarioLogado);
 
-        if (participa) {
-            botao.innerText = "Participando";
-            botao.style.background = "#059669";
+        if (this.usuarioParticipaDaComunidade) {
+            botao.innerText = "Sair";
+            botao.style.background = "#ef4444";
         } else {
             botao.innerText = "Entrar";
             botao.style.background = "#111827";
         }
-        this.comunidadeAtivaId = id;
+
         document.getElementById('sub-titulo').innerText = nome;
         document.getElementById('sub-desc').innerText = desc;
 
@@ -243,14 +248,26 @@ class AppController {
         const btn = document.getElementById('btn-participar');
 
         try {
-            const resposta = await fetch(`http://localhost:8080/comunidades/${this.comunidadeAtivaId}/participar/${idLogado}`, {
-                method: 'POST'
-            });
+            const metodo = this.usuarioParticipaDaComunidade ? "DELETE" : "POST";
+
+            const resposta = await fetch(
+                `http://localhost:8080/comunidades/${this.comunidadeAtivaId}/participar/${idLogado}`,
+                {
+                    method: metodo
+                }
+            );
 
             console.log(resposta.status);
 
-            btn.innerText = "Participando";
-            btn.style.background = "#059669";
+            this.usuarioParticipaDaComunidade = !this.usuarioParticipaDaComunidade;
+
+            if (this.usuarioParticipaDaComunidade) {
+                btn.innerText = "Sair";
+                btn.style.background = "#ef4444";
+            } else {
+                btn.innerText = "Entrar";
+                btn.style.background = "#111827";
+            }
 
         } catch (e) {
             console.error(e);

@@ -1,10 +1,19 @@
 package com.backendpi.backend.controller;
 
+import java.util.List;
+
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.backendpi.backend.model.Comunidade;
 import com.backendpi.backend.service.ComunidadeService;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/comunidades")
@@ -41,5 +50,11 @@ public class ComunidadeController {
     @PostMapping("/{idComunidade}/participar/{idUsuario}")
     public void participarDaComunidade(@PathVariable Long idComunidade, @PathVariable Long idUsuario) {
         service.adicionarMembro(idComunidade, idUsuario);
+    }
+
+    @DeleteMapping("/{idComunidade}/participar/{idUsuario}")
+    public void sairDaComunidade(@PathVariable Long idComunidade,
+            @PathVariable Long idUsuario) {
+        service.removerMembro(idComunidade, idUsuario);
     }
 }

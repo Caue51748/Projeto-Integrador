@@ -1,12 +1,13 @@
 package com.backendpi.backend.service;
 
+import java.util.List;
+
+import org.springframework.stereotype.Service;
+
 import com.backendpi.backend.model.Comunidade;
 import com.backendpi.backend.model.Usuario;
 import com.backendpi.backend.repository.ComunidadeRepository;
 import com.backendpi.backend.repository.UsuarioRepository;
-import org.springframework.stereotype.Service;
-
-import java.util.List;
 
 @Service
 public class ComunidadeService {
@@ -53,4 +54,16 @@ public class ComunidadeService {
             repository.save(comunidade);
         }
     }
+
+    public void removerMembro(Long idComunidade, Long idUsuario) {
+    Comunidade comunidade = repository.findById(idComunidade)
+            .orElseThrow(() -> new RuntimeException("Comunidade não encontrada"));
+
+    Usuario usuario = usuarioRepository.findById(idUsuario)
+            .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+
+    comunidade.getMembros().remove(usuario);
+
+    repository.save(comunidade);
+}
 }
