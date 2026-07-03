@@ -182,13 +182,21 @@ class AppController {
                 const idCom = c.idComunidade || c.id;
                 const div = document.createElement('div');
                 div.className = 'list-item';
+                const quantidadeMembros = c.membros ? c.membros.length : 0;
+
                 div.innerHTML = `
-                    <div class="list-item-info">
-                        <h3 onclick="app.entrarSubreddit(${idCom}, '${c.nome}', '${c.descricao}')">${c.nome}</h3>
-                        <p>${c.descricao}</p>
-                    </div>
-                    <button class="btn-primary" onclick="app.entrarSubreddit(${idCom}, '${c.nome}', '${c.descricao}')">Acessar</button>
-                `;
+    <div class="list-item-info">
+        <h3 onclick="app.entrarSubreddit(${idCom}, '${c.nome}', '${c.descricao}')">${c.nome}</h3>
+        <p>${c.descricao}</p>
+        <small style="color: var(--text-muted);">
+            👥 ${quantidadeMembros} membro${quantidadeMembros !== 1 ? "s" : ""}
+        </small>
+    </div>
+    <button class="btn-primary"
+        onclick="app.entrarSubreddit(${idCom}, '${c.nome}', '${c.descricao}')">
+        Acessar
+    </button>
+`;
                 container.appendChild(div);
             });
         } catch (e) {
