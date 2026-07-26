@@ -88,4 +88,23 @@ export class ApiService {
             body: JSON.stringify(eventoData)
         });
     }
+
+    static async atualizarComunidade(id, nome, descricao) {
+    return await fetch(`${this.API_URL}/comunidades/${id}`, {
+        method: "PUT",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            nome,
+            descricao
+        })
+    });
+}
+
+static async excluirComunidade(id) {
+    return await fetch(`${this.API_URL}/comunidades/${id}`, {
+        method: "DELETE"
+    });
+}
 }

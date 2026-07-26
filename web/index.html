@@ -144,18 +144,44 @@
             <h2>Organizar Novo Evento</h2>
             <input type="text" id="evento-titulo" placeholder="Título do Evento (Ex: Workshop de Java)">
             <textarea id="evento-desc" placeholder="Descrição e detalhes do evento..."></textarea>
-            
+
             <div style="display: flex; gap: 10px; margin-bottom: 12px;">
                 <input type="date" id="evento-data" style="width: 50%;">
                 <input type="time" id="evento-horario" style="width: 50%;">
             </div>
-            
+
             <input type="text" id="evento-local" placeholder="Local (Ex: Auditório Bloco A ou Link do Meet)">
-            
+
             <input type="number" id="evento-comunidade-id" placeholder="ID da Comunidade vinculada (Ex: 1)" value="1">
 
             <button class="btn-full" style="background: #10b981;" onclick="app.criarEvento()">Agendar Evento</button>
             <button class="btn-cancel" onclick="app.fecharModal('evento-modal')">Cancelar</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="gerenciar-comunidade-modal">
+        <div class="modal">
+            <h2>Gerenciar Comunidade</h2>
+
+            <input type="text" id="editar-comunidade-nome" placeholder="Nome da comunidade">
+
+            <textarea id="editar-comunidade-desc" placeholder="Descrição"></textarea>
+
+            <div style="display:flex; gap:10px; margin-top:20px;">
+                <button class="btn-primary" onclick="app.salvarEdicaoComunidade()">
+                    Salvar
+                </button>
+
+                <button class="btn-danger" onclick="app.excluirComunidade()">
+                    Excluir comunidade
+                </button>
+
+                <button class="btn-secondary" onclick="app.fecharModal('gerenciar-comunidade-modal')">
+                    Cancelar
+                </button>
+
+
+            </div>
         </div>
     </div>
 

@@ -455,3 +455,12 @@ main {
     margin-top: 8px;
     font-weight: 600;
 }
+
+.btn-danger {
+    background: #d32f2f;
+    color: white;
+}
+
+.btn-danger:hover {
+    background: #b71c1c;
+}

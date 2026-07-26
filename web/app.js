@@ -12,6 +12,8 @@ class AppController {
         this.telaBoasVindasVisivel = true;
         this.comunidadeAtivaId = null;
         this.usuarioParticipaDaComunidade = false;
+        this.comunidadeEditando = null;
+        this.comunidadeEditandoId = null;
     }
 
     async inicializar() {
@@ -184,6 +186,12 @@ class AppController {
                 div.className = 'list-item';
                 const quantidadeMembros = c.membros ? c.membros.length : 0;
 
+                const idUsuarioLogado = ApiService.getIdUsuarioLogado();
+
+                const ehAdministrador =
+                    c.criador &&
+                    (c.criador.idUsuario || c.criador.id) == idUsuarioLogado;
+
                 div.innerHTML = `
     <div class="list-item-info">
         <h3>${c.nome}</h3>
@@ -204,6 +212,15 @@ class AppController {
         onclick="app.entrarSubreddit(${idCom}, '${c.nome}', '${c.descricao}')">
         Acessar
     </button>
+
+     ${ehAdministrador ? `
+            <button class="btn-primary"
+                style="background:#2563eb;"
+                onclick="app.gerenciarComunidade(${idCom})">
+                Gerenciar
+            </button>
+        ` : ""}
+    </div>
 `;
 
                 container.appendChild(div);
@@ -499,6 +516,80 @@ class AppController {
             alert("Erro de conexão com o servidor ao salvar o evento.");
         }
     }
+
+   gerenciarComunidade(idComunidade) {
+
+    const comunidade = this.listaComunidades.find(
+        c => (c.idComunidade || c.id) == idComunidade
+    );
+
+    if (!comunidade) return;
+
+    this.comunidadeEditando = comunidade;
+
+    document.getElementById("editar-comunidade-nome").value =
+        comunidade.nome;
+
+    document.getElementById("editar-comunidade-desc").value =
+        comunidade.descricao;
+
+    this.abrirModal("gerenciar-comunidade-modal");
+}
+
+async salvarEdicaoComunidade() {
+
+    const nome = document.getElementById("editar-comunidade-nome").value.trim();
+    const descricao = document.getElementById("editar-comunidade-desc").value.trim();
+
+    const resposta = await ApiService.atualizarComunidade(
+        this.comunidadeEditando.id || this.comunidadeEditando.id,
+        nome,
+        descricao
+    );
+
+    if (resposta.ok) {
+        this.fecharModal("gerenciar-comunidade-modal");
+
+        await this.carregarComunidades();
+
+        if (this.comunidadeAtivaId == this.comunidadeEditando.id) {
+            this.entrarSubreddit(
+                this.comunidadeEditando.id,
+                nome,
+                descricao
+            );
+        }
+
+    } else {
+        alert("Erro ao atualizar comunidade.");
+    }
+}
+
+async excluirComunidade() {
+
+    if (!confirm("Tem certeza que deseja excluir esta comunidade?")) {
+        return;
+    }
+
+    const id = this.comunidadeEditando.idComunidade || this.comunidadeEditando.id;
+
+    const resposta = await ApiService.excluirComunidade(id);
+
+    if (resposta.ok) {
+
+        this.fecharModal("gerenciar-comunidade-modal");
+
+        await this.carregarComunidades();
+
+        alert("Comunidade excluída com sucesso!");
+
+    } else {
+
+        alert("Erro ao excluir comunidade.");
+
+    }
+}
+
 }
 
 window.app = new AppController();
