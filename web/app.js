@@ -186,17 +186,26 @@ class AppController {
 
                 div.innerHTML = `
     <div class="list-item-info">
-        <h3 onclick="app.entrarSubreddit(${idCom}, '${c.nome}', '${c.descricao}')">${c.nome}</h3>
+        <h3>${c.nome}</h3>
         <p>${c.descricao}</p>
-        <small style="color: var(--text-muted);">
-            👥 ${quantidadeMembros} membro${quantidadeMembros !== 1 ? "s" : ""}
+
+        <small style="color:#6b7280;">
+            Administrador: ${c.criador ? c.criador.nome : "Desconhecido"}
+        </small>
+
+        <br>
+
+        <small style="color:#6b7280;">
+            ${c.membros ? c.membros.length : 0} membro(s)
         </small>
     </div>
+
     <button class="btn-primary"
         onclick="app.entrarSubreddit(${idCom}, '${c.nome}', '${c.descricao}')">
         Acessar
     </button>
 `;
+
                 container.appendChild(div);
             });
         } catch (e) {
