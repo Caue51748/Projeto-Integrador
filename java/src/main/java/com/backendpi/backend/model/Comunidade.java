@@ -12,6 +12,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
 @Entity
@@ -26,13 +27,14 @@ public class Comunidade {
     private String nome;
     private String descricao;
 
-    //@ManyToMany
-    //@JoinTable(
-    //      name = "usuario_comunidade",
-    //      joinColumns = @JoinColumn(name = "comunidade_id"),
-    //      inverseJoinColumns = @JoinColumn(name = "usuario_id")
-    //)
-    //private List<Usuario> membros = new ArrayList<>();
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "criador_id")
+    private Usuario criador;
+
+    //@ManyToOne
+    //@JoinColumn(name = "criador_id", referencedColumnName = "id_usuario")
+    //private Usuario criador;
+
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "usuario_comunidade",
@@ -77,5 +79,13 @@ public class Comunidade {
 
     public void setMembros(List<Usuario> membros) {
         this.membros = membros;
+    }
+
+    public Usuario getCriador() {
+        return criador;
+    }
+
+    public void setCriador(Usuario criador) {
+        this.criador = criador;
     }
 }

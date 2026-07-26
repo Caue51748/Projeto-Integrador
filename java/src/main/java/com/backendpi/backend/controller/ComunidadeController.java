@@ -1,6 +1,7 @@
 package com.backendpi.backend.controller;
 
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -31,10 +32,15 @@ public class ComunidadeController {
         return service.listar();
     }
 
-    @PostMapping
-    public Comunidade criar(@RequestBody Comunidade comunidade) {
-        return service.criar(comunidade);
-    }
+  @PostMapping
+public Comunidade criar(@RequestBody Map<String, Object> dados) {
+
+    System.out.println("=================================");
+    System.out.println(dados);
+    System.out.println("=================================");
+
+    return service.criar(dados);
+}
 
     @PutMapping("/{id}")
     public Comunidade atualizar(@PathVariable Long id, @RequestBody Comunidade nova) {

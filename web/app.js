@@ -206,11 +206,19 @@ class AppController {
 
     async criarComunidade() {
         if (!ApiService.getUsuarioLogado()) return alert("Faça login!");
+
         const nome = document.getElementById('comunidade-nome').value.trim();
         const desc = document.getElementById('comunidade-desc').value.trim();
-        const res = await ApiService.criarComunidadeAPI(nome, desc);
-        if (res.ok) { this.fecharModal('comunidade-modal'); this.carregarComunidades(); }
-        else alert("Crie o backend de Comunidades no Spring Boot.");
+        const criadorId = ApiService.getIdUsuarioLogado();
+
+        const res = await ApiService.criarComunidadeAPI(nome, desc, criadorId);
+
+        if (res.ok) {
+            this.fecharModal('comunidade-modal');
+            this.carregarComunidades();
+        } else {
+            alert("Crie o backend de Comunidades no Spring Boot.");
+        }
     }
 
     entrarSubreddit(id, nome, desc) {

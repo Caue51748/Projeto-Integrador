@@ -1,6 +1,7 @@
 package com.backendpi.backend.service;
 
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.stereotype.Service;
 
@@ -25,7 +26,20 @@ public class ComunidadeService {
         return repository.findAll();
     }
 
-    public Comunidade criar(Comunidade comunidade) {
+    public Comunidade criar(Map<String, Object> dados) {
+        System.out.println(dados);
+
+        Long criadorId = Long.valueOf(dados.get("criadorId").toString());
+
+        Usuario criador = usuarioRepository.findById(criadorId)
+                .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+
+        Comunidade comunidade = new Comunidade();
+
+        comunidade.setNome(dados.get("nome").toString());
+        comunidade.setDescricao(dados.get("descricao").toString());
+        comunidade.setCriador(criador);
+
         return repository.save(comunidade);
     }
 
@@ -56,14 +70,14 @@ public class ComunidadeService {
     }
 
     public void removerMembro(Long idComunidade, Long idUsuario) {
-    Comunidade comunidade = repository.findById(idComunidade)
-            .orElseThrow(() -> new RuntimeException("Comunidade não encontrada"));
+        Comunidade comunidade = repository.findById(idComunidade)
+                .orElseThrow(() -> new RuntimeException("Comunidade não encontrada"));
 
-    Usuario usuario = usuarioRepository.findById(idUsuario)
-            .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+        Usuario usuario = usuarioRepository.findById(idUsuario)
+                .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
 
-    comunidade.getMembros().remove(usuario);
+        comunidade.getMembros().remove(usuario);
 
-    repository.save(comunidade);
-}
+        repository.save(comunidade);
+    }
 }

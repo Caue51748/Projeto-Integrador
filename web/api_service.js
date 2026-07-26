@@ -46,12 +46,17 @@ export class ApiService {
         return await (await fetch(`${this.API_URL}/comunidades`)).json();
     }
     
-    static async criarComunidadeAPI(nome, descricao) {
-        return await fetch(`${this.API_URL}/comunidades`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ nome, descricao })
-        });
-    }
+ static async criarComunidadeAPI(nome, descricao, criadorId) {
+    return await fetch(`${this.API_URL}/comunidades`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            nome,
+            descricao,
+            criadorId
+        })
+    });
+}
 
     // --- EVENTOS (Corrigidos usando a variável estática da classe) ---
     static async listarEventos() {
@@ -66,14 +71,6 @@ export class ApiService {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify(eventoData)
-        });
-    }
-
-    
-    static async criarComunidadeAPI(nome, descricao) {
-        return await fetch(`${this.API_URL}/comunidades`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ nome, descricao })
         });
     }
 
