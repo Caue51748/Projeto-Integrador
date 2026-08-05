@@ -1,5 +1,3 @@
-// lib/screens/post_detail_screen.dart
-
 import 'package:flutter/material.dart';
 import '../models/post.dart';
 import '../models/comentario.dart';
@@ -69,7 +67,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     
     if (sucesso) {
       controller.clear();
-      FocusScope.of(context).unfocus(); // Esconde o teclado
+      FocusScope.of(context).unfocus();
       await carregarComentarios();
     } else {
       setState(() => carregando = false);
@@ -81,17 +79,9 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     final inicialAutor = widget.nomeAutor.isNotEmpty ? widget.nomeAutor[0].toUpperCase() : '?';
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const Text("Post", style: TextStyle(fontWeight: FontWeight.w600, letterSpacing: -0.5)),
-        centerTitle: true,
-        elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Container(color: Colors.grey[200], height: 1),
-        ),
+        title: const Text("Publicação", style: TextStyle(fontWeight: FontWeight.bold)),
       ),
       body: Column(
         children: [
@@ -101,37 +91,92 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // POST PRINCIPAL
+                  // POST PRINCIPAL CARD
+                  Card(
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      side: const BorderSide(color: Color(0xFFE2E8F0)),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              CircleAvatar(
+                                backgroundColor: const Color(0xFFFDF0F4),
+                                radius: 22,
+                                child: Text(
+                                  inicialAutor,
+                                  style: const TextStyle(color: Color(0xFFEA3F74), fontWeight: FontWeight.bold, fontSize: 18),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      widget.nomeAutor,
+                                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                                    ),
+                                    const Text('Autor da publicação', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            widget.post.titulo,
+                            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            widget.post.conteudo,
+                            style: const TextStyle(fontSize: 15, color: Color(0xFF334155), height: 1.5),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 24),
+
+                  // SEÇÃO DE COMENTÁRIOS
                   Row(
                     children: [
-                      CircleAvatar(
-                        backgroundColor: Colors.grey[100],
-                        radius: 22,
-                        child: Text(inicialAutor, style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.bold, fontSize: 18)),
+                      const Icon(Icons.forum_outlined, color: Color(0xFFEA3F74), size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        "Comentários (${comentarios.length})",
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF0F172A)),
                       ),
-                      const SizedBox(width: 12),
-                      Text(widget.nomeAutor, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black)),
                     ],
                   ),
                   const SizedBox(height: 12),
-                  Text(widget.post.titulo, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.black87)),
-                  const SizedBox(height: 8),
-                  Text(widget.post.conteudo, style: const TextStyle(fontSize: 16, color: Colors.black87, height: 1.4)),
-                  
-                  const SizedBox(height: 16),
-                  Divider(height: 1, color: Colors.grey[200]),
-                  const SizedBox(height: 16),
-
-                  // LISTA DE COMENTÁRIOS
-                  const Text("Comentários", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                  const SizedBox(height: 12),
                   
                   carregando
-                      ? const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator(color: Colors.black)))
+                      ? const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator(color: Color(0xFFEA3F74))))
                       : comentarios.isEmpty
-                          ? const Text("Ainda não há comentários. Seja o primeiro!", style: TextStyle(color: Colors.grey))
+                          ? Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(24),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                              ),
+                              child: const Text(
+                                "Ainda não há comentários. Seja o primeiro a comentar!",
+                                textAlign: TextAlign.center,
+                                style: TextStyle(color: Color(0xFF64748B)),
+                              ),
+                            )
                           : ListView.separated(
-                              shrinkWrap: true, // Importante para não dar erro de layout dentro do ScrollView
+                              shrinkWrap: true,
                               physics: const NeverScrollableScrollPhysics(),
                               itemCount: comentarios.length,
                               separatorBuilder: (context, index) => const SizedBox(height: 12),
@@ -140,26 +185,34 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                                 final nome = widget.nomesUsuarios[c.idUsuario] ?? "Desconhecido";
                                 final inicial = nome.isNotEmpty ? nome[0].toUpperCase() : '?';
 
-                                return Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    CircleAvatar(
-                                      backgroundColor: Colors.grey[100],
-                                      radius: 16,
-                                      child: Text(inicial, style: const TextStyle(color: Colors.black, fontSize: 12, fontWeight: FontWeight.bold)),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(nome, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-                                          const SizedBox(height: 2),
-                                          Text(c.conteudo, style: const TextStyle(fontSize: 14, color: Colors.black87)),
-                                        ],
+                                return Container(
+                                  padding: const EdgeInsets.all(14),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                                  ),
+                                  child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      CircleAvatar(
+                                        backgroundColor: const Color(0xFFFDF0F4),
+                                        radius: 16,
+                                        child: Text(inicial, style: const TextStyle(color: Color(0xFFEA3F74), fontSize: 12, fontWeight: FontWeight.bold)),
                                       ),
-                                    ),
-                                  ],
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(nome, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+                                            const SizedBox(height: 4),
+                                            Text(c.conteudo, style: const TextStyle(fontSize: 14, color: Color(0xFF334155))),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 );
                               },
                             ),
@@ -168,15 +221,15 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
             ),
           ),
           
-          // CAMPO DE DIGITAR COMENTÁRIO FIXO NO RODAPÉ
+          // BARRA FIXA DE COMENTÁRIO
           Container(
             padding: EdgeInsets.only(
-              left: 16, right: 16, top: 8,
-              bottom: MediaQuery.of(context).padding.bottom + 8, // Respeita a área inferior do iPhone/Android
+              left: 16, right: 16, top: 12,
+              bottom: MediaQuery.of(context).padding.bottom + 12,
             ),
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: Colors.white,
-              border: Border(top: BorderSide(color: Colors.grey[200]!)),
+              border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
             ),
             child: Row(
               children: [
@@ -184,16 +237,21 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                   child: TextField(
                     controller: controller,
                     decoration: InputDecoration(
-                      hintText: "Adicionar um comentário...",
+                      hintText: "Escreva um comentário...",
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
                       filled: true,
-                      fillColor: Colors.grey[100],
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      fillColor: const Color(0xFFF1F5F9),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     ),
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.send, color: Colors.black),
+                const SizedBox(width: 8),
+                IconButton.filled(
+                  icon: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
+                  style: IconButton.styleFrom(
+                    backgroundColor: const Color(0xFFEA3F74),
+                    padding: const EdgeInsets.all(12),
+                  ),
                   onPressed: enviarComentario,
                 ),
               ],

@@ -64,11 +64,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFABC5).withOpacity(0.3), // Subtom aqui
+                    color: const Color(0xFFFFABC5).withOpacity(0.3),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
-                    Icons.event_seat_rounded, // Ícone que remete mais a eventos/locais
+                    Icons.event_seat_rounded,
                     size: 80,
                     color: Color(0xFFEA3F74),
                   ),
