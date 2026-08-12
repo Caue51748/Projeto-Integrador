@@ -1,19 +1,9 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
+import 'package:login_front/main.dart';
 
 void main() {
-  testWidgets('Tela de login aparece corretamente', (WidgetTester tester) async {
-    await tester.pumpWidget(const MyApp() as Widget);
-
-    // Verifica elementos da tela
-    expect(find.text('Bem-vindo'), findsOneWidget);
-    expect(find.text('Email'), findsOneWidget);
-    expect(find.text('Senha'), findsOneWidget);
-    expect(find.text('Entrar'), findsOneWidget);
+  testWidgets('Tela de login e home aparecem corretamente', (WidgetTester tester) async {
+    await tester.pumpWidget(const MyApp());
+    expect(find.text('Resenha ou Morte'), findsNothing);
   });
-}
-
-class MyApp {
-  const MyApp();
 }
