@@ -70,4 +70,17 @@ public void deletar(
             @PathVariable Long idUsuario) {
         service.removerMembro(idComunidade, idUsuario);
     }
+
+    @DeleteMapping("/{idComunidade}/membros/{idMembro}/usuario/{idSolicitante}")
+public void removerMembro(
+        @PathVariable Long idComunidade,
+        @PathVariable Long idMembro,
+        @PathVariable Long idSolicitante) {
+
+    service.removerMembro(
+            idComunidade,
+            idMembro,
+            idSolicitante
+    );
+}
 }
