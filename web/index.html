@@ -172,6 +172,10 @@
                     Salvar
                 </button>
 
+                <button class="btn-primary" onclick="app.abrirGerenciarMembros()">
+                    Gerenciar membros
+                </button>
+
                 <button class="btn-danger" onclick="app.excluirComunidade()">
                     Excluir comunidade
                 </button>
@@ -182,6 +186,22 @@
 
 
             </div>
+        </div>
+    </div>
+
+    <div id="gerenciar-membros-modal" class="modal-overlay">
+        <div class="modal">
+            <h2>Membros da comunidade</h2>
+
+            <div id="lista-membros-comunidade">
+                Carregando...
+            </div>
+
+            <br>
+
+            <button class="btn-secondary" onclick="app.fecharModal('gerenciar-membros-modal')">
+                Fechar
+            </button>
         </div>
     </div>
 

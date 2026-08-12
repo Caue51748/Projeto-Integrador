@@ -6,6 +6,7 @@ class AppController {
         this.listaUsuariosCompleta = [];
         this.usuariosMap = {};
         this.comunidadesMap = {}; // Guarda id -> nome da comunidade
+        this.listaComunidades = [];
         this.comentariosPorPost = {};
         this.posts = [];
         this.modoCadastro = false;
@@ -149,10 +150,17 @@ class AppController {
             // Tenta carregar comunidades para mapear os nomes (Para mostrar no Feed Geral)
             try {
                 const coms = await ApiService.listarComunidades();
-                coms.forEach(c => this.comunidadesMap[c.idComunidade || c.id] = c.nome);
-            } catch (e) { console.warn("API de Comunidades não encontrada ainda."); }
 
+                this.listaComunidades = coms;
+
+                coms.forEach(c =>
+                    this.comunidadesMap[c.idComunidade || c.id] = c.nome
+                );
+            } catch (e) {
+                console.warn("API de Comunidades não encontrada ainda.");
+            }
             const listaComentarios = await ApiService.listarComentarios();
+            console.log("COMENTÁRIOS CARREGADOS:", listaComentarios);
             this.comentariosPorPost = {};
             listaComentarios.forEach(c => {
                 let idPost = c.idPost || c.id_post;
@@ -220,7 +228,8 @@ class AppController {
                 Gerenciar
             </button>
         ` : ""}
-    </div>
+      </div>
+    
 `;
 
                 container.appendChild(div);
@@ -360,6 +369,11 @@ class AppController {
         listaPosts.forEach(post => {
             let idAutor = post.idUsuario || post.id_usuario;
             let idPost = post.idPost || post.id;
+            console.log(
+                "Post:", idPost,
+                "Comentários encontrados:",
+                this.comentariosPorPost[idPost]
+            );
             let idComunidade = post.idComunidade || post.id_comunidade;
 
             let nomeAutor = this.usuariosMap[idAutor] || 'Desconhecido';
@@ -368,6 +382,21 @@ class AppController {
             let htmlComentarios = (this.comentariosPorPost[idPost] || []).map(c =>
                 `<div class="comment-preview"><span>${this.usuariosMap[c.idUsuario || c.id_usuario] || 'User'}:</span>${c.conteudo}</div>`
             ).join('');
+
+            const idUsuarioLogado = ApiService.getIdUsuarioLogado();
+
+            const comunidade = (this.listaComunidades || []).find(
+                c => (c.idComunidade || c.id) == idComunidade
+            );
+
+            const idAdministrador = comunidade?.criador?.idUsuario;
+
+            const podeExcluir =
+                idUsuarioLogado &&
+                (
+                    idUsuarioLogado == idAutor ||
+                    idUsuarioLogado == idAdministrador
+                );
 
             const div = document.createElement('div');
             div.className = 'card';
@@ -380,9 +409,20 @@ class AppController {
                     </div>
                 </div>
                 <div class="post-title">${post.titulo}</div>
-                <div class="post-body">${post.conteudo}</div>
-                ${htmlComentarios}
-                ${ApiService.getIdUsuarioLogado() ? `
+               <div class="post-body">${post.conteudo}</div>
+               ${htmlComentarios}
+
+${podeExcluir ? `
+    <div style="margin-top: 10px;">
+        <button
+            class="btn-secondary"
+            onclick="app.excluirPost(${idPost})">
+            Excluir
+        </button>
+    </div>
+` : ''}
+
+${ApiService.getIdUsuarioLogado() ? `
                     <div class="comment-input-container">
                         <input type="text" id="input-comment-${idPost}" placeholder="Comentar...">
                         <button onclick="app.enviarComentario(${idPost})">Enviar</button>
@@ -517,79 +557,172 @@ class AppController {
         }
     }
 
-   gerenciarComunidade(idComunidade) {
+    gerenciarComunidade(idComunidade) {
 
-    const comunidade = this.listaComunidades.find(
-        c => (c.idComunidade || c.id) == idComunidade
-    );
+        const comunidade = this.listaComunidades.find(
+            c => (c.idComunidade || c.id) == idComunidade
+        );
 
-    if (!comunidade) return;
+        if (!comunidade) return;
 
-    this.comunidadeEditando = comunidade;
+        this.comunidadeEditando = comunidade;
 
-    document.getElementById("editar-comunidade-nome").value =
-        comunidade.nome;
+        document.getElementById("editar-comunidade-nome").value =
+            comunidade.nome;
 
-    document.getElementById("editar-comunidade-desc").value =
-        comunidade.descricao;
+        document.getElementById("editar-comunidade-desc").value =
+            comunidade.descricao;
 
-    this.abrirModal("gerenciar-comunidade-modal");
-}
+        this.abrirModal("gerenciar-comunidade-modal");
+    }
 
-async salvarEdicaoComunidade() {
+    async salvarEdicaoComunidade() {
 
-    const nome = document.getElementById("editar-comunidade-nome").value.trim();
-    const descricao = document.getElementById("editar-comunidade-desc").value.trim();
+        const nome = document.getElementById("editar-comunidade-nome").value.trim();
+        const descricao = document.getElementById("editar-comunidade-desc").value.trim();
 
-    const resposta = await ApiService.atualizarComunidade(
-        this.comunidadeEditando.id || this.comunidadeEditando.id,
-        nome,
-        descricao
-    );
+        const idComunidade =
+            this.comunidadeEditando.idComunidade || this.comunidadeEditando.id;
 
-    if (resposta.ok) {
-        this.fecharModal("gerenciar-comunidade-modal");
+        const idUsuario = ApiService.getIdUsuarioLogado();
 
-        await this.carregarComunidades();
+        const resposta = await ApiService.atualizarComunidade(
+            idComunidade,
+            idUsuario,
+            nome,
+            descricao
+        );
 
-        if (this.comunidadeAtivaId == this.comunidadeEditando.id) {
-            this.entrarSubreddit(
-                this.comunidadeEditando.id,
-                nome,
-                descricao
-            );
+        if (resposta.ok) {
+            this.fecharModal("gerenciar-comunidade-modal");
+
+            await this.carregarComunidades();
+
+            if (this.comunidadeAtivaId == idComunidade) {
+                this.entrarSubreddit(
+                    idComunidade,
+                    nome,
+                    descricao
+                );
+            }
+
+        } else {
+            alert("Você não tem permissão para editar esta comunidade.");
+        }
+    }
+
+
+
+    async excluirComunidade() {
+
+        if (!confirm("Tem certeza que deseja excluir esta comunidade?")) {
+            return;
         }
 
-    } else {
-        alert("Erro ao atualizar comunidade.");
+        const idComunidade =
+            this.comunidadeEditando.idComunidade || this.comunidadeEditando.id;
+
+        const idUsuario = ApiService.getIdUsuarioLogado();
+
+        const resposta = await ApiService.excluirComunidade(
+            idComunidade,
+            idUsuario
+        );
+
+        if (resposta.ok) {
+            this.fecharModal("gerenciar-comunidade-modal");
+
+            await this.carregarComunidades();
+
+            alert("Comunidade excluída com sucesso!");
+        } else {
+            alert("Você não tem permissão para excluir esta comunidade.");
+        }
     }
-}
 
-async excluirComunidade() {
 
-    if (!confirm("Tem certeza que deseja excluir esta comunidade?")) {
-        return;
+
+    abrirGerenciarMembros() {
+
+        const lista = document.getElementById("lista-membros-comunidade");
+
+        lista.innerHTML = "";
+
+        this.comunidadeEditando.membros.forEach(membro => {
+
+            const criadorId = this.comunidadeEditando.criador.idUsuario;
+
+            lista.innerHTML += `
+    <div class="membro-item">
+        <span>${membro.nome}</span>
+
+        ${membro.idUsuario !== criadorId
+                    ? `<button class="btn-danger"
+                        onclick="app.removerMembro(${membro.idUsuario})">
+                        Remover
+                   </button>`
+                    : `<span style="color: gray;">Administrador</span>`
+                }
+    </div>
+`;
+
+        });
+
+        this.abrirModal("gerenciar-membros-modal");
     }
 
-    const id = this.comunidadeEditando.idComunidade || this.comunidadeEditando.id;
+    async removerMembro(idUsuario) {
 
-    const resposta = await ApiService.excluirComunidade(id);
+        if (!confirm("Deseja remover este membro da comunidade?")) {
+            return;
+        }
 
-    if (resposta.ok) {
+        const idComunidade =
+            this.comunidadeEditando.idComunidade || this.comunidadeEditando.id;
 
-        this.fecharModal("gerenciar-comunidade-modal");
+        const resposta = await ApiService.removerMembro(
+            idComunidade,
+            idUsuario
+        );
 
-        await this.carregarComunidades();
+        if (resposta.ok) {
 
-        alert("Comunidade excluída com sucesso!");
+            alert("Membro removido com sucesso!");
 
-    } else {
+            await this.carregarComunidades();
 
-        alert("Erro ao excluir comunidade.");
+            this.comunidadeEditando = this.listaComunidades.find(
+                c => (c.idComunidade || c.id) == idComunidade
+            );
 
+            this.abrirGerenciarMembros();
+
+        } else {
+
+            alert("Erro ao remover membro.");
+
+        }
     }
-}
 
+    async excluirPost(idPost) {
+
+        if (!confirm("Deseja realmente excluir esta publicação?")) {
+            return;
+        }
+
+        const idUsuario = ApiService.getIdUsuarioLogado();
+        const resposta = await ApiService.deletarPost(idPost, idUsuario);
+
+        if (resposta.ok) {
+            await this.carregarDadosGlobais();
+
+            if (this.comunidadeAtivaId) {
+                this.renderizarSubreddit(this.comunidadeAtivaId);
+            }
+        } else {
+            alert("Você não tem permissão para excluir esta publicaçãox.");
+        }
+    }
 }
 
 window.app = new AppController();

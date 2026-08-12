@@ -21,7 +21,7 @@ export class ApiService {
 
     // --- POSTS E COMENTÁRIOS ---
     static async listarPosts() { return await (await fetch(`${this.API_URL}/posts`)).json(); }
-    
+
     // ATENÇÃO: Adicionado idComunidade para suportar o Subreddit
     static async criarPost(titulo, conteudo, idUsuario, idComunidade = null) {
         let bodyObj = { titulo, conteudo, idUsuario: parseInt(idUsuario) };
@@ -42,21 +42,21 @@ export class ApiService {
     }
 
     // --- COMUNIDADES REAIS ---
-   static async listarComunidades() {
+    static async listarComunidades() {
         return await (await fetch(`${this.API_URL}/comunidades`)).json();
     }
-    
- static async criarComunidadeAPI(nome, descricao, criadorId) {
-    return await fetch(`${this.API_URL}/comunidades`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            nome,
-            descricao,
-            criadorId
-        })
-    });
-}
+
+    static async criarComunidadeAPI(nome, descricao, criadorId) {
+        return await fetch(`${this.API_URL}/comunidades`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                nome,
+                descricao,
+                criadorId
+            })
+        });
+    }
 
     // --- EVENTOS (Corrigidos usando a variável estática da classe) ---
     static async listarEventos() {
@@ -89,22 +89,21 @@ export class ApiService {
         });
     }
 
-    static async atualizarComunidade(id, nome, descricao) {
-    return await fetch(`${this.API_URL}/comunidades/${id}`, {
-        method: "PUT",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-            nome,
-            descricao
-        })
-    });
-}
+    static async atualizarComunidade(idComunidade, idUsuario, nome, descricao) {
+        return await fetch(`${this.API_URL}/comunidades/${idComunidade}/usuario/${idUsuario}`, {
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                nome,
+                descricao
+            })
+        });
+    }
 
-static async excluirComunidade(id) {
-    return await fetch(`${this.API_URL}/comunidades/${id}`, {
-        method: "DELETE"
-    });
-}
+    static async excluirComunidade(idComunidade, idUsuario) {
+        return await fetch(`${this.API_URL}/comunidades/${idComunidade}/usuario/${idUsuario}`, { method: "DELETE" });
+
+    }
 }

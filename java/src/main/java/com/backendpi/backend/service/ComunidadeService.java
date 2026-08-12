@@ -43,16 +43,35 @@ public class ComunidadeService {
         return repository.save(comunidade);
     }
 
-    public Comunidade atualizar(Long id, Comunidade nova) {
-        return repository.findById(id).map(c -> {
-            c.setNome(nova.getNome());
-            c.setDescricao(nova.getDescricao());
-            return repository.save(c);
-        }).orElseThrow(() -> new RuntimeException("Comunidade não encontrada"));
+    public Comunidade atualizar(Long idComunidade, Long idUsuario, Comunidade nova) {
+
+        Comunidade comunidade = repository.findById(idComunidade)
+                .orElseThrow(() -> new RuntimeException("Comunidade não encontrada"));
+
+        if (comunidade.getCriador() == null
+                || !comunidade.getCriador().getIdUsuario().equals(idUsuario)) {
+
+            throw new RuntimeException("Usuário sem permissão para editar esta comunidade");
+        }
+
+        comunidade.setNome(nova.getNome());
+        comunidade.setDescricao(nova.getDescricao());
+
+        return repository.save(comunidade);
     }
 
-    public void deletar(Long id) {
-        repository.deleteById(id);
+    public void deletar(Long idComunidade, Long idUsuario) {
+
+        Comunidade comunidade = repository.findById(idComunidade)
+                .orElseThrow(() -> new RuntimeException("Comunidade não encontrada"));
+
+        if (comunidade.getCriador() == null
+                || !comunidade.getCriador().getIdUsuario().equals(idUsuario)) {
+
+            throw new RuntimeException("Usuário sem permissão para excluir esta comunidade");
+        }
+
+        repository.delete(comunidade);
     }
 
     // NOVO MÉTODO PARA ENTRAR NA COMUNIDADE

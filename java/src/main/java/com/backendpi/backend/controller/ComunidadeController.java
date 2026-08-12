@@ -42,15 +42,22 @@ public Comunidade criar(@RequestBody Map<String, Object> dados) {
     return service.criar(dados);
 }
 
-    @PutMapping("/{id}")
-    public Comunidade atualizar(@PathVariable Long id, @RequestBody Comunidade nova) {
-        return service.atualizar(id, nova);
-    }
+   @PutMapping("/{idComunidade}/usuario/{idUsuario}")
+public Comunidade atualizar(
+        @PathVariable Long idComunidade,
+        @PathVariable Long idUsuario,
+        @RequestBody Comunidade nova) {
 
-    @DeleteMapping("/{id}")
-    public void deletar(@PathVariable Long id) {
-        service.deletar(id);
-    }
+    return service.atualizar(idComunidade, idUsuario, nova);
+}
+
+@DeleteMapping("/{idComunidade}/usuario/{idUsuario}")
+public void deletar(
+        @PathVariable Long idComunidade,
+        @PathVariable Long idUsuario) {
+
+    service.deletar(idComunidade, idUsuario);
+}
 
     // NOVA ROTA PARA VINCULAR USUARIO E COMUNIDADE
     @PostMapping("/{idComunidade}/participar/{idUsuario}")
