@@ -1,7 +1,11 @@
 package com.backendpi.backend.repository;
+import java.util.List;
 
-import com.backendpi.backend.model.Post;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import com.backendpi.backend.model.Post;
+
 public interface PostRepository extends JpaRepository<Post, Long> {
+
+    List<Post> findByIdComunidade(Long idComunidade);
 }

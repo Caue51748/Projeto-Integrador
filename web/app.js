@@ -1,4 +1,3 @@
-// app.js
 import { ApiService } from './api_service.js';
 
 class AppController {
@@ -14,7 +13,6 @@ class AppController {
         this.comunidadeAtivaId = null;
         this.usuarioParticipaDaComunidade = false;
         this.comunidadeEditando = null;
-        this.comunidadeEditandoId = null;
     }
 
     async inicializar() {
@@ -93,14 +91,24 @@ class AppController {
     fecharModal(id) { document.getElementById(id).style.display = 'none'; }
 
     abrirModalPost() {
-        if (!ApiService.getUsuarioLogado()) return alert("Faça login primeiro!");
+        if (!ApiService.getUsuarioLogado()) {
+            return alert("Faça login primeiro.");
+        }
+
+        // Se estiver dentro de uma comunidade, precisa ser membro
+        if (this.comunidadeAtivaId && !this.usuarioParticipaDaComunidade) {
+            return alert("Você precisa entrar na comunidade antes de publicar.");
+        }
+
         const tituloEl = document.getElementById('modal-post-title');
 
         if (this.comunidadeAtivaId) {
-            tituloEl.innerText = `Postar em: ${this.comunidadesMap[this.comunidadeAtivaId]}`;
+            tituloEl.innerText =
+                `Postar em: ${this.comunidadesMap[this.comunidadeAtivaId]}`;
         } else {
             tituloEl.innerText = "Nova Publicação Global";
         }
+
         this.abrirModal('post-modal');
     }
 
@@ -160,7 +168,6 @@ class AppController {
                 console.warn("API de Comunidades não encontrada ainda.");
             }
             const listaComentarios = await ApiService.listarComentarios();
-            console.log("COMENTÁRIOS CARREGADOS:", listaComentarios);
             this.comentariosPorPost = {};
             listaComentarios.forEach(c => {
                 let idPost = c.idPost || c.id_post;
@@ -186,13 +193,11 @@ class AppController {
         try {
             const comunidades = await ApiService.listarComunidades();
             this.listaComunidades = comunidades;
-            console.log(comunidades);
             container.innerHTML = '';
             comunidades.forEach(c => {
                 const idCom = c.idComunidade || c.id;
                 const div = document.createElement('div');
                 div.className = 'list-item';
-                const quantidadeMembros = c.membros ? c.membros.length : 0;
 
                 const idUsuarioLogado = ApiService.getIdUsuarioLogado();
 
@@ -240,7 +245,7 @@ class AppController {
     }
 
     async criarComunidade() {
-        if (!ApiService.getUsuarioLogado()) return alert("Faça login!");
+        if (!ApiService.getUsuarioLogado()) return alert("Faça login primeiro.");
 
         const nome = document.getElementById('comunidade-nome').value.trim();
         const desc = document.getElementById('comunidade-desc').value.trim();
@@ -252,38 +257,56 @@ class AppController {
             this.fecharModal('comunidade-modal');
             this.carregarComunidades();
         } else {
-            alert("Crie o backend de Comunidades no Spring Boot.");
+            alert("Não foi possível criar a comunidade.");
         }
     }
 
     entrarSubreddit(id, nome, desc) {
-        console.log("Entrou no método entrarSubreddit");
 
         const usuarioLogado = ApiService.getIdUsuarioLogado();
         const botao = document.getElementById("btn-participar");
 
         this.comunidadeAtivaId = id;
 
-        const comunidade = this.listaComunidades.find(c => (c.idComunidade || c.id) == id);
+        const comunidade = this.listaComunidades.find(
+            c => (c.idComunidade || c.id) == id
+        );
+
+        const idAdministrador =
+            comunidade?.criador?.idUsuario || comunidade?.criador?.id;
 
         this.usuarioParticipaDaComunidade =
             comunidade &&
             comunidade.membros &&
-            comunidade.membros.some(m => (m.idUsuario || m.id) == usuarioLogado);
+            comunidade.membros.some(
+                m => (m.idUsuario || m.id) == usuarioLogado
+            );
 
-        if (this.usuarioParticipaDaComunidade) {
-            botao.innerText = "Sair";
-            botao.style.background = "#ef4444";
+        // Administrador não precisa de botão Entrar/Sair
+        if (usuarioLogado == idAdministrador) {
+            botao.style.display = "none";
         } else {
-            botao.innerText = "Entrar";
-            botao.style.background = "#111827";
+            botao.style.display = "block";
+
+            if (this.usuarioParticipaDaComunidade) {
+                botao.innerText = "Sair";
+                botao.style.background = "#ef4444";
+            } else {
+                botao.innerText = "Entrar";
+                botao.style.background = "#111827";
+            }
         }
 
+        // Estas linhas precisam ficar FORA do if/else
+        // porque todo usuário deve conseguir acessar a comunidade.
         document.getElementById('sub-titulo').innerText = nome;
         document.getElementById('sub-desc').innerText = desc;
 
-        document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
-        document.getElementById('view-subreddit').classList.add('active');
+        document.querySelectorAll('.view-section')
+            .forEach(el => el.classList.remove('active'));
+
+        document.getElementById('view-subreddit')
+            .classList.add('active');
 
         this.renderizarSubreddit(id);
     }
@@ -291,26 +314,42 @@ class AppController {
     async participarComunidade() {
         const idLogado = ApiService.getIdUsuarioLogado();
 
-        console.log("ID do usuário:", idLogado);
-        console.log("ID da comunidade:", this.comunidadeAtivaId);
-
-        if (!idLogado) return alert("Faça login primeiro!");
+        if (!idLogado) {
+            return alert("Faça login primeiro.");
+        }
 
         const btn = document.getElementById('btn-participar');
 
         try {
-            const metodo = this.usuarioParticipaDaComunidade ? "DELETE" : "POST";
+            let resposta;
 
-            const resposta = await fetch(
-                `http://localhost:8080/comunidades/${this.comunidadeAtivaId}/participar/${idLogado}`,
-                {
-                    method: metodo
-                }
-            );
+            // Se já participa, está tentando SAIR
+            if (this.usuarioParticipaDaComunidade) {
 
-            console.log(resposta.status);
+                resposta = await ApiService.removerMembro(
+                    this.comunidadeAtivaId,
+                    idLogado,
+                    idLogado
+                );
 
-            this.usuarioParticipaDaComunidade = !this.usuarioParticipaDaComunidade;
+            } else {
+
+                // Se ainda não participa, está tentando ENTRAR
+                resposta = await fetch(
+                    `http://localhost:8080/comunidades/${this.comunidadeAtivaId}/participar/${idLogado}`,
+                    {
+                        method: "POST"
+                    }
+                );
+            }
+
+            if (!resposta.ok) {
+                alert("Não foi possível realizar esta ação.");
+                return;
+            }
+
+            this.usuarioParticipaDaComunidade =
+                !this.usuarioParticipaDaComunidade;
 
             if (this.usuarioParticipaDaComunidade) {
                 btn.innerText = "Sair";
@@ -320,9 +359,11 @@ class AppController {
                 btn.style.background = "#111827";
             }
 
+            await this.carregarComunidades();
+
         } catch (e) {
             console.error(e);
-            alert("Erro ao entrar na comunidade.");
+            alert("Erro ao atualizar participação na comunidade.");
         }
     }
 
@@ -350,15 +391,34 @@ class AppController {
             document.getElementById('post-titulo').value = '';
             document.getElementById('post-conteudo').value = '';
             await this.carregarDadosGlobais();
-        } else alert(`O Java recusou o post. Adicionou a coluna id_comunidade na tabela?`);
+        } else alert(`Não foi possível publicar o post.`);
     }
 
-    async enviarComentario(idPost) {
+    async enviarComentario(idPost, botao) {
         const idLogado = ApiService.getIdUsuarioLogado();
-        if (!idLogado) return alert("Logue primeiro!");
-        const input = document.getElementById(`input-comment-${idPost}`);
-        const res = await ApiService.criarComentario(input.value.trim(), idLogado, idPost);
-        if (res.ok) await this.carregarDadosGlobais();
+
+        if (!idLogado) {
+            return alert("Faça login primeiro!");
+        }
+
+        const input = botao.previousElementSibling;
+        const conteudo = input.value.trim();
+
+        if (!conteudo) {
+            return alert("Digite um comentário antes de enviar.");
+        }
+
+        const res = await ApiService.criarComentario(
+            conteudo,
+            idLogado,
+            idPost
+        );
+
+        if (res.ok) {
+            await this.carregarDadosGlobais();
+        } else {
+            alert("Não foi possível enviar o comentário.");
+        }
     }
 
     montarCardsPosts(listaPosts, idContainer, mostrarTagComunidade) {
@@ -369,11 +429,6 @@ class AppController {
         listaPosts.forEach(post => {
             let idAutor = post.idUsuario || post.id_usuario;
             let idPost = post.idPost || post.id;
-            console.log(
-                "Post:", idPost,
-                "Comentários encontrados:",
-                this.comentariosPorPost[idPost]
-            );
             let idComunidade = post.idComunidade || post.id_comunidade;
 
             let nomeAutor = this.usuariosMap[idAutor] || 'Desconhecido';
@@ -424,8 +479,8 @@ ${podeExcluir ? `
 
 ${ApiService.getIdUsuarioLogado() ? `
                     <div class="comment-input-container">
-                        <input type="text" id="input-comment-${idPost}" placeholder="Comentar...">
-                        <button onclick="app.enviarComentario(${idPost})">Enviar</button>
+                       <input type="text" placeholder="Comentar...">
+<button onclick="app.enviarComentario(${idPost}, this)">Enviar</button>
                     </div>` : ''}
             `;
             container.appendChild(div);
@@ -507,7 +562,7 @@ ${ApiService.getIdUsuarioLogado() ? `
 
     async criarEvento() {
         // Valida se o usuário está logado usando seu método padrão
-        if (!ApiService.getUsuarioLogado()) return alert("Faça login para organizar um evento!");
+        if (!ApiService.getUsuarioLogado()) return alert("Faça login para organizar um evento.");
 
         const titulo = document.getElementById('evento-titulo').value.trim();
         const descricao = document.getElementById('evento-desc').value.trim();
@@ -517,7 +572,7 @@ ${ApiService.getIdUsuarioLogado() ? `
         const comunidadeId = document.getElementById('evento-comunidade-id').value;
 
         if (!titulo || !dataEvento || !horario || !localEvento) {
-            alert("Por favor, preencha todos os campos obrigatórios (Título, Data, Horário e Local).");
+            alert("Por favor, preencha todos os campos obrigatórios.");
             return;
         }
 
@@ -549,11 +604,11 @@ ${ApiService.getIdUsuarioLogado() ? `
                 this.carregarEventos();
                 alert("Evento publicado com sucesso!");
             } else {
-                alert("O servidor rejeitou a criação do evento. Verifique se o seu Spring Boot está rodando.");
+                alert("Não foi possível publicar o evento.");
             }
         } catch (error) {
             console.error(error);
-            alert("Erro de conexão com o servidor ao salvar o evento.");
+            alert("Erro ao salvar o evento.");
         }
     }
 
@@ -680,13 +735,15 @@ ${ApiService.getIdUsuarioLogado() ? `
         const idComunidade =
             this.comunidadeEditando.idComunidade || this.comunidadeEditando.id;
 
+        const idSolicitante = ApiService.getIdUsuarioLogado();
+
         const resposta = await ApiService.removerMembro(
             idComunidade,
-            idUsuario
+            idUsuario,
+            idSolicitante
         );
 
         if (resposta.ok) {
-
             alert("Membro removido com sucesso!");
 
             await this.carregarComunidades();
@@ -696,11 +753,8 @@ ${ApiService.getIdUsuarioLogado() ? `
             );
 
             this.abrirGerenciarMembros();
-
         } else {
-
-            alert("Erro ao remover membro.");
-
+            alert("Você não tem permissão para remover este membro.");
         }
     }
 

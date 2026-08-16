@@ -32,6 +32,27 @@ public class PostService {
     }
 
     public Post salvar(Post post) {
+
+        // Post global: não precisa pertencer a comunidade
+        if (post.getIdComunidade() == null) {
+            return repository.save(post);
+        }
+
+        Comunidade comunidade = comunidadeRepository.findById(post.getIdComunidade())
+                .orElseThrow(() -> new RuntimeException("Comunidade não encontrada"));
+
+        boolean usuarioEhMembro = comunidade.getMembros()
+                .stream()
+                .anyMatch(membro
+                        -> membro.getIdUsuario().equals(post.getIdUsuario())
+                );
+
+        if (!usuarioEhMembro) {
+            throw new RuntimeException(
+                    "Usuário precisa participar da comunidade para publicar"
+            );
+        }
+
         return repository.save(post);
     }
 

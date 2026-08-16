@@ -31,10 +31,6 @@ public class Comunidade {
     @JoinColumn(name = "criador_id")
     private Usuario criador;
 
-    //@ManyToOne
-    //@JoinColumn(name = "criador_id", referencedColumnName = "id_usuario")
-    //private Usuario criador;
-
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "usuario_comunidade",

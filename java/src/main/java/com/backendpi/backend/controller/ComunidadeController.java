@@ -32,55 +32,44 @@ public class ComunidadeController {
         return service.listar();
     }
 
-  @PostMapping
-public Comunidade criar(@RequestBody Map<String, Object> dados) {
+    @PostMapping
+    public Comunidade criar(@RequestBody Map<String, Object> dados) {
+        return service.criar(dados);
+    }
 
-    System.out.println("=================================");
-    System.out.println(dados);
-    System.out.println("=================================");
+    @PutMapping("/{idComunidade}/usuario/{idUsuario}")
+    public Comunidade atualizar(
+            @PathVariable Long idComunidade,
+            @PathVariable Long idUsuario,
+            @RequestBody Comunidade nova) {
 
-    return service.criar(dados);
-}
+        return service.atualizar(idComunidade, idUsuario, nova);
+    }
 
-   @PutMapping("/{idComunidade}/usuario/{idUsuario}")
-public Comunidade atualizar(
-        @PathVariable Long idComunidade,
-        @PathVariable Long idUsuario,
-        @RequestBody Comunidade nova) {
+    @DeleteMapping("/{idComunidade}/usuario/{idUsuario}")
+    public void deletar(
+            @PathVariable Long idComunidade,
+            @PathVariable Long idUsuario) {
 
-    return service.atualizar(idComunidade, idUsuario, nova);
-}
+        service.deletar(idComunidade, idUsuario);
+    }
 
-@DeleteMapping("/{idComunidade}/usuario/{idUsuario}")
-public void deletar(
-        @PathVariable Long idComunidade,
-        @PathVariable Long idUsuario) {
-
-    service.deletar(idComunidade, idUsuario);
-}
-
-    // NOVA ROTA PARA VINCULAR USUARIO E COMUNIDADE
+    // entrada na comunidade
     @PostMapping("/{idComunidade}/participar/{idUsuario}")
     public void participarDaComunidade(@PathVariable Long idComunidade, @PathVariable Long idUsuario) {
         service.adicionarMembro(idComunidade, idUsuario);
     }
 
-    @DeleteMapping("/{idComunidade}/participar/{idUsuario}")
-    public void sairDaComunidade(@PathVariable Long idComunidade,
-            @PathVariable Long idUsuario) {
-        service.removerMembro(idComunidade, idUsuario);
-    }
-
     @DeleteMapping("/{idComunidade}/membros/{idMembro}/usuario/{idSolicitante}")
-public void removerMembro(
-        @PathVariable Long idComunidade,
-        @PathVariable Long idMembro,
-        @PathVariable Long idSolicitante) {
+    public void removerMembro(
+            @PathVariable Long idComunidade,
+            @PathVariable Long idMembro,
+            @PathVariable Long idSolicitante) {
 
-    service.removerMembro(
-            idComunidade,
-            idMembro,
-            idSolicitante
-    );
-}
+        service.removerMembro(
+                idComunidade,
+                idMembro,
+                idSolicitante
+        );
+    }
 }

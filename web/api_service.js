@@ -22,10 +22,9 @@ export class ApiService {
     // --- POSTS E COMENTÁRIOS ---
     static async listarPosts() { return await (await fetch(`${this.API_URL}/posts`)).json(); }
 
-    // ATENÇÃO: Adicionado idComunidade para suportar o Subreddit
     static async criarPost(titulo, conteudo, idUsuario, idComunidade = null) {
         let bodyObj = { titulo, conteudo, idUsuario: parseInt(idUsuario) };
-        if (idComunidade) bodyObj.idComunidade = parseInt(idComunidade); // Se tiver comunidade, envia junto
+        if (idComunidade !== null) { bodyObj.idComunidade = parseInt(idComunidade); } // Se tiver comunidade, envia junto
 
         return await fetch(`${this.API_URL}/posts`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -41,7 +40,7 @@ export class ApiService {
         });
     }
 
-    // --- COMUNIDADES REAIS ---
+    // --- COMUNIDADES ---
     static async listarComunidades() {
         return await (await fetch(`${this.API_URL}/comunidades`)).json();
     }
@@ -58,22 +57,7 @@ export class ApiService {
         });
     }
 
-    // --- EVENTOS (Corrigidos usando a variável estática da classe) ---
-    static async listarEventos() {
-        const response = await fetch(`${this.API_URL}/api/eventos`);
-        return await response.json();
-    }
-
-    static async criarEventoAPI(eventoData) {
-        return await fetch(`${`${this.API_URL}/api/eventos`}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(eventoData)
-        });
-    }
-
+    // --- EVENTOS  ---
     static async listarEventos() {
         const response = await fetch(`${this.API_URL}/api/eventos`);
         return await response.json();
@@ -104,6 +88,23 @@ export class ApiService {
 
     static async excluirComunidade(idComunidade, idUsuario) {
         return await fetch(`${this.API_URL}/comunidades/${idComunidade}/usuario/${idUsuario}`, { method: "DELETE" });
+    }
 
+    static async removerMembro(idComunidade, idMembro, idSolicitante) {
+        return await fetch(
+            `${this.API_URL}/comunidades/${idComunidade}/membros/${idMembro}/usuario/${idSolicitante}`,
+            {
+                method: "DELETE"
+            }
+        );
+    }
+
+    static async deletarPost(idPost, idUsuario) {
+        return await fetch(
+            `${this.API_URL}/posts/${idPost}/usuario/${idUsuario}`,
+            {
+                method: "DELETE"
+            }
+        );
     }
 }
