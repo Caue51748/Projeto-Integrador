@@ -2,6 +2,7 @@
 <html lang="pt-BR">
 
 <head>
+    <script src="https://unpkg.com/html5-qrcode"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Painel - Rede Social</title>
@@ -44,7 +45,7 @@
             <div class="sidebar-footer" id="header-buttons"></div>
         </aside>
 
-        <main id="app">
+        <main id="app-main">
             <div id="view-feed" class="view-section active">
                 <div class="page-header">
                     <h1>Feed Global</h1>
@@ -59,9 +60,67 @@
                     <button class="btn-primary" style="background: #10b981;"
                         onclick="app.abrirModal('evento-modal')">Novo Evento</button>
                 </div>
+                <div style="
+    display:grid;
+    grid-template-columns:2fr 1fr 1fr 1fr;
+    gap:10px;
+    margin-bottom:16px;
+">
+                    <input type="text" id="filtro-evento-texto" placeholder="Buscar por nome ou descrição..."
+                        oninput="app.buscarEventosComDebounce()">
+
+                    <select id="filtro-evento-periodo" onchange="app.filtrarEventos()">
+
+                        <option value="">Qualquer data</option>
+                        <option value="hoje">Hoje</option>
+                        <option value="semana">Esta semana</option>
+                        <option value="mes">Este mês</option>
+                        <option value="personalizado">Intervalo personalizado</option>
+                    </select>
+
+                    <select id="filtro-evento-comunidade" onchange="app.filtrarEventos()">
+                        <option value="">Todas as comunidades</option>
+                    </select>
+
+                    <select id="filtro-evento-status" onchange="app.filtrarEventos()">
+                        <option value="">Todos os status</option>
+                        <option value="AGENDADO">Agendados</option>
+                        <option value="CANCELADO">Cancelados</option>
+                    </select>
+                </div>
+                <div id="filtro-evento-intervalo" style="
+        display:none;
+        gap:10px;
+        margin-bottom:16px;
+    ">
+
+                    <input type="date" id="filtro-evento-data-inicio" onchange="app.filtrarEventos()">
+
+                    <input type="date" id="filtro-evento-data-fim" onchange="app.filtrarEventos()">
+                </div>
                 <div id="eventos-container"
                     style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px;">
                     Carregando eventos...
+                </div>
+                <div id="eventos-paginacao" style="
+        display:flex;
+        justify-content:center;
+        align-items:center;
+        gap:12px;
+        margin-top:20px;
+     ">
+
+                    <button class="btn-secondary" id="btn-eventos-anterior" onclick="app.paginaAnteriorEventos()">
+                        Anterior
+                    </button>
+
+                    <span id="eventos-pagina-info">
+                        Página 1 de 1
+                    </span>
+
+                    <button class="btn-secondary" id="btn-eventos-proxima" onclick="app.proximaPaginaEventos()">
+                        Próxima
+                    </button>
                 </div>
             </div>
 
@@ -152,7 +211,14 @@
 
             <input type="text" id="evento-local" placeholder="Local (Ex: Auditório Bloco A ou Link do Meet)">
 
-            <input type="number" id="evento-comunidade-id" placeholder="ID da Comunidade vinculada (Ex: 1)" value="1">
+            <input type="number" id="evento-comunidade-id" placeholder="ID da Comunidade vinculada (opcional)">
+
+            <input type="number" id="evento-limite" placeholder="Limite de participantes (opcional)" min="1">
+
+            <label style="display:flex; align-items:center; gap:8px; margin-bottom:16px;">
+                <input type="checkbox" id="evento-checkin">
+                Exigir ingresso/check-in na entrada
+            </label>
 
             <button class="btn-full" style="background: #10b981;" onclick="app.criarEvento()">Agendar Evento</button>
             <button class="btn-cancel" onclick="app.fecharModal('evento-modal')">Cancelar</button>
@@ -204,6 +270,105 @@
             </button>
         </div>
     </div>
+
+    <div class="modal-overlay" id="gerenciar-evento-modal">
+        <div class="modal">
+            <h2>Gerenciar Evento</h2>
+
+            <input type="text" id="editar-evento-titulo" placeholder="Título do evento">
+
+            <textarea id="editar-evento-descricao" placeholder="Descrição"></textarea>
+
+            <input type="date" id="editar-evento-data">
+
+            <input type="time" id="editar-evento-horario">
+
+            <input type="text" id="editar-evento-local" placeholder="Local">
+
+            <input type="number" id="editar-evento-comunidade" placeholder="ID da comunidade (opcional)">
+
+            <input type="number" id="editar-evento-limite" placeholder="Limite de participantes (opcional)" min="1">
+
+            <label style="display:flex; align-items:center; gap:8px; margin-bottom:16px;">
+                <input type="checkbox" id="editar-evento-checkin">
+                Exigir ingresso/check-in
+            </label>
+
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                <button class="btn-primary" onclick="app.salvarEdicaoEvento()">
+                    Salvar alterações
+                </button>
+
+                <button class="btn-primary" onclick="app.abrirValidacaoIngresso()">
+                    Validar ingresso
+                </button>
+
+                <button class="btn-secondary" style="background:#f59e0b; color:white;" onclick="app.cancelarEvento()">
+                    Cancelar evento
+                </button>
+
+                <button class="btn-danger" onclick="app.excluirEvento()">
+                    Excluir evento
+                </button>
+
+                <button class="btn-primary" onclick="app.abrirParticipantesEvento()">
+                    Participantes
+                </button>
+
+                <button class="btn-secondary" onclick="app.fecharModal('gerenciar-evento-modal')">
+                    Cancelar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="participantes-evento-modal">
+        <div class="modal">
+            <h2>Participantes do Evento</h2>
+
+            <div id="lista-participantes-evento">
+                Carregando...
+            </div>
+
+            <br>
+
+            <button class="btn-secondary" onclick="app.fecharModal('participantes-evento-modal')">
+                Fechar
+            </button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="validar-ingresso-modal">
+        <div class="modal">
+            <h2>Validar ingresso</h2>
+
+            <p style="color:var(--text-muted);">
+                Digite ou cole o código do ingresso do participante.
+            </p>
+
+            <input type="text" id="token-ingresso" placeholder="Código do ingresso">
+
+            <button class="btn-full" onclick="app.validarIngresso()">
+                Validar
+            </button>
+
+            <button class="btn-primary" onclick="app.abrirLeitorQR()">
+                Ler QR pela câmera
+            </button>
+
+            <button class="btn-cancel" onclick="app.pararLeitorQR(); app.fecharModal('validar-ingresso-modal')">
+                Fechar
+            </button>
+        </div>
+        <div id="qr-reader" style="width:100%; margin-top:16px; display:none;">
+        </div>
+
+        <button class="btn-secondary" onclick="app.pararLeitorQR()">
+            Parar câmera
+        </button>
+    </div>
+
+
 
     <script type="module" src="app.js"></script>
 </body>

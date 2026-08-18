@@ -1,4 +1,4 @@
-package com.backendpi.backend.model; 
+package com.backendpi.backend.model;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -41,6 +41,18 @@ public class Evento {
     @Column(name = "comunidade_id")
     private Long comunidadeId;
 
+    @Column(name = "criador_id", nullable = false)
+    private Long criadorId;
+
+    @Column(name = "limite_participantes")
+    private Integer limiteParticipantes;
+
+    @Column(nullable = false)
+    private String status = "AGENDADO";
+
+    @Column(name = "exige_checkin", nullable = false)
+    private Boolean exigeCheckin = false;
+
     public Long getId() {
         return id;
     }
@@ -69,8 +81,6 @@ public class Evento {
         return comunidadeId;
     }
 
-    // Setters
-
     public void setId(Long id) {
         this.id = id;
     }
@@ -98,4 +108,37 @@ public class Evento {
     public void setComunidadeId(Long comunidadeId) {
         this.comunidadeId = comunidadeId;
     }
+
+    public Long getCriadorId() {
+        return criadorId;
+    }
+
+    public void setCriadorId(Long criadorId) {
+        this.criadorId = criadorId;
+    }
+
+    public Integer getLimiteParticipantes() {
+        return limiteParticipantes;
+    }
+
+    public void setLimiteParticipantes(Integer limiteParticipantes) {
+        this.limiteParticipantes = limiteParticipantes;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public Boolean getExigeCheckin() {
+        return exigeCheckin;
+    }
+
+    public void setExigeCheckin(Boolean exigeCheckin) {
+        this.exigeCheckin = exigeCheckin;
+    }
+
 }

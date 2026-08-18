@@ -107,4 +107,141 @@ export class ApiService {
             }
         );
     }
+
+    static async atualizarEvento(idEvento, idUsuario, eventoData) {
+        return await fetch(
+            `${this.API_URL}/api/eventos/${idEvento}/usuario/${idUsuario}`,
+            {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(eventoData)
+            }
+        );
+    }
+
+    static async excluirEvento(idEvento, idUsuario) {
+        return await fetch(
+            `${this.API_URL}/api/eventos/${idEvento}/usuario/${idUsuario}`,
+            {
+                method: "DELETE"
+            }
+        );
+    }
+
+    static async cancelarEvento(idEvento, idUsuario) {
+        return await fetch(
+            `${this.API_URL}/api/eventos/${idEvento}/cancelar/usuario/${idUsuario}`,
+            {
+                method: "PUT"
+            }
+        );
+    }
+
+    static async participarEvento(idEvento, idUsuario) {
+        return await fetch(
+            `${this.API_URL}/api/eventos/${idEvento}/participar/${idUsuario}`,
+            {
+                method: "POST"
+            }
+        );
+    }
+
+    static async sairEvento(idEvento, idUsuario) {
+        return await fetch(
+            `${this.API_URL}/api/eventos/${idEvento}/participar/${idUsuario}`,
+            {
+                method: "DELETE"
+            }
+        );
+    }
+
+    static async listarParticipantesEvento(idEvento) {
+        return await (
+            await fetch(
+                `${this.API_URL}/api/eventos/${idEvento}/participantes`
+            )
+        ).json();
+    }
+
+    static async contarParticipantesEvento(idEvento) {
+        const resposta = await fetch(
+            `${this.API_URL}/api/eventos/${idEvento}/participantes/quantidade`
+        );
+
+        return await resposta.json();
+    }
+
+    static async removerParticipanteEvento(
+        idEvento,
+        idParticipante,
+        idSolicitante
+    ) {
+        return await fetch(
+            `${this.API_URL}/api/eventos/${idEvento}/participantes/${idParticipante}/usuario/${idSolicitante}`,
+            {
+                method: "DELETE"
+            }
+        );
+    }
+
+    static async validarIngressoEvento(idEvento, idSolicitante, tokenIngresso) {
+        return await fetch(
+            `${this.API_URL}/api/eventos/${idEvento}/validar-ingresso/usuario/${idSolicitante}`,
+            {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "text/plain"
+                },
+                body: tokenIngresso
+            }
+        );
+    }
+
+    static async buscarEventos({
+        texto = null,
+        status = null,
+        comunidadeId = null,
+        dataInicio = null,
+        dataFim = null,
+        page = 0,
+        size = 12
+    } = {}) {
+
+        const params = new URLSearchParams();
+
+        if (texto) {
+            params.append("texto", texto);
+        }
+
+        if (status) {
+            params.append("status", status);
+        }
+
+        if (comunidadeId) {
+            params.append("comunidadeId", comunidadeId);
+        }
+
+        if (dataInicio) {
+            params.append("dataInicio", dataInicio);
+        }
+
+        if (dataFim) {
+            params.append("dataFim", dataFim);
+        }
+
+        params.append("page", page);
+        params.append("size", size);
+
+        const response = await fetch(
+            `${this.API_URL}/api/eventos/buscar?${params.toString()}`
+        );
+
+        if (!response.ok) {
+            throw new Error("Erro ao buscar eventos");
+        }
+
+        return await response.json();
+    }
 }
