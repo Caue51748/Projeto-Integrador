@@ -19,17 +19,16 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Resenha ou Morte',
+      title: 'SocialJoin',
       theme: ThemeData(
         useMaterial3: true,
         primaryColor: const Color(0xFFEA3F74),
-        scaffoldBackgroundColor: const Color(0xFFF8FAFC),
+        scaffoldBackgroundColor: const Color(0xFFFAFAFC),
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFFEA3F74),
           primary: const Color(0xFFEA3F74),
-          secondary: const Color(0xFFFF5B8C),
+          secondary: const Color(0xFFF9ACC6),
           surface: Colors.white,
-          background: const Color(0xFFF8FAFC),
         ),
         appBarTheme: const AppBarTheme(
           backgroundColor: Color(0xFFEA3F74),
