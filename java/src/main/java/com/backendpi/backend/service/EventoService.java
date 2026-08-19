@@ -90,7 +90,9 @@ public class EventoService {
         evento.setTitulo(novo.getTitulo());
         evento.setDescricao(novo.getDescricao());
         evento.setDataEvento(novo.getDataEvento());
-        evento.setHorario(novo.getHorario());
+        evento.setHorarioInicio(novo.getHorarioInicio());
+        evento.setHorarioFim(novo.getHorarioFim());
+        evento.setEncerramentoInscricoes(novo.getEncerramentoInscricoes());
         evento.setLocalEvento(novo.getLocalEvento());
         evento.setComunidadeId(novo.getComunidadeId());
         evento.setLimiteParticipantes(novo.getLimiteParticipantes());
@@ -137,7 +139,7 @@ public class EventoService {
                 tamanho,
                 Sort.by("dataEvento")
                         .ascending()
-                        .and(Sort.by("horario").ascending())
+                        .and(Sort.by("horarioInicio").ascending())
         );
 
         return eventoRepository.buscarComFiltros(

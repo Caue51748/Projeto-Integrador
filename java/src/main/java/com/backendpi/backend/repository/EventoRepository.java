@@ -18,13 +18,13 @@ public interface EventoRepository extends JpaRepository<Evento, Long> {
         SELECT e
         FROM Evento e
         WHERE
-            (:texto IS NULL OR
-             LOWER(e.titulo) LIKE LOWER(CONCAT('%', :texto, '%')) OR
-             LOWER(e.descricao) LIKE LOWER(CONCAT('%', :texto, '%')))
+            (:texto IS NULL
+             OR LOWER(e.titulo) LIKE LOWER(CONCAT('%', :texto, '%'))
+             OR LOWER(e.descricao) LIKE LOWER(CONCAT('%', :texto, '%')))
         AND (:status IS NULL OR e.status = :status)
         AND (:comunidadeId IS NULL OR e.comunidadeId = :comunidadeId)
         AND (:dataInicio IS NULL OR e.dataEvento >= :dataInicio)
-AND (:dataFim IS NULL OR e.dataEvento <= :dataFim)
+        AND (:dataFim IS NULL OR e.dataEvento <= :dataFim)
         """)
     Page<Evento> buscarComFiltros(
             @Param("texto") String texto,

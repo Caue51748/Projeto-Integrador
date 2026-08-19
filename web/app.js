@@ -576,8 +576,12 @@ ${ApiService.getIdUsuarioLogado() ? `
                     ? evento.dataEvento.split('-').reverse().join('/')
                     : '';
 
-                const horarioFormatado = evento.horario
-                    ? evento.horario.substring(0, 5)
+                const horarioInicioFormatado = evento.horarioInicio
+                    ? evento.horarioInicio.substring(0, 5)
+                    : '';
+
+                const horarioFimFormatado = evento.horarioFim
+                    ? evento.horarioFim.substring(0, 5)
                     : '';
 
                 const nomeCriador =
@@ -617,131 +621,74 @@ ${ApiService.getIdUsuarioLogado() ? `
                     quantidadeParticipantes >= evento.limiteParticipantes;
 
                 div.innerHTML = `
-                <div>
-                    <div style="
-                        display:flex;
-                        align-items:center;
-                        justify-content:space-between;
-                        gap:8px;
-                        margin-bottom:8px;
-                    ">
-                        <div style="display:flex; align-items:center; gap:8px;">
-                            <i class="material-icons" style="color:#10b981;">
-                                event
-                            </i>
-
-                            <h3 style="
-                                margin:0;
-                                font-size:18px;
-                                color:#111827;
-                            ">
-                                ${evento.titulo}
-                            </h3>
-                        </div>
-
-                        <span style="
-                            font-size:12px;
-                            font-weight:600;
-                        ">
-                            ${status}
-                        </span>
-                    </div>
-
-                    <p style="
-                        color:var(--text-muted);
-                        font-size:14px;
-                        margin:8px 0 16px 0;
-                    ">
-                        ${evento.descricao || 'Sem descrição informada.'}
-                    </p>
-                </div>
+    <div
+        onclick="app.abrirDetalhesEvento(${evento.id})"
+        style="cursor:pointer;"
+    >
+        <div style="
+            display:flex;
+            justify-content:space-between;
+            align-items:flex-start;
+            gap:12px;
+        ">
+            <div>
+                <h3 style="margin:0 0 6px 0;">
+                    ${evento.titulo}
+                </h3>
 
                 <div style="
-                    border-top:1px solid #f3f4f6;
-                    padding-top:12px;
-                    margin-top:auto;
                     font-size:13px;
                     color:var(--text-muted);
-                    display:flex;
-                    flex-direction:column;
-                    gap:5px;
                 ">
-
-                    <div>
-                        👤 <b>Organizador:</b> ${nomeCriador}
-                    </div>
-
-                    <div>
-                        📅 <b>Data:</b> ${dataFormatada}
-                    </div>
-
-                    <div>
-                        ⏰ <b>Horário:</b> ${horarioFormatado}
-                    </div>
-
-                    <div>
-                        📍 <b>Local:</b> ${evento.localEvento}
-                    </div>
-
-                    ${nomeComunidade ? `
-                        <div>
-                            💬 <b>Comunidade:</b> ${nomeComunidade}
-                        </div>
-                    ` : ''}
-
-                    <div>
-    👥 <b>Participantes:</b>
-    ${evento.limiteParticipantes
-                        ? `${quantidadeParticipantes} de ${evento.limiteParticipantes}`
-                        : `${quantidadeParticipantes}`
-                    }
-</div>
-
-                    <div>
-                        🎟 <b>Controle de entrada:</b> ${usaCheckin}
-                    </div>
-
-                    ${!eventoCancelado && idUsuarioLogado && !ehCriador ? `
-    ${usuarioParticipa
-                            ? `
-                <button
-                    class="btn-secondary"
-                    style="margin-top:12px;"
-                    onclick="app.sairDoEvento(${evento.id})">
-                    Sair do evento
-                </button>
-            `
-                            : eventoLotado
-                                ? `
-                    <button
-                        class="btn-secondary"
-                        style="margin-top:12px;"
-                        disabled>
-                        Evento lotado
-                    </button>
-                `
-                                : `
-                    <button
-                        class="btn-primary"
-                        style="margin-top:12px;"
-                        onclick="app.participarEvento(${evento.id})">
-                        Participar
-                    </button>
-                `
-                        }
-` : ''}
-
-                    ${ehCriador ? `
-                        <button
-                            class="btn-primary"
-                            style="margin-top:12px;"
-                            onclick="app.gerenciarEvento(${evento.id})">
-                            Gerenciar evento
-                        </button>
-                    ` : ''}
-
+                    📅 ${dataFormatada}
+                    • ⏰ ${horarioInicioFormatado} às ${horarioFimFormatado}
                 </div>
-            `;
+            </div>
+
+            <span style="
+                font-size:12px;
+                font-weight:600;
+            ">
+                ${status}
+            </span>
+        </div>
+
+        <p style="
+            color:var(--text-muted);
+            font-size:14px;
+            margin:12px 0;
+            overflow:hidden;
+            display:-webkit-box;
+            -webkit-line-clamp:2;
+            -webkit-box-orient:vertical;
+        ">
+            ${evento.descricao || 'Sem descrição informada.'}
+        </p>
+
+        <div style="
+            font-size:13px;
+            color:var(--text-muted);
+            display:flex;
+            flex-direction:column;
+            gap:4px;
+        ">
+            <div>
+                📍 ${evento.localEvento}
+            </div>
+
+            <div>
+                👥 ${evento.limiteParticipantes
+                        ? `${quantidadeParticipantes} de ${evento.limiteParticipantes}`
+                        : `${quantidadeParticipantes} participante(s)`
+                    }
+            </div>
+
+            <div>
+                👤 ${nomeCriador}
+            </div>
+        </div>
+    </div>
+`;
 
                 container.appendChild(div);
             }
@@ -773,8 +720,16 @@ ${ApiService.getIdUsuarioLogado() ? `
         const dataEvento =
             document.getElementById('evento-data').value;
 
-        const horario =
-            document.getElementById('evento-horario').value;
+        const horarioInicio =
+            document.getElementById('evento-horario-inicio').value;
+
+        const horarioFim =
+            document.getElementById('evento-horario-fim').value;
+
+        const encerramentoInscricoes =
+            document.getElementById(
+                'evento-encerramento-inscricoes'
+            ).value;
 
         const localEvento =
             document.getElementById('evento-local').value.trim();
@@ -788,18 +743,31 @@ ${ApiService.getIdUsuarioLogado() ? `
         const exigeCheckin =
             document.getElementById('evento-checkin').checked;
 
-        if (!titulo || !dataEvento || !horario || !localEvento) {
-            alert(
-                "Preencha título, data, horário e local do evento."
+        if (
+            !titulo ||
+            !dataEvento ||
+            !horarioInicio ||
+            !horarioFim ||
+            !localEvento
+        ) {
+            return alert(
+                "Preencha título, data, horário de início, horário de fim e local."
             );
-            return;
         }
 
         const novoEvento = {
             titulo,
             descricao,
             dataEvento,
-            horario: horario + ":00",
+
+            horarioInicio: horarioInicio + ":00",
+            horarioFim: horarioFim + ":00",
+
+            encerramentoInscricoes:
+                encerramentoInscricoes
+                    ? encerramentoInscricoes + ":00"
+                    : null,
+
             localEvento,
 
             criadorId: parseInt(idUsuario),
@@ -816,7 +784,6 @@ ${ApiService.getIdUsuarioLogado() ? `
 
             exigeCheckin
         };
-
         try {
 
             const res =
@@ -829,7 +796,9 @@ ${ApiService.getIdUsuarioLogado() ? `
                 document.getElementById('evento-titulo').value = '';
                 document.getElementById('evento-desc').value = '';
                 document.getElementById('evento-data').value = '';
-                document.getElementById('evento-horario').value = '';
+                document.getElementById('evento-horario-inicio').value = '';
+                document.getElementById('evento-horario-fim').value = '';
+                document.getElementById('evento-encerramento-inscricoes').value = '';
                 document.getElementById('evento-local').value = '';
                 document.getElementById('evento-comunidade-id').value = '';
                 document.getElementById('evento-limite').value = '';
@@ -1034,9 +1003,14 @@ ${ApiService.getIdUsuarioLogado() ? `
         document.getElementById('editar-evento-data').value =
             evento.dataEvento || '';
 
-        document.getElementById('editar-evento-horario').value =
-            evento.horario
-                ? evento.horario.substring(0, 5)
+        document.getElementById('editar-evento-horario-inicio').value =
+            evento.horarioInicio
+                ? evento.horarioInicio.substring(0, 5)
+                : '';
+
+        document.getElementById('editar-evento-horario-fim').value =
+            evento.horarioFim
+                ? evento.horarioFim.substring(0, 5)
                 : '';
 
         document.getElementById('editar-evento-local').value =
@@ -1074,8 +1048,11 @@ ${ApiService.getIdUsuarioLogado() ? `
         const dataEvento =
             document.getElementById('editar-evento-data').value;
 
-        const horario =
-            document.getElementById('editar-evento-horario').value;
+        const horarioInicio =
+            document.getElementById('editar-evento-horario-inicio').value;
+
+        const horarioFim =
+            document.getElementById('editar-evento-horario-fim').value;
 
         const localEvento =
             document.getElementById('editar-evento-local').value.trim();
@@ -1099,7 +1076,8 @@ ${ApiService.getIdUsuarioLogado() ? `
             titulo,
             descricao,
             dataEvento,
-            horario: horario + ":00",
+            horarioInicio: horarioInicio + ":00",
+            horarioFim: horarioFim + ":00",
             localEvento,
 
             comunidadeId:
@@ -1684,6 +1662,213 @@ ${ApiService.getIdUsuarioLogado() ? `
         this.timerBuscaEventos = setTimeout(() => {
             this.filtrarEventos();
         }, 400);
+    }
+
+    async abrirDetalhesEvento(idEvento) {
+
+        const evento = this.listaEventos.find(
+            e => (e.idEvento || e.id) == idEvento
+        );
+
+        if (!evento) {
+            return;
+        }
+
+        const participantes =
+            await ApiService.listarParticipantesEvento(idEvento);
+
+        const quantidadeParticipantes = participantes.length;
+
+        const idUsuarioLogado =
+            ApiService.getIdUsuarioLogado();
+
+        const usuarioParticipa =
+            idUsuarioLogado &&
+            participantes.some(
+                p => p.usuarioId == idUsuarioLogado
+            );
+
+        const ehCriador =
+            idUsuarioLogado &&
+            idUsuarioLogado == evento.criadorId;
+
+        const nomeCriador =
+            this.usuariosMap[evento.criadorId] || 'Desconhecido';
+
+        const nomeComunidade =
+            evento.comunidadeId
+                ? this.comunidadesMap[evento.comunidadeId]
+                : null;
+
+        const dataFormatada =
+            evento.dataEvento
+                ? evento.dataEvento.split('-').reverse().join('/')
+                : '';
+        const horarioInicioFormatado =
+            evento.horarioInicio
+                ? evento.horarioInicio.substring(0, 5)
+                : '';
+
+        const horarioFimFormatado =
+            evento.horarioFim
+                ? evento.horarioFim.substring(0, 5)
+                : '';
+
+        const eventoCancelado =
+            evento.status === 'CANCELADO';
+
+        const eventoLotado =
+            evento.limiteParticipantes !== null &&
+            quantidadeParticipantes >= evento.limiteParticipantes;
+
+        const container =
+            document.getElementById('evento-detalhes-conteudo');
+
+        container.innerHTML = `
+        <div class="card">
+
+            <div style="
+                display:flex;
+                justify-content:space-between;
+                gap:16px;
+                align-items:flex-start;
+            ">
+                <div>
+                    <h1 style="margin-top:0;">
+                        ${evento.titulo}
+                    </h1>
+
+                    <p style="
+                        color:var(--text-muted);
+                        margin-top:6px;
+                    ">
+                        Organizado por ${nomeCriador}
+                    </p>
+                </div>
+
+                <span style="
+                    font-size:13px;
+                    font-weight:700;
+                ">
+                    ${evento.status || 'AGENDADO'}
+                </span>
+            </div>
+
+            <p style="
+                font-size:15px;
+                line-height:1.6;
+                margin:24px 0;
+            ">
+                ${evento.descricao || 'Sem descrição informada.'}
+            </p>
+
+            <div style="
+                border-top:1px solid #f3f4f6;
+                padding-top:20px;
+                display:grid;
+                gap:10px;
+            ">
+                <div>📅 <b>Data:</b> ${dataFormatada}</div>
+
+                <div>⏰ <b>Horário:</b> ${horarioInicioFormatado} às ${horarioFimFormatado}</div>
+
+                <div>📍 <b>Local:</b> ${evento.localEvento}</div>
+
+                ${nomeComunidade ? `
+                    <div>
+                        💬 <b>Comunidade:</b> ${nomeComunidade}
+                    </div>
+                ` : ''}
+
+                <div>
+                    👥 <b>Participantes:</b>
+                    ${evento.limiteParticipantes
+                ? `${quantidadeParticipantes} de ${evento.limiteParticipantes}`
+                : quantidadeParticipantes
+            }
+                </div>
+
+                <div>
+                    🎟 <b>Controle de entrada:</b>
+                    ${evento.exigeCheckin ? 'Sim' : 'Não'}
+                </div>
+            </div>
+
+            <div style="
+                display:flex;
+                gap:10px;
+                flex-wrap:wrap;
+                margin-top:24px;
+            ">
+
+                ${!eventoCancelado &&
+                idUsuarioLogado &&
+                !ehCriador
+                ? usuarioParticipa
+                    ? `
+                                <button
+                                    class="btn-secondary"
+                                    onclick="app.sairDoEvento(${idEvento})">
+                                    Sair do evento
+                                </button>
+                            `
+                    : eventoLotado
+                        ? `
+                                    <button
+                                        class="btn-secondary"
+                                        disabled>
+                                        Evento lotado
+                                    </button>
+                                `
+                        : `
+                                    <button
+                                        class="btn-primary"
+                                        onclick="app.participarEvento(${idEvento})">
+                                        Participar
+                                    </button>
+                                `
+                : ''
+            }
+
+                ${ehCriador
+                ? `
+                            <button
+                                class="btn-primary"
+                                onclick="app.gerenciarEvento(${idEvento})">
+                                Gerenciar evento
+                            </button>
+                        `
+                : ''
+            }
+
+            </div>
+        </div>
+    `;
+
+        document.querySelectorAll('.view-section')
+            .forEach(el => el.classList.remove('active'));
+
+        document.getElementById('view-evento-detalhes')
+            .classList.add('active');
+    }
+
+    voltarParaEventos() {
+
+        document.querySelectorAll('.view-section')
+            .forEach(el => el.classList.remove('active'));
+
+        document.getElementById('view-eventos')
+            .classList.add('active');
+
+        document.querySelectorAll('.nav-btn')
+            .forEach(el => el.classList.remove('active'));
+
+        const botaoEventos =
+            document.getElementById('tab-eventos');
+
+        if (botaoEventos) {
+            botaoEventos.classList.add('active');
+        }
     }
 }
 

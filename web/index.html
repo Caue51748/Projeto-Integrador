@@ -163,6 +163,25 @@
                 </div>
                 <div id="subreddit-feed-container"></div>
             </div>
+
+            <div id="view-evento-detalhes" class="view-section">
+
+                <button onclick="app.voltarParaEventos()" style="
+            background:none;
+            border:none;
+            cursor:pointer;
+            color:var(--text-muted);
+            margin-bottom:16px;
+        ">
+                    <i class="material-icons" style="font-size:16px; vertical-align:middle;">
+                        arrow_back
+                    </i>
+                    Voltar para eventos
+                </button>
+
+                <div id="evento-detalhes-conteudo"></div>
+
+            </div>
         </main>
     </div>
 
@@ -206,8 +225,12 @@
 
             <div style="display: flex; gap: 10px; margin-bottom: 12px;">
                 <input type="date" id="evento-data" style="width: 50%;">
-                <input type="time" id="evento-horario" style="width: 50%;">
+                <input type="time" id="evento-horario-inicio" style="width:50%;">
+
+                <input type="time" id="evento-horario-fim" style="width:50%;">
             </div>
+
+            <input type="datetime-local" id="evento-encerramento-inscricoes">
 
             <input type="text" id="evento-local" placeholder="Local (Ex: Auditório Bloco A ou Link do Meet)">
 
@@ -219,6 +242,12 @@
                 <input type="checkbox" id="evento-checkin">
                 Exigir ingresso/check-in na entrada
             </label>
+
+            <label for="evento-encerramento-inscricoes">
+                Encerramento das inscrições
+            </label>
+
+            <input type="datetime-local" id="evento-encerramento-inscricoes">
 
             <button class="btn-full" style="background: #10b981;" onclick="app.criarEvento()">Agendar Evento</button>
             <button class="btn-cancel" onclick="app.fecharModal('evento-modal')">Cancelar</button>
@@ -367,8 +396,6 @@
             Parar câmera
         </button>
     </div>
-
-
 
     <script type="module" src="app.js"></script>
 </body>

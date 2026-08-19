@@ -1,6 +1,7 @@
 package com.backendpi.backend.model;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
@@ -31,9 +32,17 @@ public class Evento {
     @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate dataEvento;
 
-    @Column(nullable = false)
+    @Column(name = "horario_inicio", nullable = false)
     @JsonFormat(pattern = "HH:mm:ss")
-    private LocalTime horario;
+    private LocalTime horarioInicio;
+
+    @Column(name = "horario_fim", nullable = false)
+    @JsonFormat(pattern = "HH:mm:ss")
+    private LocalTime horarioFim;
+
+    @Column(name = "encerramento_inscricoes")
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
+    private LocalDateTime encerramentoInscricoes;
 
     @Column(name = "local_evento", nullable = false)
     private String localEvento;
@@ -51,7 +60,11 @@ public class Evento {
     private String status = "AGENDADO";
 
     @Column(name = "exige_checkin", nullable = false)
-    private Boolean exigeCheckin = false;
+    private Boolean exigeCheckin;
+
+    public Evento() {
+        this.exigeCheckin = false;
+    }
 
     public Long getId() {
         return id;
@@ -69,8 +82,12 @@ public class Evento {
         return dataEvento;
     }
 
-    public LocalTime getHorario() {
-        return horario;
+    public LocalTime getHorarioInicio() {
+        return horarioInicio;
+    }
+
+    public LocalTime getHorarioFim() {
+        return horarioFim;
     }
 
     public String getLocalEvento() {
@@ -97,8 +114,12 @@ public class Evento {
         this.dataEvento = dataEvento;
     }
 
-    public void setHorario(LocalTime horario) {
-        this.horario = horario;
+    public void setHorarioInicio(LocalTime horarioInicio) {
+        this.horarioInicio = horarioInicio;
+    }
+
+    public void setHorarioFim(LocalTime horarioFim) {
+        this.horarioFim = horarioFim;
     }
 
     public void setLocalEvento(String localEvento) {
@@ -139,6 +160,14 @@ public class Evento {
 
     public void setExigeCheckin(Boolean exigeCheckin) {
         this.exigeCheckin = exigeCheckin;
+    }
+
+    public LocalDateTime getEncerramentoInscricoes() {
+        return encerramentoInscricoes;
+    }
+
+    public void setEncerramentoInscricoes(LocalDateTime encerramentoInscricoes) {
+        this.encerramentoInscricoes = encerramentoInscricoes;
     }
 
 }
