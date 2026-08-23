@@ -1,5 +1,6 @@
 package com.backendpi.backend.service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -34,6 +35,35 @@ public class ParticipacaoEventoService {
         Evento evento = eventoRepository.findById(idEvento)
                 .orElseThrow(()
                         -> new RuntimeException("Evento não encontrado"));
+
+        LocalDateTime agora = LocalDateTime.now();
+
+        LocalDateTime fimEvento = LocalDateTime.of(
+                evento.getDataEvento(),
+                evento.getHorarioFim()
+        );
+
+        if (!agora.isBefore(fimEvento)) {
+            throw new RuntimeException(
+                    "Não é possível participar de um evento encerrado"
+            );
+        }
+
+        LocalDateTime limiteInscricao
+                = evento.getEncerramentoInscricoes();
+
+        if (limiteInscricao == null) {
+            limiteInscricao = LocalDateTime.of(
+                    evento.getDataEvento(),
+                    evento.getHorarioInicio()
+            );
+        }
+
+        if (agora.isAfter(limiteInscricao)) {
+            throw new RuntimeException(
+                    "As inscrições para este evento já foram encerradas"
+            );
+        }
 
         if (!usuarioRepository.existsById(idUsuario)) {
             throw new RuntimeException("Usuário não encontrado");

@@ -1,25 +1,38 @@
 package com.backendpi.backend.service;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
+import com.backendpi.backend.dto.EventoResumoDTO;
 import com.backendpi.backend.model.Evento;
 import com.backendpi.backend.repository.EventoRepository;
+import com.backendpi.backend.repository.ParticipacaoEventoRepository;
 
 @Service
 public class EventoService {
 
     private final EventoRepository eventoRepository;
 
-    public EventoService(EventoRepository eventoRepository) {
+    private final ParticipacaoEventoRepository participacaoEventoRepository;
+
+    public EventoService(
+            EventoRepository eventoRepository,
+            ParticipacaoEventoRepository participacaoEventoRepository) {
+
         this.eventoRepository = eventoRepository;
+        this.participacaoEventoRepository = participacaoEventoRepository;
     }
 
     public List<Evento> listarTodos() {
@@ -48,6 +61,8 @@ public class EventoService {
         if (evento.getExigeCheckin() == null) {
             evento.setExigeCheckin(false);
         }
+
+        validarDadosEvento(evento, true);
 
         return eventoRepository.save(evento);
     }
@@ -97,6 +112,7 @@ public class EventoService {
         evento.setComunidadeId(novo.getComunidadeId());
         evento.setLimiteParticipantes(novo.getLimiteParticipantes());
         evento.setExigeCheckin(novo.getExigeCheckin());
+        validarDadosEvento(evento, false);
 
         return eventoRepository.save(evento);
     }
@@ -117,7 +133,7 @@ public class EventoService {
         return eventoRepository.save(evento);
     }
 
-    public Page<Evento> buscarComFiltros(
+    public Page<EventoResumoDTO> buscarComFiltros(
             String texto,
             String status,
             Long comunidadeId,
@@ -142,13 +158,126 @@ public class EventoService {
                         .and(Sort.by("horarioInicio").ascending())
         );
 
-        return eventoRepository.buscarComFiltros(
-                texto,
-                status,
-                comunidadeId,
-                dataInicio,
-                dataFim,
-                pageable
+        // 1. Busca normalmente os eventos daquela página
+        Page<Evento> paginaEventos
+                = eventoRepository.buscarComFiltros(
+                        texto,
+                        status,
+                        comunidadeId,
+                        dataInicio,
+                        dataFim,
+                        pageable
+                );
+
+        // 2. Pega somente os IDs dos eventos encontrados
+        List<Long> idsEventos
+                = paginaEventos.getContent()
+                        .stream()
+                        .map(Evento::getId)
+                        .collect(Collectors.toList());
+
+        // 3. Mapa: idEvento -> quantidade de participantes
+        Map<Long, Long> quantidadePorEvento
+                = new HashMap<>();
+
+        // 4. Só consulta participantes se realmente houver eventos
+        if (!idsEventos.isEmpty()) {
+
+            List<Object[]> contagens
+                    = participacaoEventoRepository
+                            .contarParticipantesPorEventos(idsEventos);
+
+            for (Object[] linha : contagens) {
+
+                Long idEvento
+                        = ((Number) linha[0]).longValue();
+
+                Long quantidade
+                        = ((Number) linha[1]).longValue();
+
+                quantidadePorEvento.put(
+                        idEvento,
+                        quantidade
+                );
+            }
+        }
+
+        // 5. Transforma cada Evento em EventoResumoDTO
+        List<EventoResumoDTO> eventosDTO
+                = paginaEventos.getContent()
+                        .stream()
+                        .map(evento
+                                -> new EventoResumoDTO(
+                                evento.getId(),
+                                evento.getTitulo(),
+                                evento.getDescricao(),
+                                evento.getDataEvento(),
+                                evento.getHorarioInicio(),
+                                evento.getHorarioFim(),
+                                evento.getLocalEvento(),
+                                evento.getComunidadeId(),
+                                evento.getCriadorId(),
+                                evento.getLimiteParticipantes(),
+                                evento.getExigeCheckin(),
+                                evento.getStatus(),
+                                evento.getEncerramentoInscricoes(),
+                                quantidadePorEvento.getOrDefault(
+                                        evento.getId(),
+                                        0L
+                                )
+                        )
+                        )
+                        .collect(Collectors.toList());
+
+        // 6. Mantém a paginação original
+        return new PageImpl<>(
+                eventosDTO,
+                pageable,
+                paginaEventos.getTotalElements()
         );
+    }
+
+    private void validarDadosEvento(Evento evento, boolean validarDataPassada) {
+
+        if (evento.getDataEvento() == null
+                || evento.getHorarioInicio() == null
+                || evento.getHorarioFim() == null) {
+
+            throw new RuntimeException(
+                    "Data, horário de início e horário de fim são obrigatórios"
+            );
+        }
+
+        LocalDateTime inicioEvento = LocalDateTime.of(
+                evento.getDataEvento(),
+                evento.getHorarioInicio()
+        );
+
+        LocalDateTime fimEvento = LocalDateTime.of(
+                evento.getDataEvento(),
+                evento.getHorarioFim()
+        );
+
+        if (!fimEvento.isAfter(inicioEvento)) {
+            throw new RuntimeException(
+                    "O horário de fim deve ser depois do horário de início"
+            );
+        }
+
+        if (validarDataPassada
+                && !inicioEvento.isAfter(LocalDateTime.now())) {
+
+            throw new RuntimeException(
+                    "Não é possível criar um evento no passado"
+            );
+        }
+
+        if (evento.getEncerramentoInscricoes() != null
+                && evento.getEncerramentoInscricoes().isAfter(inicioEvento)) {
+
+            throw new RuntimeException(
+                    "O encerramento das inscrições não pode acontecer depois do início do evento"
+            );
+        }
     }
 }

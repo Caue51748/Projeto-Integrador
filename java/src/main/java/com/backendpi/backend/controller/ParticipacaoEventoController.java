@@ -2,6 +2,7 @@ package com.backendpi.backend.controller;
 
 import java.util.List;
 
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -29,14 +30,16 @@ public class ParticipacaoEventoController {
     }
 
     @PostMapping("/{idEvento}/participar/{idUsuario}")
-    public ParticipacaoEvento participar(
+    public ResponseEntity<Void> participar(
             @PathVariable Long idEvento,
             @PathVariable Long idUsuario) {
 
-        return service.participar(
+        service.participar(
                 idEvento,
                 idUsuario
         );
+
+        return ResponseEntity.ok().build();
     }
 
     @DeleteMapping("/{idEvento}/participar/{idUsuario}")

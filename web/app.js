@@ -16,7 +16,6 @@ class AppController {
         this.comunidadeEditando = null;
         this.eventoEditando = null;
         this.listaEventos = [];
-        this.html5QrCode = null;
         this.paginaEventos = 0;
         this.totalPaginasEventos = 0;
         this.tamanhoPaginaEventos = 12;
@@ -559,9 +558,21 @@ ${ApiService.getIdUsuarioLogado() ? `
                 const div = document.createElement('div');
                 div.className = 'card';
 
-                const status = evento.status || 'AGENDADO';
+                const statusDetalhes =
+                    evento.situacaoTemporal ||
+                    evento.status ||
+                    'AGENDADO';
+
+                const statusDetalhesExibido =
+                    statusDetalhes === 'ACONTECENDO_AGORA'
+                        ? 'ACONTECENDO AGORA'
+                        : statusDetalhes;
                 const eventoCancelado = status === 'CANCELADO';
 
+                const statusExibido =
+                    status === 'ACONTECENDO_AGORA'
+                        ? 'ACONTECENDO AGORA'
+                        : status;
 
                 div.style.borderLeft = eventoCancelado
                     ? '4px solid #ef4444'
@@ -599,27 +610,8 @@ ${ApiService.getIdUsuarioLogado() ? `
                     ? 'Sim'
                     : 'Não';
 
-                const idUsuarioLogado = ApiService.getIdUsuarioLogado();
-
-                const ehCriador =
-                    idUsuarioLogado &&
-                    idUsuarioLogado == evento.criadorId;
-
-                const participantes =
-                    await ApiService.listarParticipantesEvento(evento.id);
-
-                const quantidadeParticipantes = participantes.length;
-
-                const usuarioParticipa =
-                    idUsuarioLogado &&
-                    participantes.some(
-                        p => p.usuarioId == idUsuarioLogado
-                    );
-
-                const eventoLotado =
-                    evento.limiteParticipantes !== null &&
-                    quantidadeParticipantes >= evento.limiteParticipantes;
-
+                const quantidadeParticipantes =
+                    evento.quantidadeParticipantes || 0;
                 div.innerHTML = `
     <div
         onclick="app.abrirDetalhesEvento(${evento.id})"
@@ -649,7 +641,7 @@ ${ApiService.getIdUsuarioLogado() ? `
                 font-size:12px;
                 font-weight:600;
             ">
-                ${status}
+                ${statusDetalhesExibido}
             </span>
         </div>
 
@@ -753,6 +745,46 @@ ${ApiService.getIdUsuarioLogado() ? `
             return alert(
                 "Preencha título, data, horário de início, horário de fim e local."
             );
+        }
+
+        const inicioEvento = new Date(
+            `${dataEvento}T${horarioInicio}`
+        );
+
+        const fimEvento = new Date(
+            `${dataEvento}T${horarioFim}`
+        );
+
+        const agora = new Date();
+
+        if (fimEvento <= inicioEvento) {
+            return alert(
+                "O horário de fim deve ser depois do horário de início."
+            );
+        }
+
+        if (inicioEvento <= agora) {
+            return alert(
+                "Não é possível criar um evento no passado."
+            );
+        }
+
+        if (encerramentoInscricoes) {
+
+            const fimInscricoes =
+                new Date(encerramentoInscricoes);
+
+            if (fimInscricoes > inicioEvento) {
+                return alert(
+                    "O encerramento das inscrições não pode acontecer depois do início do evento."
+                );
+            }
+
+            if (fimInscricoes <= agora) {
+                return alert(
+                    "O encerramento das inscrições deve estar no futuro."
+                );
+            }
         }
 
         const novoEvento = {
@@ -1013,6 +1045,11 @@ ${ApiService.getIdUsuarioLogado() ? `
                 ? evento.horarioFim.substring(0, 5)
                 : '';
 
+        document.getElementById('editar-evento-encerramento-inscricoes').value =
+            evento.encerramentoInscricoes
+                ? evento.encerramentoInscricoes.substring(0, 16)
+                : '';
+
         document.getElementById('editar-evento-local').value =
             evento.localEvento || '';
 
@@ -1054,6 +1091,11 @@ ${ApiService.getIdUsuarioLogado() ? `
         const horarioFim =
             document.getElementById('editar-evento-horario-fim').value;
 
+        const encerramentoInscricoes =
+            document.getElementById(
+                'editar-evento-encerramento-inscricoes'
+            ).value;
+
         const localEvento =
             document.getElementById('editar-evento-local').value.trim();
 
@@ -1066,18 +1108,57 @@ ${ApiService.getIdUsuarioLogado() ? `
         const exigeCheckin =
             document.getElementById('editar-evento-checkin').checked;
 
-        if (!titulo || !dataEvento || !horario || !localEvento) {
+        if (
+            !titulo ||
+            !dataEvento ||
+            !horarioInicio ||
+            !horarioFim ||
+            !localEvento
+        ) {
             return alert(
-                "Preencha título, data, horário e local do evento."
+                "Preencha título, data, horário de início, horário de fim e local."
             );
+        }
+
+        const inicioEvento = new Date(
+            `${dataEvento}T${horarioInicio}`
+        );
+
+        const fimEvento = new Date(
+            `${dataEvento}T${horarioFim}`
+        );
+
+        if (fimEvento <= inicioEvento) {
+            return alert(
+                "O horário de fim deve ser depois do horário de início."
+            );
+        }
+
+        if (encerramentoInscricoes) {
+
+            const fimInscricoes =
+                new Date(encerramentoInscricoes);
+
+            if (fimInscricoes > inicioEvento) {
+                return alert(
+                    "O encerramento das inscrições não pode acontecer depois do início do evento."
+                );
+            }
         }
 
         const eventoAtualizado = {
             titulo,
             descricao,
             dataEvento,
+
             horarioInicio: horarioInicio + ":00",
             horarioFim: horarioFim + ":00",
+
+            encerramentoInscricoes:
+                encerramentoInscricoes
+                    ? encerramentoInscricoes + ":00"
+                    : null,
+
             localEvento,
 
             comunidadeId:
@@ -1194,7 +1275,11 @@ ${ApiService.getIdUsuarioLogado() ? `
         );
 
         if (resposta.ok) {
+
             await this.carregarEventos();
+
+            await this.abrirDetalhesEvento(idEvento);
+
         } else {
             alert("Não foi possível participar do evento.");
         }
@@ -1218,7 +1303,11 @@ ${ApiService.getIdUsuarioLogado() ? `
         );
 
         if (resposta.ok) {
+
             await this.carregarEventos();
+
+            await this.abrirDetalhesEvento(idEvento);
+
         } else {
             alert("Não foi possível cancelar sua participação.");
         }
@@ -1322,131 +1411,6 @@ ${ApiService.getIdUsuarioLogado() ? `
         } else {
             alert("Não foi possível remover o participante.");
         }
-    }
-
-    abrirValidacaoIngresso() {
-
-        if (!this.eventoEditando) {
-            return;
-        }
-
-        document.getElementById('token-ingresso').value = '';
-
-        this.abrirModal('validar-ingresso-modal');
-    }
-
-    async validarIngresso() {
-
-        if (!this.eventoEditando) {
-            return;
-        }
-
-        const token =
-            document.getElementById('token-ingresso').value.trim();
-
-        if (!token) {
-            return alert("Digite o código do ingresso.");
-        }
-
-        const idEvento =
-            this.eventoEditando.idEvento || this.eventoEditando.id;
-
-        const idSolicitante =
-            ApiService.getIdUsuarioLogado();
-
-        const resposta =
-            await ApiService.validarIngressoEvento(
-                idEvento,
-                idSolicitante,
-                token
-            );
-
-        if (resposta.ok) {
-
-            const participacao = await resposta.json();
-
-            alert("Ingresso válido! Check-in realizado.");
-
-            document.getElementById('token-ingresso').value = '';
-
-            await this.abrirParticipantesEvento();
-
-        } else {
-            alert(
-                "Ingresso inválido, já utilizado ou pertencente a outro evento."
-            );
-        }
-    }
-    async abrirLeitorQR() {
-
-        const reader = document.getElementById('qr-reader');
-        reader.style.display = 'block';
-
-        if (this.html5QrCode) {
-            try {
-                await this.html5QrCode.stop();
-            } catch (e) {
-                // ignora se já estiver parado
-            }
-        }
-
-        this.html5QrCode = new Html5Qrcode("qr-reader");
-
-        try {
-            const cameras = await Html5Qrcode.getCameras();
-
-            if (!cameras || cameras.length === 0) {
-                alert("Nenhuma câmera encontrada.");
-                return;
-            }
-
-            await this.html5QrCode.start(
-                cameras[0].id,
-                {
-                    fps: 10,
-                    qrbox: {
-                        width: 250,
-                        height: 250
-                    }
-                },
-                async (decodedText) => {
-
-                    try {
-                        await this.html5QrCode.stop();
-                    } catch (e) {
-                        console.error(e);
-                    }
-
-                    reader.style.display = 'none';
-
-                    document.getElementById('token-ingresso').value =
-                        decodedText;
-
-                    await this.validarIngresso();
-                }
-            );
-
-        } catch (erro) {
-            console.error(erro);
-            reader.style.display = 'none';
-
-            alert("Não foi possível acessar a câmera.");
-        }
-    }
-
-    async pararLeitorQR() {
-
-        if (this.html5QrCode) {
-            try {
-                await this.html5QrCode.stop();
-            } catch (erro) {
-                console.error(erro);
-            }
-
-            this.html5QrCode = null;
-        }
-
-        document.getElementById('qr-reader').style.display = 'none';
     }
 
     atualizarPaginacaoEventos() {
@@ -1721,6 +1685,32 @@ ${ApiService.getIdUsuarioLogado() ? `
             evento.limiteParticipantes !== null &&
             quantidadeParticipantes >= evento.limiteParticipantes;
 
+        let limiteInscricao;
+
+        if (evento.encerramentoInscricoes) {
+            limiteInscricao = new Date(evento.encerramentoInscricoes);
+        } else {
+            limiteInscricao = new Date(
+                `${evento.dataEvento}T${evento.horarioInicio}`
+            );
+        }
+
+        const inscricoesEncerradas =
+            new Date() >= limiteInscricao;
+
+        const situacaoEvento =
+            evento.situacaoTemporal ||
+            evento.status ||
+            'AGENDADO';
+
+        const situacaoEventoExibida =
+            situacaoEvento === 'ACONTECENDO_AGORA'
+                ? 'ACONTECENDO AGORA'
+                : situacaoEvento;
+
+        const eventoEncerrado =
+            situacaoEvento === 'ENCERRADO';
+
         const container =
             document.getElementById('evento-detalhes-conteudo');
 
@@ -1747,11 +1737,11 @@ ${ApiService.getIdUsuarioLogado() ? `
                 </div>
 
                 <span style="
-                    font-size:13px;
-                    font-weight:700;
-                ">
-                    ${evento.status || 'AGENDADO'}
-                </span>
+    font-size:13px;
+    font-weight:700;
+">
+    ${situacaoEventoExibida}
+</span>
             </div>
 
             <p style="
@@ -1790,9 +1780,22 @@ ${ApiService.getIdUsuarioLogado() ? `
 
                 <div>
                     🎟 <b>Controle de entrada:</b>
-                    ${evento.exigeCheckin ? 'Sim' : 'Não'}
+                    ${evento.exigeCheckin ? 'Obrigatório pelo aplicativo mobile' : 'Não obrigatório'}
                 </div>
             </div>
+
+            <div style="
+    margin-top:20px;
+    text-align:right;
+    color:var(--text-muted);
+    font-size:13px;
+">
+    <b>Inscrições até:</b><br>
+    ${limiteInscricao.toLocaleString('pt-BR', {
+                dateStyle: 'short',
+                timeStyle: 'short'
+            })}
+</div>
 
             <div style="
                 display:flex;
@@ -1801,33 +1804,44 @@ ${ApiService.getIdUsuarioLogado() ? `
                 margin-top:24px;
             ">
 
-                ${!eventoCancelado &&
+              ${!eventoCancelado &&
+                !eventoEncerrado &&
                 idUsuarioLogado &&
                 !ehCriador
                 ? usuarioParticipa
                     ? `
-                                <button
-                                    class="btn-secondary"
-                                    onclick="app.sairDoEvento(${idEvento})">
-                                    Sair do evento
-                                </button>
-                            `
-                    : eventoLotado
+                <button
+                    class="btn-secondary"
+                    onclick="app.sairDoEvento(${idEvento})">
+                    Sair do evento
+                </button>
+            `
+                    : inscricoesEncerradas
                         ? `
-                                    <button
-                                        class="btn-secondary"
-                                        disabled>
-                                        Evento lotado
-                                    </button>
-                                `
-                        : `
-                                    <button
-                                        class="btn-primary"
-                                        onclick="app.participarEvento(${idEvento})">
-                                        Participar
-                                    </button>
-                                `
-                : ''
+                    <button
+                        class="btn-secondary"
+                        disabled>
+                        Inscrições encerradas
+                    </button>
+                `
+                        : eventoLotado
+                            ? `
+                        <button
+                            class="btn-secondary"
+                            disabled>
+                            Evento lotado
+                        </button>
+                    `
+                            : `
+                        <button
+                            class="btn-primary"
+                            onclick="app.participarEvento(${idEvento})">
+                            Participar
+                        </button>
+                    `
+                :
+                ''
+
             }
 
                 ${ehCriador

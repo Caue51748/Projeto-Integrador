@@ -392,9 +392,13 @@ main {
     align-items: center;
     justify-content: center;
     z-index: 999;
+    padding: 20px;
 }
 
 .modal {
+      max-height: 90vh;
+    overflow-y: auto;
+    padding-right: 8px;
     background: var(--card-bg);
     width: 90%;
     max-width: 450px;

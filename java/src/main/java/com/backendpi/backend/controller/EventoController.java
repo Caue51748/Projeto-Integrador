@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.backendpi.backend.dto.EventoResumoDTO;
 import com.backendpi.backend.model.Evento;
 import com.backendpi.backend.service.EventoService;
 
@@ -80,7 +81,7 @@ public class EventoController {
     }
 
     @GetMapping("/buscar")
-    public Page<Evento> buscarComFiltros(
+    public Page<EventoResumoDTO> buscarComFiltros(
             @RequestParam(required = false) String texto,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) Long comunidadeId,

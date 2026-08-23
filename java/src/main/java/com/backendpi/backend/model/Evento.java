@@ -12,6 +12,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 
 @Entity
 @Table(name = "eventos")
@@ -168,6 +169,40 @@ public class Evento {
 
     public void setEncerramentoInscricoes(LocalDateTime encerramentoInscricoes) {
         this.encerramentoInscricoes = encerramentoInscricoes;
+    }
+
+    @Transient
+    public String getSituacaoTemporal() {
+
+        if ("CANCELADO".equals(status)) {
+            return "CANCELADO";
+        }
+
+        if (dataEvento == null || horarioInicio == null || horarioFim == null) {
+            return "INDEFINIDO";
+        }
+
+        LocalDateTime agora = LocalDateTime.now();
+
+        LocalDateTime inicio = LocalDateTime.of(
+                dataEvento,
+                horarioInicio
+        );
+
+        LocalDateTime fim = LocalDateTime.of(
+                dataEvento,
+                horarioFim
+        );
+
+        if (agora.isBefore(inicio)) {
+            return "AGENDADO";
+        }
+
+        if (!agora.isBefore(inicio) && agora.isBefore(fim)) {
+            return "ACONTECENDO_AGORA";
+        }
+
+        return "ENCERRADO";
     }
 
 }

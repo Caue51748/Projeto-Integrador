@@ -2,7 +2,6 @@
 <html lang="pt-BR">
 
 <head>
-    <script src="https://unpkg.com/html5-qrcode"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Painel - Rede Social</title>
@@ -230,8 +229,6 @@
                 <input type="time" id="evento-horario-fim" style="width:50%;">
             </div>
 
-            <input type="datetime-local" id="evento-encerramento-inscricoes">
-
             <input type="text" id="evento-local" placeholder="Local (Ex: Auditório Bloco A ou Link do Meet)">
 
             <input type="number" id="evento-comunidade-id" placeholder="ID da Comunidade vinculada (opcional)">
@@ -240,8 +237,12 @@
 
             <label style="display:flex; align-items:center; gap:8px; margin-bottom:16px;">
                 <input type="checkbox" id="evento-checkin">
-                Exigir ingresso/check-in na entrada
+                Exigir check-in dos participantes
             </label>
+
+            <small style="color:var(--text-muted); display:block; margin-bottom:16px;">
+                O ingresso e a validação de entrada serão realizados pelo aplicativo mobile.
+            </small>
 
             <label for="evento-encerramento-inscricoes">
                 Encerramento das inscrições
@@ -310,7 +311,17 @@
 
             <input type="date" id="editar-evento-data">
 
-            <input type="time" id="editar-evento-horario">
+            <div style="display:flex; gap:10px;">
+                <input type="time" id="editar-evento-horario-inicio">
+
+                <input type="time" id="editar-evento-horario-fim">
+            </div>
+
+            <label for="editar-evento-encerramento-inscricoes">
+                Encerramento das inscrições
+            </label>
+
+            <input type="datetime-local" id="editar-evento-encerramento-inscricoes">
 
             <input type="text" id="editar-evento-local" placeholder="Local">
 
@@ -320,16 +331,20 @@
 
             <label style="display:flex; align-items:center; gap:8px; margin-bottom:16px;">
                 <input type="checkbox" id="editar-evento-checkin">
-                Exigir ingresso/check-in
+                Exigir check-in dos participantes
             </label>
+
+            <small style="
+    color:var(--text-muted);
+    display:block;
+    margin-bottom:16px;
+">
+                O ingresso e a validação de entrada serão realizados pelo aplicativo mobile.
+            </small>
 
             <div style="display:flex; gap:10px; flex-wrap:wrap;">
                 <button class="btn-primary" onclick="app.salvarEdicaoEvento()">
                     Salvar alterações
-                </button>
-
-                <button class="btn-primary" onclick="app.abrirValidacaoIngresso()">
-                    Validar ingresso
                 </button>
 
                 <button class="btn-secondary" style="background:#f59e0b; color:white;" onclick="app.cancelarEvento()">
@@ -365,36 +380,6 @@
                 Fechar
             </button>
         </div>
-    </div>
-
-    <div class="modal-overlay" id="validar-ingresso-modal">
-        <div class="modal">
-            <h2>Validar ingresso</h2>
-
-            <p style="color:var(--text-muted);">
-                Digite ou cole o código do ingresso do participante.
-            </p>
-
-            <input type="text" id="token-ingresso" placeholder="Código do ingresso">
-
-            <button class="btn-full" onclick="app.validarIngresso()">
-                Validar
-            </button>
-
-            <button class="btn-primary" onclick="app.abrirLeitorQR()">
-                Ler QR pela câmera
-            </button>
-
-            <button class="btn-cancel" onclick="app.pararLeitorQR(); app.fecharModal('validar-ingresso-modal')">
-                Fechar
-            </button>
-        </div>
-        <div id="qr-reader" style="width:100%; margin-top:16px; display:none;">
-        </div>
-
-        <button class="btn-secondary" onclick="app.pararLeitorQR()">
-            Parar câmera
-        </button>
     </div>
 
     <script type="module" src="app.js"></script>
