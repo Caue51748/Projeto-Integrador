@@ -12,10 +12,15 @@ export class ApiService {
 
     // --- USUÁRIOS ---
     static async listarUsuarios() { return await (await fetch(`${this.API_URL}/usuarios`)).json(); }
-    static async criarUsuario(nome, email, senha) {
+    static async criarUsuario(
+        nome,
+        username,
+        email,
+        senha
+    ) {
         return await fetch(`${this.API_URL}/usuarios`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ nome, email, senha })
+            body: JSON.stringify({ nome, username, email, senha })
         });
     }
 
@@ -243,5 +248,108 @@ export class ApiService {
         }
 
         return await response.json();
+    }
+
+    static async buscarUsuarioPorId(idUsuario) {
+
+        const resposta = await fetch(
+            `http://localhost:8080/usuarios/${idUsuario}`
+        );
+
+        if (!resposta.ok) {
+            throw new Error("Usuário não encontrado");
+        }
+
+        return await resposta.json();
+    }
+
+    static async atualizarPerfil(idUsuario, nome, bio) {
+
+        return fetch(
+            `http://localhost:8080/usuarios/${idUsuario}/perfil`,
+            {
+                method: 'PUT',
+
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+
+                body: JSON.stringify({
+                    nome,
+                    bio
+                })
+            }
+        );
+    }
+
+    static async listarPostsPorUsuario(idUsuario) {
+
+        const resposta = await fetch(
+            `http://localhost:8080/posts/usuario/${idUsuario}`
+        );
+
+        if (!resposta.ok) {
+            throw new Error("Erro ao buscar publicações do usuário");
+        }
+
+        return await resposta.json();
+    }
+
+    static async listarComunidadesPorUsuario(idUsuario) {
+
+        const resposta = await fetch(
+            `http://localhost:8080/comunidades/usuario/${idUsuario}`
+        );
+
+        if (!resposta.ok) {
+            throw new Error("Erro ao buscar comunidades do usuário");
+        }
+
+        return await resposta.json();
+    }
+
+    static async listarEventosPorUsuario(idUsuario) {
+
+        const resposta = await fetch(
+            `http://localhost:8080/api/eventos/usuario/${idUsuario}`
+        );
+
+        if (!resposta.ok) {
+            throw new Error("Erro ao buscar eventos do usuário");
+        }
+
+        return await resposta.json();
+    }
+
+    static async buscarEventoPorId(idEvento) {
+
+        const resposta = await fetch(
+            `http://localhost:8080/api/eventos/${idEvento}`
+        );
+
+        if (!resposta.ok) {
+            throw new Error("Evento não encontrado");
+        }
+
+        return await resposta.json();
+    }
+
+    static async login(email, senha) {
+
+        return fetch(
+            'http://localhost:8080/usuarios/login',
+            {
+                method: 'POST',
+
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+
+                body: JSON.stringify({
+                    email,
+                    senha
+                })
+            }
+        );
     }
 }

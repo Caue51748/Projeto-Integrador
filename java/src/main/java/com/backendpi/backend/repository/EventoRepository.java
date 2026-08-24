@@ -1,6 +1,7 @@
 package com.backendpi.backend.repository;
 
 import java.time.LocalDate;
+import java.util.List;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -34,4 +35,8 @@ public interface EventoRepository extends JpaRepository<Evento, Long> {
             @Param("dataFim") LocalDate dataFim,
             Pageable pageable
     );
+
+    List<Evento> findByCriadorIdOrderByDataEventoDescHorarioInicioDesc(
+        Long criadorId
+);
 }

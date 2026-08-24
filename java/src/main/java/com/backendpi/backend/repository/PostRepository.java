@@ -8,4 +8,5 @@ import com.backendpi.backend.model.Post;
 public interface PostRepository extends JpaRepository<Post, Long> {
 
     List<Post> findByIdComunidade(Long idComunidade);
+    List<Post> findByIdUsuarioOrderByDataPostagemDesc(Long idUsuario);
 }

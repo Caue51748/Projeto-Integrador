@@ -104,4 +104,8 @@ public class PostService {
 
         }).orElseThrow();
     }
+
+    public List<Post> listarPorUsuario(Long idUsuario) {
+        return repository.findByIdUsuarioOrderByDataPostagemDesc(idUsuario);
+    }
 }

@@ -32,6 +32,13 @@ public class ComunidadeController {
         return service.listar();
     }
 
+    @GetMapping("/usuario/{idUsuario}")
+    public List<Comunidade> listarPorUsuario(
+            @PathVariable Long idUsuario) {
+
+        return service.listarPorUsuario(idUsuario);
+    }
+
     @PostMapping
     public Comunidade criar(@RequestBody Map<String, Object> dados) {
         return service.criar(dados);

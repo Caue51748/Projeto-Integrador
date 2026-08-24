@@ -1,8 +1,12 @@
 // Usuario.java
-
 package com.backendpi.backend.model;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "usuarios")
@@ -16,6 +20,12 @@ public class Usuario {
     private String nome;
     private String email;
     private String senha;
+
+    @Column(length = 300)
+    private String bio;
+
+    @Column(nullable = false, unique = true)
+    private String username;
 
     public Long getIdUsuario() {
         return idUsuario;
@@ -47,5 +57,21 @@ public class Usuario {
 
     public void setSenha(String senha) {
         this.senha = senha;
+    }
+
+    public String getBio() {
+        return bio;
+    }
+
+    public void setBio(String bio) {
+        this.bio = bio;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
     }
 }

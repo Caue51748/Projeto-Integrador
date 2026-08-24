@@ -37,6 +37,10 @@ public class ComunidadeService {
         return repository.findAll();
     }
 
+    public List<Comunidade> listarPorUsuario(Long idUsuario) {
+    return repository.findByMembroId(idUsuario);
+}
+
     public Comunidade criar(Map<String, Object> dados) {
 
         Long criadorId = Long.valueOf(dados.get("criadorId").toString());

@@ -37,6 +37,13 @@ public class EventoController {
         return eventoService.listarTodos();
     }
 
+    @GetMapping("/usuario/{idUsuario}")
+    public List<Evento> listarPorCriador(
+            @PathVariable Long idUsuario) {
+
+        return eventoService.listarPorCriador(idUsuario);
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<Evento> buscarPorId(@PathVariable Long id) {
         return eventoService.buscarPorId(id)

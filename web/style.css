@@ -129,8 +129,10 @@ aside {
     display: flex;
     flex-direction: column;
     flex-shrink: 0;
-    height: 100vh; /*altura total da tela*/
-    position: fixed; /*fica fixo na tela*/
+    height: 100vh;
+    /*altura total da tela*/
+    position: fixed;
+    /*fica fixo na tela*/
     top: 0;
     left: 0;
 }
@@ -188,7 +190,8 @@ main {
     flex-grow: 1;
     overflow-y: auto;
     padding: 32px;
-    margin-left: 260px; /* mesma largura do aside */
+    margin-left: 260px;
+    /* mesma largura do aside */
 }
 
 .view-section {
@@ -396,7 +399,7 @@ main {
 }
 
 .modal {
-      max-height: 90vh;
+    max-height: 90vh;
     overflow-y: auto;
     padding-right: 8px;
     background: var(--card-bg);
@@ -475,4 +478,49 @@ main {
     align-items: center;
     padding: 10px 0;
     border-bottom: 1px solid var(--border-color);
+}
+
+.perfil-tabs {
+    display: flex;
+    border-bottom: 1px solid #e5e7eb;
+    margin-top: 24px;
+    margin-bottom: 20px;
+}
+
+.perfil-tab {
+    flex: 1;
+    text-align: center;
+    padding: 14px 10px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-muted);
+    position: relative;
+    transition: 0.2s;
+}
+
+.perfil-tab:hover {
+    background: #f9fafb;
+    color: #111827;
+}
+
+.perfil-tab.active {
+    color: #111827;
+}
+
+.perfil-tab.active::after {
+    content: "";
+    position: absolute;
+    left: 25%;
+    right: 25%;
+    bottom: 0;
+    height: 3px;
+    border-radius: 3px 3px 0 0;
+    background: #10b981;
+}
+
+.perfil-username {
+    color: var(--text-muted);
+    font-size: 14px;
+    margin-top: 4px;
 }

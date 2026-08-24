@@ -47,4 +47,11 @@ public class PostController {
 
         service.deletar(idPost, idUsuario);
     }
+
+    @GetMapping("/usuario/{idUsuario}")
+public List<Post> listarPorUsuario(
+        @PathVariable Long idUsuario) {
+
+    return service.listarPorUsuario(idUsuario);
+}
 }

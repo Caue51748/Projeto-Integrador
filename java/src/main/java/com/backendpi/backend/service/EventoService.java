@@ -39,6 +39,13 @@ public class EventoService {
         return eventoRepository.findAll();
     }
 
+    public List<Evento> listarPorCriador(Long idUsuario) {
+        return eventoRepository
+                .findByCriadorIdOrderByDataEventoDescHorarioInicioDesc(
+                        idUsuario
+                );
+    }
+
     public Optional<Evento> buscarPorId(Long id) {
         return eventoRepository.findById(id);
     }

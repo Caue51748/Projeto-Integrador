@@ -1,8 +1,8 @@
 package com.backendpi.backend.repository;
 
-import com.backendpi.backend.model.Usuario;
-
 import org.springframework.data.jpa.repository.JpaRepository;
+
+import com.backendpi.backend.model.Usuario;
 
 public interface UsuarioRepository
         extends JpaRepository<Usuario, Long> {
@@ -15,4 +15,6 @@ public interface UsuarioRepository
             String email,
             String senha
     );
+
+    boolean existsByUsername(String username);
 }

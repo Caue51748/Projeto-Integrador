@@ -27,6 +27,7 @@ class AppController {
             dataFim: null
         };
         this.timerBuscaEventos = null;
+        this.viewAntesDoPerfil = 'feed';
     }
 
     async inicializar() {
@@ -93,9 +94,28 @@ class AppController {
         const user = ApiService.getUsuarioLogado();
         if (user) {
             container.innerHTML = `
-                <div style="font-size:14px; margin-bottom:8px; color:#cbd5e1;">Logado como: <b>${user.nome}</b></div>
-                <button class="btn-primary" style="width:100%; background:#ef4444;" onclick="app.fazerLogout()">Sair do Sistema</button>
-            `;
+    <div style="
+        font-size:14px;
+        margin-bottom:8px;
+        color:#cbd5e1;
+    ">
+        Logado como: <b>${user.nome}</b>
+    </div>
+
+    <button
+        class="btn-primary"
+        style="width:100%; margin-bottom:8px;"
+        onclick="app.abrirMeuPerfil()">
+        Meu Perfil
+    </button>
+
+    <button
+        class="btn-primary"
+        style="width:100%; background:#ef4444;"
+        onclick="app.fazerLogout()">
+        Sair do Sistema
+    </button>
+`;
         } else {
             container.innerHTML = `<button class="btn-primary" style="width:100%;" onclick="app.abrirModal('auth-modal')">Fazer Login</button>`;
         }
@@ -136,15 +156,38 @@ class AppController {
         const e = document.getElementById('auth-email').value.trim();
         const s = document.getElementById('auth-senha').value.trim();
         const n = document.getElementById('auth-nome').value.trim();
+        const username =
+            document.getElementById('auth-username').value.trim();
 
         try {
             if (this.modoCadastro) {
-                const res = await ApiService.criarUsuario(n, e, s);
+                if (!n || !username || !e || !s) {
+                    return alert("Preencha todos os campos.");
+                }
+                const res = await ApiService.criarUsuario(
+                    n,
+                    username,
+                    e,
+                    s
+                );
                 if (res.ok) { ApiService.salvarSessao(await res.json()); this.posLogin(); }
             } else {
-                const lista = await ApiService.listarUsuarios();
-                const user = lista.find(u => (u.nome === e || u.email === e) && u.senha === s);
-                if (user) { ApiService.salvarSessao(user); this.posLogin(); } else alert("Credenciais inválidas");
+                const res =
+                    await ApiService.login(e, s);
+
+                if (res.ok) {
+
+                    const user =
+                        await res.json();
+
+                    ApiService.salvarSessao(user);
+
+                    this.posLogin();
+
+                } else {
+
+                    alert("Credenciais inválidas");
+                }
             }
         } catch (err) { alert("Erro de conexão."); }
     }
@@ -505,7 +548,10 @@ ${ApiService.getIdUsuarioLogado() ? `
     // --- ABA BUSCA ---
     filtrarUsuarios() {
         const txt = document.getElementById('search-input').value.toLowerCase();
-        this.renderizarUsuarios(this.listaUsuariosCompleta.filter(u => u.nome.toLowerCase().includes(txt)));
+        this.renderizarUsuariosthis.listaUsuariosCompleta.filter(u =>
+            u.nome.toLowerCase().includes(txt) ||
+            (u.username || '').toLowerCase().includes(txt)
+        );
     }
 
     renderizarUsuarios(lista) {
@@ -515,11 +561,32 @@ ${ApiService.getIdUsuarioLogado() ? `
             const div = document.createElement('div');
             div.className = 'list-item';
             div.innerHTML = `
-                <div style="display:flex; align-items:center;">
-                    <div class="avatar" style="width:32px; height:32px; margin-right:12px;">${u.nome.charAt(0).toUpperCase()}</div>
-                    <span style="font-weight:600;">${u.nome}</span>
-                </div>
-            `;
+    <div
+        style="
+            display:flex;
+            align-items:center;
+            cursor:pointer;
+            width:100%;
+        "
+        onclick="app.abrirPerfil(${u.idUsuario || u.id})"
+    >
+        <div class="avatar"
+             style="
+                width:32px;
+                height:32px;
+                margin-right:12px;
+             ">
+            ${u.nome.charAt(0).toUpperCase()}
+        </div>
+
+        <span style="font-weight:600;">
+            ${u.nome}
+            <small style="color:var(--text-muted);">
+    @${u.username}
+</small>
+        </span>
+    </div>
+`;
             container.appendChild(div);
         });
     }
@@ -1630,12 +1697,18 @@ ${ApiService.getIdUsuarioLogado() ? `
 
     async abrirDetalhesEvento(idEvento) {
 
-        const evento = this.listaEventos.find(
+        let evento = this.listaEventos.find(
             e => (e.idEvento || e.id) == idEvento
         );
 
         if (!evento) {
-            return;
+            try {
+                evento =
+                    await ApiService.buscarEventoPorId(idEvento);
+            } catch (erro) {
+                console.error(erro);
+                return alert("Não foi possível abrir este evento.");
+            }
         }
 
         const participantes =
@@ -1883,6 +1956,603 @@ ${ApiService.getIdUsuarioLogado() ? `
         if (botaoEventos) {
             botaoEventos.classList.add('active');
         }
+    }
+
+    async abrirPerfil(idUsuario) {
+
+        try {
+
+            const viewAtual =
+                document.querySelector('.view-section.active');
+
+            if (viewAtual && viewAtual.id !== 'view-perfil') {
+                this.viewAntesDoPerfil =
+                    viewAtual.id.replace('view-', '');
+            }
+
+            const usuario =
+                await ApiService.buscarUsuarioPorId(idUsuario);
+
+            const postsUsuario =
+                await ApiService.listarPostsPorUsuario(idUsuario);
+
+            const idLogado =
+                ApiService.getIdUsuarioLogado();
+
+            const ehProprioPerfil =
+                idLogado && idLogado == idUsuario;
+
+            const inicial =
+                usuario.nome
+                    ? usuario.nome.charAt(0).toUpperCase()
+                    : '?';
+
+            const container =
+                document.getElementById('perfil-conteudo');
+
+            container.innerHTML = `
+    <div class="card">
+
+        <div style="
+            display:flex;
+            align-items:center;
+            gap:16px;
+            margin-bottom:24px;
+        ">
+
+            <div
+                class="avatar"
+                style="
+                    width:72px;
+                    height:72px;
+                    font-size:28px;
+                    flex-shrink:0;
+                ">
+                ${inicial}
+            </div>
+
+            <div>
+                <h2 style="margin:0;">
+                    ${usuario.nome}
+                </h2>
+
+                <p class="perfil-username"
+                   style="
+                       margin:4px 0 0 0;
+                       color:var(--text-muted);
+                   ">
+                    @${usuario.username}
+                </p>
+            </div>
+
+        </div>
+
+        <div style="
+            border-top:1px solid #f3f4f6;
+            padding-top:20px;
+        ">
+
+            <h3 style="margin-top:0;">
+                Sobre
+            </h3>
+
+            <p style="
+                color:var(--text-muted);
+                line-height:1.6;
+                margin-bottom:0;
+            ">
+                ${usuario.bio ||
+                'Este usuário ainda não adicionou uma bio.'
+                }
+            </p>
+
+        </div>
+
+        ${ehProprioPerfil
+                    ? `
+                    <button
+                        class="btn-primary"
+                        style="margin-top:20px;"
+                        onclick="app.abrirEdicaoPerfil()">
+                        Editar perfil
+                    </button>
+                `
+                    : ''
+                }
+
+    </div>
+
+    <div class="perfil-tabs">
+
+        <div
+            class="perfil-tab active"
+            id="perfil-tab-publicacoes"
+            onclick="app.mostrarAbaPerfil('publicacoes', ${idUsuario})">
+            Publicações
+        </div>
+
+        <div
+            class="perfil-tab"
+            id="perfil-tab-comunidades"
+            onclick="app.mostrarAbaPerfil('comunidades', ${idUsuario})">
+            Comunidades
+        </div>
+
+        <div
+            class="perfil-tab"
+            id="perfil-tab-eventos"
+            onclick="app.mostrarAbaPerfil('eventos', ${idUsuario})">
+            Eventos
+        </div>
+
+    </div>
+
+    <div id="perfil-conteudo-abas"></div>
+`;
+
+            document.querySelectorAll('.view-section')
+                .forEach(el => el.classList.remove('active'));
+
+            document.getElementById('view-perfil')
+                .classList.add('active');
+
+            this.renderizarPostsPerfil(postsUsuario);
+
+        } catch (erro) {
+
+            console.error(erro);
+            alert("Não foi possível carregar o perfil.");
+        }
+
+    }
+
+    async abrirMeuPerfil() {
+
+        const idUsuario =
+            ApiService.getIdUsuarioLogado();
+
+        if (!idUsuario) {
+            return alert("Faça login primeiro.");
+        }
+
+        await this.abrirPerfil(idUsuario);
+    }
+
+    voltarDoPerfil() {
+
+        document.querySelectorAll('.view-section')
+            .forEach(el => el.classList.remove('active'));
+
+        const viewAnterior =
+            document.getElementById(
+                `view-${this.viewAntesDoPerfil}`
+            );
+
+        if (viewAnterior) {
+            viewAnterior.classList.add('active');
+        } else {
+            document.getElementById('view-feed')
+                .classList.add('active');
+        }
+
+        document.querySelectorAll('.nav-btn')
+            .forEach(el => el.classList.remove('active'));
+
+        const botaoAnterior =
+            document.getElementById(
+                `tab-${this.viewAntesDoPerfil}`
+            );
+
+        if (botaoAnterior) {
+            botaoAnterior.classList.add('active');
+        }
+    }
+
+    async abrirEdicaoPerfil() {
+
+        const idUsuario =
+            ApiService.getIdUsuarioLogado();
+
+        if (!idUsuario) {
+            return;
+        }
+
+        try {
+
+            const usuario =
+                await ApiService.buscarUsuarioPorId(idUsuario);
+
+            document.getElementById(
+                'editar-perfil-nome'
+            ).value = usuario.nome || '';
+
+            document.getElementById(
+                'editar-perfil-bio'
+            ).value = usuario.bio || '';
+
+            this.abrirModal('editar-perfil-modal');
+
+        } catch (erro) {
+
+            console.error(erro);
+            alert("Não foi possível carregar os dados do perfil.");
+        }
+    }
+
+    async salvarPerfil() {
+
+        const idUsuario =
+            ApiService.getIdUsuarioLogado();
+
+        if (!idUsuario) {
+            return;
+        }
+
+        const nome =
+            document.getElementById(
+                'editar-perfil-nome'
+            ).value.trim();
+
+        const bio =
+            document.getElementById(
+                'editar-perfil-bio'
+            ).value.trim();
+
+        if (!nome) {
+            return alert("O nome não pode ficar vazio.");
+        }
+
+        if (bio.length > 300) {
+            return alert(
+                "A bio pode ter no máximo 300 caracteres."
+            );
+        }
+
+        try {
+
+            const resposta =
+                await ApiService.atualizarPerfil(
+                    idUsuario,
+                    nome,
+                    bio
+                );
+
+            if (!resposta.ok) {
+                return alert(
+                    "Não foi possível atualizar o perfil."
+                );
+            }
+
+            const usuarioAtualizado =
+                await resposta.json();
+
+            // Atualiza também o usuário salvo no navegador
+            ApiService.salvarSessao(usuarioAtualizado);
+
+            this.fecharModal('editar-perfil-modal');
+
+            // Atualiza o nome mostrado no menu lateral
+            this.atualizarMenuLateral();
+
+            // Renderiza novamente o perfil já atualizado
+            await this.abrirPerfil(idUsuario);
+
+            alert("Perfil atualizado com sucesso!");
+
+        } catch (erro) {
+
+            console.error(erro);
+
+            alert(
+                "Erro de conexão ao atualizar o perfil."
+            );
+        }
+    }
+
+    renderizarPostsPerfil(posts) {
+
+        const container =
+            document.getElementById('perfil-conteudo-abas');
+
+        if (!container) {
+            return;
+        }
+
+        if (!posts || posts.length === 0) {
+            container.innerHTML = `
+            <p style="color:var(--text-muted);">
+                Este usuário ainda não publicou nada.
+            </p>
+        `;
+            return;
+        }
+
+        container.innerHTML = '';
+
+        posts.forEach(post => {
+
+            const div = document.createElement('div');
+            div.className = 'card';
+
+            const nomeComunidade =
+                post.idComunidade
+                    ? this.comunidadesMap[post.idComunidade]
+                    : null;
+
+            div.innerHTML = `
+            <h3 style="margin-top:0;">
+                ${post.titulo}
+            </h3>
+
+            ${nomeComunidade
+                    ? `
+                        <small style="color:var(--text-muted);">
+                            Publicado em ${nomeComunidade}
+                        </small>
+                    `
+                    : ''
+                }
+
+            <p style="
+                margin-top:12px;
+                color:var(--text-muted);
+            ">
+                ${post.conteudo}
+            </p>
+        `;
+
+            container.appendChild(div);
+        });
+    }
+
+    renderizarComunidadesPerfil(comunidades, idUsuario) {
+
+        const container =
+            document.getElementById('perfil-conteudo-abas');
+
+        if (!container) {
+            return;
+        }
+
+        if (!comunidades || comunidades.length === 0) {
+            container.innerHTML = `
+            <p style="color:var(--text-muted);">
+                Este usuário ainda não participa de nenhuma comunidade.
+            </p>
+        `;
+            return;
+        }
+
+        container.innerHTML = '';
+
+        comunidades.forEach(comunidade => {
+
+            const idComunidade =
+                comunidade.idComunidade || comunidade.id;
+
+            const idAdministrador =
+                comunidade.criador?.idUsuario ||
+                comunidade.criador?.id;
+
+            const ehAdministrador =
+                idAdministrador == idUsuario;
+
+            const div = document.createElement('div');
+
+            div.className = 'list-item';
+
+            div.innerHTML = `
+            <div class="list-item-info">
+
+                <div style="
+                    display:flex;
+                    align-items:center;
+                    gap:8px;
+                    margin-bottom:4px;
+                ">
+                    <h3 style="margin:0;">
+                        ${comunidade.nome}
+                    </h3>
+
+                    ${ehAdministrador
+                    ? `
+                                <span style="
+                                    font-size:11px;
+                                    font-weight:700;
+                                    padding:3px 7px;
+                                    border-radius:12px;
+                                    background:#ecfdf5;
+                                    color:#059669;
+                                ">
+                                    Administrador
+                                </span>
+                            `
+                    : ''
+                }
+                </div>
+
+                <p>
+                    ${comunidade.descricao || 'Sem descrição.'}
+                </p>
+
+                <small style="color:var(--text-muted);">
+                    ${comunidade.membros
+                    ? comunidade.membros.length
+                    : 0
+                } membro(s)
+                </small>
+
+            </div>
+
+            <button
+                class="btn-primary"
+                onclick="app.abrirComunidadeDoPerfil(${idComunidade})">
+                Acessar
+            </button>
+        `;
+
+            container.appendChild(div);
+        });
+    }
+
+    renderizarEventosPerfil(eventos) {
+
+        const container =
+            document.getElementById('perfil-conteudo-abas');
+
+        if (!container) {
+            return;
+        }
+
+        if (!eventos || eventos.length === 0) {
+            container.innerHTML = `
+            <p style="color:var(--text-muted);">
+                Este usuário ainda não organizou nenhum evento.
+            </p>
+        `;
+            return;
+        }
+
+        container.innerHTML = '';
+
+        eventos.forEach(evento => {
+
+            const idEvento =
+                evento.idEvento || evento.id;
+
+            const dataFormatada =
+                evento.dataEvento
+                    ? new Date(
+                        evento.dataEvento + 'T00:00:00'
+                    ).toLocaleDateString('pt-BR')
+                    : '';
+
+            const horarioInicio =
+                evento.horarioInicio
+                    ? evento.horarioInicio.substring(0, 5)
+                    : '';
+
+            const horarioFim =
+                evento.horarioFim
+                    ? evento.horarioFim.substring(0, 5)
+                    : '';
+
+            const div = document.createElement('div');
+            div.className = 'card';
+
+            div.innerHTML = `
+            <h3 style="margin-top:0;">
+                ${evento.titulo}
+            </h3>
+
+            <p style="color:var(--text-muted);">
+                ${evento.descricao || 'Sem descrição.'}
+            </p>
+
+            <div style="
+                display:flex;
+                gap:16px;
+                flex-wrap:wrap;
+                margin-top:12px;
+                font-size:14px;
+            ">
+                <span>
+                    📅 ${dataFormatada}
+                </span>
+
+                <span>
+                    🕒 ${horarioInicio} - ${horarioFim}
+                </span>
+
+                ${evento.localEvento
+                    ? `<span>📍 ${evento.localEvento}</span>`
+                    : ''
+                }
+            </div>
+
+            <button
+                class="btn-primary"
+                style="margin-top:16px;"
+                onclick="app.abrirEventoDoPerfil(${idEvento})">
+                Ver evento
+            </button>
+        `;
+
+            container.appendChild(div);
+        });
+    }
+
+    async abrirEventoDoPerfil(idEvento) {
+        await this.abrirDetalhesEvento(idEvento);
+    }
+
+    async mostrarAbaPerfil(aba, idUsuario) {
+
+        document.querySelectorAll('.perfil-tab')
+            .forEach(tab => tab.classList.remove('active'));
+
+        const abaSelecionada =
+            document.getElementById(`perfil-tab-${aba}`);
+
+        if (abaSelecionada) {
+            abaSelecionada.classList.add('active');
+        }
+
+        if (aba === 'publicacoes') {
+
+            const posts =
+                await ApiService.listarPostsPorUsuario(idUsuario);
+
+            this.renderizarPostsPerfil(posts);
+            return;
+        }
+
+        if (aba === 'comunidades') {
+
+            const comunidades =
+                await ApiService.listarComunidadesPorUsuario(
+                    idUsuario
+                );
+
+            this.renderizarComunidadesPerfil(
+                comunidades,
+                idUsuario
+            );
+
+            return;
+        }
+
+        if (aba === 'eventos') {
+
+            const eventos =
+                await ApiService.listarEventosPorUsuario(
+                    idUsuario
+                );
+
+            this.renderizarEventosPerfil(eventos);
+
+            return;
+        }
+    }
+
+    async abrirComunidadeDoPerfil(idComunidade) {
+
+        await this.carregarComunidades();
+
+        const comunidade =
+            this.listaComunidades.find(
+                c => (c.idComunidade || c.id) == idComunidade
+            );
+
+        if (!comunidade) {
+            return alert("Comunidade não encontrada.");
+        }
+
+        this.entrarSubreddit(
+            idComunidade,
+            comunidade.nome,
+            comunidade.descricao
+        );
     }
 }
 

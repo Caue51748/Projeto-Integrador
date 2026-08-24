@@ -163,6 +163,22 @@
                 <div id="subreddit-feed-container"></div>
             </div>
 
+            <div id="view-perfil" class="view-section">
+
+                <button onclick="app.voltarDoPerfil()" style="
+            background:none;
+            border:none;
+            cursor:pointer;
+            color:var(--text-muted);
+            margin-bottom:16px;
+        ">
+                    ← Voltar
+                </button>
+
+                <div id="perfil-conteudo"></div>
+
+            </div>
+
             <div id="view-evento-detalhes" class="view-section">
 
                 <button onclick="app.voltarParaEventos()" style="
@@ -188,6 +204,7 @@
         <div class="modal">
             <h2 id="auth-title">Acesso ao Painel</h2>
             <input type="text" id="auth-nome" placeholder="Nome Completo" style="display: none;">
+            <input type="text" id="auth-username" placeholder="Nome de usuário">
             <input type="text" id="auth-email" placeholder="Email / Usuário">
             <input type="password" id="auth-senha" placeholder="Senha">
             <button class="btn-full" onclick="app.processarAuth()">Acessar</button>
@@ -298,6 +315,43 @@
             <button class="btn-secondary" onclick="app.fecharModal('gerenciar-membros-modal')">
                 Fechar
             </button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="editar-perfil-modal">
+        <div class="modal">
+
+            <h2>Editar Perfil</h2>
+
+            <label for="editar-perfil-nome">
+                Nome
+            </label>
+
+            <input type="text" id="editar-perfil-nome" placeholder="Seu nome">
+
+            <label for="editar-perfil-bio">
+                Bio
+            </label>
+
+            <textarea id="editar-perfil-bio" maxlength="300" placeholder="Conte um pouco sobre você...">
+        </textarea>
+
+            <small style="
+            color:var(--text-muted);
+            display:block;
+            margin-bottom:16px;
+        ">
+                Máximo de 300 caracteres.
+            </small>
+
+            <button class="btn-primary" onclick="app.salvarPerfil()">
+                Salvar alterações
+            </button>
+
+            <button class="btn-secondary" onclick="app.fecharModal('editar-perfil-modal')">
+                Cancelar
+            </button>
+
         </div>
     </div>
 
