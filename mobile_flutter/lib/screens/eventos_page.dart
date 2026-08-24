@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import '../models/evento.dart';
+import '../services/evento_service.dart';
+import '../services/auth_service.dart';
 
 class EventosPage extends StatefulWidget {
   const EventosPage({super.key});
@@ -8,348 +11,723 @@ class EventosPage extends StatefulWidget {
 }
 
 class _EventosPageState extends State<EventosPage> {
-  final List<Map<String, String>> _events = [
-    {
-      'title': 'Hackathon Resenha Tech 2026',
-      'date': '15 de Agosto, 2026 • 09:00',
-      'location': 'Auditório Bloco A - Campus Central',
-      'description': 'Maratona de programação de 24 horas com prêmios para os melhores projetos de inovação.',
-      'category': 'Tecnologia',
-      'attendees': '48 participantes'
-    },
-    {
-      'title': 'Encontro de Design UX/UI & Mobile',
-      'date': '20 de Agosto, 2026 • 19:30',
-      'location': 'Online (Google Meet)',
-      'description': 'Workshop interativo sobre design sistemas, micro-interações e prototipagem em Flutter.',
-      'category': 'Design',
-      'attendees': '32 participantes'
-    },
-    {
-      'title': 'Torneio de E-Sports Resenha',
-      'date': '28 de Agosto, 2026 • 14:00',
-      'location': 'Arena Gamer / Discord',
-      'description': 'Campeonato interno com prêmios de RP e brindes exclusivos.',
-      'category': 'Games',
-      'attendees': '64 participantes'
-    },
-  ];
+  final EventoService _service = EventoService();
+  List<Evento> _eventos = [];
+  bool _carregando = true;
+  String? _erro;
 
-  void _showAddEventDialog() {
-    final titleController = TextEditingController();
-    final locationController = TextEditingController();
-    final descriptionController = TextEditingController();
-    final dateController = TextEditingController();
+  @override
+  void initState() {
+    super.initState();
+    _carregarEventos();
+  }
 
-    showDialog(
+  Future<void> _carregarEventos() async {
+    setState(() {
+      _carregando = true;
+      _erro = null;
+    });
+    try {
+      final lista = await _service.listarEventos();
+      if (mounted) {
+        setState(() {
+          _eventos = lista;
+          _carregando = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _erro = 'Não foi possível carregar os eventos.';
+          _carregando = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _participar(Evento evento) async {
+    if (!AuthService.logado || AuthService.idUsuario == null) {
+      _mostrarSnack('Faça login para participar de eventos.',
+          cor: const Color(0xFFEA3F74));
+      return;
+    }
+
+    final ok = await _service.participarEvento(
+        evento.id, AuthService.idUsuario!);
+
+    _mostrarSnack(
+      ok
+          ? 'Presença confirmada em "${evento.titulo}"!'
+          : 'Não foi possível confirmar presença.',
+      cor: ok ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+    );
+  }
+
+  void _mostrarSnack(String msg, {Color cor = const Color(0xFF10B981)}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), backgroundColor: cor),
+    );
+  }
+
+  void _abrirCriarEvento() {
+    if (!AuthService.logado || AuthService.idUsuario == null) {
+      _mostrarSnack('Faça login para criar eventos.',
+          cor: const Color(0xFFEA3F74));
+      return;
+    }
+
+    final tituloCtrl = TextEditingController();
+    final localCtrl = TextEditingController();
+    final descricaoCtrl = TextEditingController();
+    DateTime? dataSelecionada;
+    TimeOfDay? horarioInicioSelecionado;
+    TimeOfDay? horarioFimSelecionado;
+
+    showModalBottomSheet(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(
-          children: [
-            Icon(Icons.event_available, color: Color(0xFFEA3F74)),
-            SizedBox(width: 10),
-            Text('Criar Novo Evento', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          ],
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: titleController,
-                decoration: InputDecoration(
-                  labelText: 'Título do Evento',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  prefixIcon: const Icon(Icons.title),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: dateController,
-                decoration: InputDecoration(
-                  labelText: 'Data e Hora (ex: 30 de Ago, 18:00)',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  prefixIcon: const Icon(Icons.access_time),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: locationController,
-                decoration: InputDecoration(
-                  labelText: 'Localização',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  prefixIcon: const Icon(Icons.location_on),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: descriptionController,
-                maxLines: 3,
-                decoration: InputDecoration(
-                  labelText: 'Descrição do Evento',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  prefixIcon: const Icon(Icons.description),
-                ),
-              ),
-            ],
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) => Container(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
+            left: 20,
+            right: 20,
+            top: 20,
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
           ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFEA3F74),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            onPressed: () {
-              if (titleController.text.trim().isNotEmpty) {
-                setState(() {
-                  _events.insert(0, {
-                    'title': titleController.text.trim(),
-                    'date': dateController.text.trim().isEmpty ? 'Em breve' : dateController.text.trim(),
-                    'location': locationController.text.trim().isEmpty ? 'Local a definir' : locationController.text.trim(),
-                    'description': descriptionController.text.trim().isEmpty ? 'Sem descrição' : descriptionController.text.trim(),
-                    'category': 'Geral',
-                    'attendees': '1 participante'
-                  });
-                });
-                Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Evento criado com sucesso!'),
-                    backgroundColor: Color(0xFFEA3F74),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Handle
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
-                );
-              }
-            },
-            child: const Text('Publicar Evento'),
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  'Criar Evento',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                _modalField(tituloCtrl, 'Título do Evento', Icons.event_rounded),
+                const SizedBox(height: 12),
+                _modalField(localCtrl, 'Local / Link', Icons.location_on_outlined),
+                const SizedBox(height: 12),
+                _modalField(descricaoCtrl, 'Descrição', Icons.description_outlined,
+                    maxLines: 3),
+                const SizedBox(height: 12),
+
+                // Seletor de data
+                GestureDetector(
+                  onTap: () async {
+                    final d = await showDatePicker(
+                      context: ctx,
+                      initialDate: DateTime.now().add(const Duration(days: 1)),
+                      firstDate: DateTime.now(),
+                      lastDate: DateTime(2030),
+                    );
+                    if (d != null) setModalState(() => dataSelecionada = d);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade200),
+                      borderRadius: BorderRadius.circular(12),
+                      color: const Color(0xFFF8FAFC),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.calendar_today_outlined,
+                            size: 18, color: Color(0xFF64748B)),
+                        const SizedBox(width: 10),
+                        Text(
+                          dataSelecionada != null
+                              ? '${dataSelecionada!.day}/${dataSelecionada!.month}/${dataSelecionada!.year}'
+                              : 'Selecionar data',
+                          style: TextStyle(
+                            color: dataSelecionada != null
+                                ? const Color(0xFF0F172A)
+                                : Colors.grey.shade500,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Horários
+                Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () async {
+                          final t = await showTimePicker(
+                              context: ctx,
+                              initialTime: const TimeOfDay(hour: 9, minute: 0));
+                          if (t != null) {
+                            setModalState(() => horarioInicioSelecionado = t);
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey.shade200),
+                            borderRadius: BorderRadius.circular(12),
+                            color: const Color(0xFFF8FAFC),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.schedule_rounded,
+                                  size: 16, color: Color(0xFF64748B)),
+                              const SizedBox(width: 6),
+                              Text(
+                                horarioInicioSelecionado != null
+                                    ? horarioInicioSelecionado!.format(ctx)
+                                    : 'Início',
+                                style: TextStyle(
+                                    fontSize: 13,
+                                    color: horarioInicioSelecionado != null
+                                        ? const Color(0xFF0F172A)
+                                        : Colors.grey.shade500),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () async {
+                          final t = await showTimePicker(
+                              context: ctx,
+                              initialTime: const TimeOfDay(hour: 18, minute: 0));
+                          if (t != null) {
+                            setModalState(() => horarioFimSelecionado = t);
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey.shade200),
+                            borderRadius: BorderRadius.circular(12),
+                            color: const Color(0xFFF8FAFC),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.schedule_outlined,
+                                  size: 16, color: Color(0xFF64748B)),
+                              const SizedBox(width: 6),
+                              Text(
+                                horarioFimSelecionado != null
+                                    ? horarioFimSelecionado!.format(ctx)
+                                    : 'Fim',
+                                style: TextStyle(
+                                    fontSize: 13,
+                                    color: horarioFimSelecionado != null
+                                        ? const Color(0xFF0F172A)
+                                        : Colors.grey.shade500),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFEA3F74),
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
+                  ),
+                  onPressed: () async {
+                    if (tituloCtrl.text.trim().isEmpty ||
+                        dataSelecionada == null ||
+                        horarioInicioSelecionado == null ||
+                        horarioFimSelecionado == null ||
+                        localCtrl.text.trim().isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                              'Preencha título, local, data e horários.'),
+                          backgroundColor: Color(0xFFEF4444),
+                        ),
+                      );
+                      return;
+                    }
+
+                    final String dataStr =
+                        '${dataSelecionada!.year}-${dataSelecionada!.month.toString().padLeft(2, '0')}-${dataSelecionada!.day.toString().padLeft(2, '0')}';
+                    final String horInicioStr =
+                        '${horarioInicioSelecionado!.hour.toString().padLeft(2, '0')}:${horarioInicioSelecionado!.minute.toString().padLeft(2, '0')}:00';
+                    final String horFimStr =
+                        '${horarioFimSelecionado!.hour.toString().padLeft(2, '0')}:${horarioFimSelecionado!.minute.toString().padLeft(2, '0')}:00';
+
+                    Navigator.pop(ctx);
+
+                    final evento = await _service.criarEvento({
+                      'titulo': tituloCtrl.text.trim(),
+                      'descricao': descricaoCtrl.text.trim().isEmpty
+                          ? null
+                          : descricaoCtrl.text.trim(),
+                      'localEvento': localCtrl.text.trim(),
+                      'dataEvento': dataStr,
+                      'horarioInicio': horInicioStr,
+                      'horarioFim': horFimStr,
+                      'criadorId': AuthService.idUsuario,
+                      'status': 'AGENDADO',
+                      'exigeCheckin': false,
+                    });
+
+                    if (evento != null) {
+                      _mostrarSnack('Evento criado com sucesso!');
+                      _carregarEventos();
+                    } else {
+                      _mostrarSnack('Erro ao criar evento.',
+                          cor: const Color(0xFFEF4444));
+                    }
+                  },
+                  child: const Text('Publicar Evento',
+                      style: TextStyle(
+                          fontSize: 15, fontWeight: FontWeight.w700)),
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
           ),
-        ],
+        ),
       ),
     );
+  }
+
+  Widget _modalField(
+      TextEditingController ctrl, String label, IconData icon,
+      {int maxLines = 1}) {
+    return TextField(
+      controller: ctrl,
+      maxLines: maxLines,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, size: 18),
+        filled: true,
+        fillColor: const Color(0xFFF8FAFC),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.shade200),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide:
+              const BorderSide(color: Color(0xFFEA3F74), width: 1.5),
+        ),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        labelStyle:
+            TextStyle(color: Colors.grey.shade500, fontSize: 13),
+      ),
+    );
+  }
+
+  Color _corStatus(String status) {
+    switch (status) {
+      case 'ACONTECENDO_AGORA':
+        return const Color(0xFF10B981);
+      case 'ENCERRADO':
+        return const Color(0xFF94A3B8);
+      case 'CANCELADO':
+        return const Color(0xFFEF4444);
+      default:
+        return const Color(0xFFEA3F74);
+    }
+  }
+
+  String _labelStatus(String status) {
+    switch (status) {
+      case 'ACONTECENDO_AGORA':
+        return '🟢 Ao Vivo';
+      case 'ENCERRADO':
+        return 'Encerrado';
+      case 'CANCELADO':
+        return '❌ Cancelado';
+      default:
+        return 'Agendado';
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-      body: CustomScrollView(
-        slivers: [
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFEA3F74), Color(0xFFFF5B8C)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
+      body: RefreshIndicator(
+        onRefresh: _carregarEventos,
+        color: const Color(0xFFEA3F74),
+        child: CustomScrollView(
+          slivers: [
+            // Header Banner
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFEA3F74), Color(0xFFFF6B9D)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(22),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFEA3F74).withValues(alpha: 0.3),
+                        blurRadius: 18,
+                        offset: const Offset(0, 6),
                       ),
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFFEA3F74).withOpacity(0.25),
-                          blurRadius: 15,
-                          offset: const Offset(0, 6),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Icon(Icons.calendar_month, color: Colors.white, size: 28),
-                            ),
-                            const SizedBox(width: 12),
-                            const Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Agenda de Eventos',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  Text(
-                                    'Fique por dentro das resenhas e encontros',
-                                    style: TextStyle(color: Colors.white70, fontSize: 13),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        ElevatedButton.icon(
-                          onPressed: _showAddEventDialog,
-                          icon: const Icon(Icons.add, size: 18),
-                          label: const Text('Criar Evento', style: TextStyle(fontWeight: FontWeight.bold)),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            foregroundColor: const Color(0xFFEA3F74),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                          ),
-                        ),
-                      ],
-                    ),
+                    ],
                   ),
-                  const SizedBox(height: 20),
-                  Text(
-                    'Próximos Eventos (${_events.length})',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1E293B),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                ],
-              ),
-            ),
-          ),
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            sliver: SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  final event = _events[index];
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 16),
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                      side: const BorderSide(color: Color(0xFFE2E8F0)),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(18),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
                         children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFFDF0F4),
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(color: const Color(0xFFFFCBD8)),
-                                ),
-                                child: Text(
-                                  event['category']!,
-                                  style: const TextStyle(
-                                    color: Color(0xFFEA3F74),
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                              Row(
-                                children: [
-                                  const Icon(Icons.people_outline, size: 16, color: Color(0xFF64748B)),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    event['attendees']!,
-                                    style: const TextStyle(color: Color(0xFF64748B), fontSize: 12),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            event['title']!,
-                            style: const TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF0F172A),
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(12),
                             ),
+                            child: const Icon(Icons.calendar_month_rounded,
+                                color: Colors.white, size: 26),
                           ),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              const Icon(Icons.access_time_filled, size: 16, color: Color(0xFFEA3F74)),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: Text(
-                                  event['date']!,
-                                  style: const TextStyle(color: Color(0xFF475569), fontSize: 13, fontWeight: FontWeight.w500),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          Row(
-                            children: [
-                              const Icon(Icons.location_on, size: 16, color: Color(0xFFEF4444)),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: Text(
-                                  event['location']!,
-                                  style: const TextStyle(color: Color(0xFF475569), fontSize: 13),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            event['description']!,
-                            style: const TextStyle(color: Color(0xFF64748B), fontSize: 13, height: 1.4),
-                          ),
-                          const SizedBox(height: 16),
-                          SizedBox(
-                            width: double.infinity,
-                            child: OutlinedButton.icon(
-                              onPressed: () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Presença confirmada no evento ${event['title']}!'),
-                                    backgroundColor: const Color(0xFF10B981),
-                                  ),
-                                );
-                              },
-                              icon: const Icon(Icons.check_circle_outline, size: 18),
-                              label: const Text('Confirmar Presença'),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: const Color(0xFFEA3F74),
-                                side: const BorderSide(color: Color(0xFFEA3F74)),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                              ),
+                          const SizedBox(width: 14),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Agenda de Eventos',
+                                    style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 19,
+                                        fontWeight: FontWeight.w800)),
+                                Text(
+                                    'Fique por dentro das resenhas e encontros',
+                                    style: TextStyle(
+                                        color: Colors.white70, fontSize: 12)),
+                              ],
                             ),
                           ),
                         ],
                       ),
-                    ),
-                  );
-                },
-                childCount: _events.length,
+                      const SizedBox(height: 14),
+                      ElevatedButton.icon(
+                        onPressed: _abrirCriarEvento,
+                        icon: const Icon(Icons.add_rounded, size: 18),
+                        label: const Text('Criar Evento',
+                            style: TextStyle(fontWeight: FontWeight.w700)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: const Color(0xFFEA3F74),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 18, vertical: 10),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
-          ),
-        ],
+
+            // Título da lista
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      _carregando
+                          ? 'Carregando...'
+                          : 'Eventos (${_eventos.length})',
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF0F172A),
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: _carregarEventos,
+                      child: const Icon(Icons.refresh_rounded,
+                          color: Color(0xFF64748B), size: 20),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Estados: loading / erro / vazio / lista
+            if (_carregando)
+              const SliverFillRemaining(
+                child: Center(
+                  child: CircularProgressIndicator(
+                      color: Color(0xFFEA3F74)),
+                ),
+              )
+            else if (_erro != null)
+              SliverFillRemaining(
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.wifi_off_rounded,
+                          size: 52, color: Color(0xFFCBD5E1)),
+                      const SizedBox(height: 12),
+                      Text(_erro!,
+                          style: const TextStyle(
+                              color: Color(0xFF64748B), fontSize: 14)),
+                      const SizedBox(height: 16),
+                      ElevatedButton.icon(
+                        onPressed: _carregarEventos,
+                        icon: const Icon(Icons.refresh_rounded, size: 18),
+                        label: const Text('Tentar novamente'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFEA3F74),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else if (_eventos.isEmpty)
+              SliverFillRemaining(
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.event_busy_rounded,
+                          size: 56, color: Color(0xFFCBD5E1)),
+                      const SizedBox(height: 12),
+                      const Text('Nenhum evento encontrado',
+                          style: TextStyle(
+                              color: Color(0xFF64748B),
+                              fontSize: 15,
+                              fontWeight: FontWeight.w500)),
+                      const SizedBox(height: 6),
+                      Text('Seja o primeiro a criar um!',
+                          style: TextStyle(
+                              color: Colors.grey.shade400, fontSize: 13)),
+                      const SizedBox(height: 20),
+                      ElevatedButton.icon(
+                        onPressed: _abrirCriarEvento,
+                        icon: const Icon(Icons.add_rounded, size: 18),
+                        label: const Text('Criar Evento'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFEA3F74),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) =>
+                        _EventoCard(
+                          evento: _eventos[index],
+                          onParticipar: () =>
+                              _participar(_eventos[index]),
+                          corStatus: _corStatus,
+                          labelStatus: _labelStatus,
+                        ),
+                    childCount: _eventos.length,
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
 }
+
+class _EventoCard extends StatelessWidget {
+  final Evento evento;
+  final VoidCallback onParticipar;
+  final Color Function(String) corStatus;
+  final String Function(String) labelStatus;
+
+  const _EventoCard({
+    required this.evento,
+    required this.onParticipar,
+    required this.corStatus,
+    required this.labelStatus,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final status = evento.situacaoCalculada;
+    final cor = corStatus(status);
+    final label = labelStatus(status);
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 14),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: const BorderSide(color: Color(0xFFEEF2F7), width: 1),
+      ),
+      color: Colors.white,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Status + data
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: cor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                        color: cor,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700),
+                  ),
+                ),
+                Text(
+                  evento.dataFormatada,
+                  style: const TextStyle(
+                      color: Color(0xFF64748B), fontSize: 12),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+
+            // Título
+            Text(
+              evento.titulo,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF0F172A),
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            // Horário
+            Row(
+              children: [
+                const Icon(Icons.access_time_rounded,
+                    size: 14, color: Color(0xFFEA3F74)),
+                const SizedBox(width: 6),
+                Text(
+                  '${evento.horarioFormatado} — ${evento.horarioFim.length >= 5 ? evento.horarioFim.substring(0, 5) : evento.horarioFim}',
+                  style: const TextStyle(
+                      color: Color(0xFF475569), fontSize: 13),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+
+            // Local
+            Row(
+              children: [
+                const Icon(Icons.location_on_outlined,
+                    size: 14, color: Color(0xFFEF4444)),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    evento.localEvento,
+                    style: const TextStyle(
+                        color: Color(0xFF475569), fontSize: 13),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+
+            // Descrição
+            if (evento.descricao != null &&
+                evento.descricao!.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Text(
+                evento.descricao!,
+                style: const TextStyle(
+                    color: Color(0xFF64748B), fontSize: 13, height: 1.4),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+
+            if (status != 'ENCERRADO' && status != 'CANCELADO') ...[
+              const SizedBox(height: 14),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: onParticipar,
+                  icon: const Icon(Icons.check_circle_outline_rounded,
+                      size: 16),
+                  label: const Text('Participar'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFFEA3F74),
+                    side: const BorderSide(color: Color(0xFFEA3F74)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    textStyle: const TextStyle(
+                        fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+

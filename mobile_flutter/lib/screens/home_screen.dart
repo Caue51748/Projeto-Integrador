@@ -8,6 +8,7 @@ import 'communities_page.dart';
 import 'usuarios_screen.dart';
 import 'login_screen.dart';
 import 'register_screen.dart';
+import 'profile_page.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -26,6 +27,7 @@ class _HomeScreenState extends State<HomeScreen> {
     "Mapa de Eventos",
     "Comunidades",
     "Usuários",
+    "Meu Perfil",
   ];
 
   void _selecionarPagina(int index) {
@@ -47,10 +49,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _fazerLogout() {
-    AuthService.logado = false;
-    AuthService.idUsuario = null;
-    AuthService.nomeUsuario = null;
-    AuthService.emailUsuario = null;
+    AuthService.fazerLogout();
     setState(() {});
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -80,6 +79,8 @@ class _HomeScreenState extends State<HomeScreen> {
         return const CommunitiesPage();
       case 5:
         return const UsuarioScreen();
+      case 6:
+        return const ProfilePage();
       default:
         return LandingHeroView(
           onExplorar: () => _selecionarPagina(1),
@@ -261,22 +262,28 @@ class _HomeScreenState extends State<HomeScreen> {
       return Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          CircleAvatar(
-            backgroundColor: const Color(0xFFEA3F74),
-            radius: 16,
-            child: Text(
-              inicial,
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+          GestureDetector(
+            onTap: () => _selecionarPagina(6),
+            child: CircleAvatar(
+              backgroundColor: const Color(0xFFEA3F74),
+              radius: 16,
+              child: Text(
+                inicial,
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+              ),
             ),
           ),
           if (isDesktop) ...[
             const SizedBox(width: 8),
-            Text(
-              nome,
-              style: const TextStyle(
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF0F172A),
-                fontSize: 14,
+            GestureDetector(
+              onTap: () => _selecionarPagina(6),
+              child: Text(
+                nome,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF0F172A),
+                  fontSize: 14,
+                ),
               ),
             ),
           ],
@@ -406,12 +413,14 @@ class _HomeScreenState extends State<HomeScreen> {
             child: ListView(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               children: [
-                _buildDrawerItem(0, Icons.home_outlined, Icons.home_rounded, "Início (Capa)"),
-                _buildDrawerItem(1, Icons.explore_outlined, Icons.explore_rounded, "Explorar Feed"),
-                _buildDrawerItem(2, Icons.calendar_month_outlined, Icons.calendar_month_rounded, "Agenda de Eventos"),
-                _buildDrawerItem(3, Icons.map_outlined, Icons.map_rounded, "Mapa de Eventos"),
+                _buildDrawerItem(0, Icons.home_outlined, Icons.home_rounded, "Início"),
+                _buildDrawerItem(1, Icons.explore_outlined, Icons.explore_rounded, "Feed"),
+                _buildDrawerItem(2, Icons.calendar_month_outlined, Icons.calendar_month_rounded, "Eventos"),
+                _buildDrawerItem(3, Icons.map_outlined, Icons.map_rounded, "Mapa"),
                 _buildDrawerItem(4, Icons.groups_outlined, Icons.groups_rounded, "Comunidades"),
                 _buildDrawerItem(5, Icons.people_outline, Icons.people_rounded, "Usuários"),
+                if (AuthService.logado)
+                  _buildDrawerItem(6, Icons.person_outline_rounded, Icons.person_rounded, "Meu Perfil"),
               ],
             ),
           ),
@@ -422,7 +431,12 @@ class _HomeScreenState extends State<HomeScreen> {
           Padding(
             padding: const EdgeInsets.all(16),
             child: AuthService.logado
-                ? Container(
+                ? GestureDetector(
+                    onTap: () {
+                      Navigator.pop(context);
+                      _selecionarPagina(6);
+                    },
+                    child: Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: const Color(0xFFFDF0F4),
@@ -453,7 +467,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                                 overflow: TextOverflow.ellipsis,
                               ),
-                              const Text('Conectado', style: TextStyle(color: Color(0xFF10B981), fontSize: 11)),
+                              Text(
+                                AuthService.username != null ? '@${AuthService.username}' : 'Conectado',
+                                style: const TextStyle(color: Color(0xFF10B981), fontSize: 11),
+                              ),
                             ],
                           ),
                         ),
@@ -466,7 +483,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ],
                     ),
-                  )
+                  ))
                 : Column(
                     children: [
                       SizedBox(

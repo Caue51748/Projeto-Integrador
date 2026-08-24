@@ -1,7 +1,7 @@
 // lib/screens/usuario_form_screen.dart
-
 import 'package:flutter/material.dart';
-
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import '../models/usuario.dart';
 import '../services/usuario_service.dart';
 
@@ -32,33 +32,31 @@ class _UsuarioFormScreenState extends State<UsuarioFormScreen> {
 
     if (widget.usuario != null) {
       editando = true;
-
       nomeController.text = widget.usuario!.nome;
-
       emailController.text = widget.usuario!.email;
-
       senhaController.text = widget.usuario!.senha;
     }
   }
 
   Future<void> salvar() async {
-    Usuario usuario = Usuario(
-      idUsuario: widget.usuario?.idUsuario,
-      nome: nomeController.text,
-      email: emailController.text,
-      senha: senhaController.text,
-    );
-
-    if (editando) {
-      await service.atualizarUsuario(
-        usuario.idUsuario!,
-        usuario,
+    if (editando && widget.usuario?.idUsuario != null) {
+      // Atualiza perfil do usuário
+      await http.put(
+        Uri.parse('http://localhost:8080/usuarios/${widget.usuario!.idUsuario}/perfil'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'nome': nomeController.text}),
       );
     } else {
-      await service.criarUsuario(usuario);
+      // Cria novo usuário usando a assinatura correta
+      await service.criarUsuario(
+        nome: nomeController.text,
+        username: emailController.text.split('@')[0],
+        email: emailController.text,
+        senha: senhaController.text,
+      );
     }
 
-    Navigator.pop(context, true);
+    if (mounted) Navigator.pop(context, true);
   }
 
   @override
@@ -87,6 +85,7 @@ class _UsuarioFormScreenState extends State<UsuarioFormScreen> {
             ),
             TextField(
               controller: senhaController,
+              obscureText: true,
               decoration: const InputDecoration(
                 labelText: 'Senha',
               ),
