@@ -67,17 +67,43 @@ class UsuarioService {
         return {'sucesso': true, 'usuario': Usuario.fromJson(json)};
       }
 
-      String mensagemErro = 'Erro ao criar conta. Tente novamente.';
-      final bodyLower = response.body.toLowerCase();
-      if (bodyLower.contains('username') || bodyLower.contains('unique index') && bodyLower.contains('user')) {
-        mensagemErro = 'Este nome de usuário já está em uso.';
-      } else if (bodyLower.contains('email')) {
-        mensagemErro = 'Este e-mail já está cadastrado.';
+      String mensagemErro = '';
+      try {
+        final Map<String, dynamic> errorJson =
+            jsonDecode(utf8.decode(response.bodyBytes));
+        if (errorJson.containsKey('message') &&
+            errorJson['message'] != null &&
+            errorJson['message'].toString().isNotEmpty) {
+          mensagemErro = errorJson['message'].toString();
+        } else if (errorJson.containsKey('error') &&
+            errorJson['error'] != null &&
+            errorJson['error'].toString().isNotEmpty) {
+          mensagemErro = errorJson['error'].toString();
+        }
+      } catch (_) {
+        if (response.body.isNotEmpty) {
+          mensagemErro = response.body;
+        }
       }
+
+      if (mensagemErro.isEmpty) {
+        final bodyLower = response.body.toLowerCase();
+        if (bodyLower.contains('username') ||
+            bodyLower.contains('usuário') ||
+            bodyLower.contains('usuario')) {
+          mensagemErro = 'Este nome de usuário já está cadastrado.';
+        } else if (bodyLower.contains('email')) {
+          mensagemErro = 'Este e-mail já está cadastrado.';
+        } else {
+          mensagemErro =
+              'Erro ao criar conta no servidor (Status: ${response.statusCode}).';
+        }
+      }
+
       return {'sucesso': false, 'erro': mensagemErro};
     } catch (e) {
       if (kDebugMode) print('Erro no cadastro: $e');
-      return {'sucesso': false, 'erro': 'Sem conexão com o servidor.'};
+      return {'sucesso': false, 'erro': 'Não foi possível conectar ao servidor (http://localhost:8080).'};
     }
   }
 

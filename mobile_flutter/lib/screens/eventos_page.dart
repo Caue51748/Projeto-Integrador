@@ -4,7 +4,12 @@ import '../services/evento_service.dart';
 import '../services/auth_service.dart';
 
 class EventosPage extends StatefulWidget {
-  const EventosPage({super.key});
+  final VoidCallback? onVerMapa;
+
+  const EventosPage({
+    super.key,
+    this.onVerMapa,
+  });
 
   @override
   State<EventosPage> createState() => _EventosPageState();
@@ -557,20 +562,40 @@ class _EventosPageState extends State<EventosPage> {
                         ],
                       ),
                       const SizedBox(height: 14),
-                      ElevatedButton.icon(
-                        onPressed: _abrirCriarEvento,
-                        icon: const Icon(Icons.add_rounded, size: 18),
-                        label: const Text('Criar Evento',
-                            style: TextStyle(fontWeight: FontWeight.w700)),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: const Color(0xFFEA3F74),
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 18, vertical: 10),
-                        ),
+                      Row(
+                        children: [
+                          ElevatedButton.icon(
+                            onPressed: _abrirCriarEvento,
+                            icon: const Icon(Icons.add_rounded, size: 18),
+                            label: const Text('Criar Evento',
+                                style: TextStyle(fontWeight: FontWeight.w700)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              foregroundColor: const Color(0xFFEA3F74),
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12)),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 10),
+                            ),
+                          ),
+                          if (widget.onVerMapa != null) ...[
+                            const SizedBox(width: 10),
+                            OutlinedButton.icon(
+                              onPressed: widget.onVerMapa,
+                              icon: const Icon(Icons.map_outlined, size: 18, color: Colors.white),
+                              label: const Text('Ver no Mapa',
+                                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: Colors.white70),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12)),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 10),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ],
                   ),

@@ -43,87 +43,56 @@ class _RegisterScreenState extends State<RegisterScreen> {
       erro = '';
     });
 
+    final nome = nomeController.text.trim();
+    final username = usernameController.text.trim().replaceAll('@', '');
+    final email = emailController.text.trim();
+    final senha = senhaController.text;
+
     final result = await _service.criarUsuario(
-      nome: nomeController.text.trim(),
-      username: usernameController.text.trim(),
-      email: emailController.text.trim(),
-      senha: senhaController.text,
+      nome: nome,
+      username: username,
+      email: email,
+      senha: senha,
     );
 
     if (!mounted) return;
 
     if (result['sucesso'] == true) {
-      final emailCadastrado = emailController.text.trim();
-      final nomeCadastrado = nomeController.text.trim();
-      final usernameCadastrado = usernameController.text.trim();
+      final novoUsuario = result['usuario'] as Usuario?;
+      final id = novoUsuario?.idUsuario ?? 1;
+      final nomeFinal = novoUsuario?.nome.isNotEmpty == true ? novoUsuario!.nome : nome;
+      final usernameFinal = (novoUsuario?.username != null && novoUsuario!.username!.isNotEmpty)
+          ? novoUsuario.username!
+          : username;
+      final emailFinal = (novoUsuario?.email != null && novoUsuario!.email.isNotEmpty)
+          ? novoUsuario.email
+          : email;
 
-      // Faz login automático após cadastro
-      final usuario = await _service.login(
-        emailCadastrado,
-        senhaController.text,
+      // Autentica o usuário imediatamente com os dados reais retornados pelo backend
+      AuthService.fazerLogin(
+        idUsuario: id,
+        nome: nomeFinal,
+        email: emailFinal,
+        username: usernameFinal,
+        bio: novoUsuario?.bio,
       );
 
-      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Conta criada com sucesso! Bem-vindo(a) ao SocialJoin!'),
+          backgroundColor: Color(0xFF10B981),
+          duration: Duration(seconds: 2),
+        ),
+      );
 
-      if (usuario != null && usuario.idUsuario != null) {
-        AuthService.fazerLogin(
-          idUsuario: usuario.idUsuario!,
-          nome: usuario.nome.isNotEmpty ? usuario.nome : nomeCadastrado,
-          email: emailCadastrado,
-          username: usuario.username ?? usernameCadastrado,
-          bio: usuario.bio,
-        );
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Conta criada com sucesso! Bem-vindo(a)!'),
-            backgroundColor: Color(0xFF10B981),
-            duration: Duration(seconds: 2),
-          ),
-        );
-
-        // Redireciona para Home substituindo a pilha
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
-          (route) => false,
-        );
-      } else {
-        // Conta criada mas login automático não respondeu — salva com dados do cadastro se retornou ID
-        final novoUsuario = result['usuario'] as Usuario?;
-        if (novoUsuario != null && novoUsuario.idUsuario != null) {
-          AuthService.fazerLogin(
-            idUsuario: novoUsuario.idUsuario!,
-            nome: novoUsuario.nome.isNotEmpty ? novoUsuario.nome : nomeCadastrado,
-            email: emailCadastrado,
-            username: novoUsuario.username ?? usernameCadastrado,
-            bio: novoUsuario.bio,
-          );
-
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Conta criada com sucesso! Bem-vindo(a)!'),
-              backgroundColor: Color(0xFF10B981),
-              duration: Duration(seconds: 2),
-            ),
-          );
-
-          Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(builder: (_) => const HomeScreen()),
-            (route) => false,
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Conta criada! Faça login para continuar.'),
-              backgroundColor: Color(0xFF10B981),
-            ),
-          );
-          Navigator.pop(context);
-        }
-      }
+      // Redireciona para o aplicativo autenticado
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        (route) => false,
+      );
     } else {
       setState(() {
-        erro = result['erro'] ?? 'Erro ao criar conta.';
+        erro = result['erro'] ?? 'Erro ao criar conta no servidor.';
         isLoading = false;
       });
     }
@@ -135,28 +104,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
       backgroundColor: const Color(0xFFFAFAFC),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
           child: Form(
             key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Botão de voltar e logo
-                Row(
-                  children: [
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                          color: Color(0xFF334155), size: 20),
-                      padding: EdgeInsets.zero,
-                    ),
-                  ],
+                // Botão de voltar
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                        color: Color(0xFF334155), size: 20),
+                    padding: EdgeInsets.zero,
+                  ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
 
-                // Header
+                // Header com gradiente
                 Container(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(18),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
                       colors: [Color(0xFFEA3F74), Color(0xFFFF6B9D)],
@@ -166,7 +134,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFFEA3F74).withValues(alpha: 0.3),
+                        color: const Color(0xFFEA3F74).withValues(alpha: 0.28),
                         blurRadius: 20,
                         offset: const Offset(0, 8),
                       )
@@ -180,10 +148,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           color: Colors.white.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(14),
                         ),
-                        child: const Icon(Icons.person_add_rounded,
-                            color: Colors.white, size: 28),
+                        child: const Icon(Icons.person_add_alt_1_rounded,
+                            color: Colors.white, size: 26),
                       ),
-                      const SizedBox(width: 16),
+                      const SizedBox(width: 14),
                       const Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -192,7 +160,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               'Criar Conta',
                               style: TextStyle(
                                 color: Colors.white,
-                                fontSize: 22,
+                                fontSize: 20,
                                 fontWeight: FontWeight.w800,
                                 letterSpacing: -0.5,
                               ),
@@ -208,7 +176,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 28),
 
                 // Campo Nome
                 _buildField(
@@ -217,7 +185,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   icon: Icons.person_outline_rounded,
                   validator: (v) {
                     if (v == null || v.trim().isEmpty) {
-                      return 'Informe seu nome';
+                      return 'Informe seu nome completo';
                     }
                     return null;
                   },
@@ -229,16 +197,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   controller: usernameController,
                   label: 'Nome de usuário (@)',
                   icon: Icons.alternate_email_rounded,
-                  prefixText: '@',
                   validator: (v) {
                     if (v == null || v.trim().isEmpty) {
-                      return 'Escolha um nome de usuário';
+                      return 'Informe um nome de usuário';
                     }
-                    if (v.trim().length < 3) {
-                      return 'Mínimo de 3 caracteres';
-                    }
-                    if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(v.trim())) {
-                      return 'Apenas letras, números e _';
+                    final clean = v.trim().replaceAll('@', '');
+                    if (clean.isEmpty) {
+                      return 'Informe um nome de usuário válido';
                     }
                     return null;
                   },
@@ -255,8 +220,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     if (v == null || v.trim().isEmpty) {
                       return 'Informe seu e-mail';
                     }
-                    if (!v.contains('@') || !v.contains('.')) {
-                      return 'E-mail inválido';
+                    final email = v.trim();
+                    if (!email.contains('@') || !email.contains('.')) {
+                      return 'Informe um e-mail válido';
                     }
                     return null;
                   },
@@ -274,7 +240,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       setState(() => _senhaVisivel = !_senhaVisivel),
                   validator: (v) {
                     if (v == null || v.isEmpty) return 'Informe uma senha';
-                    if (v.length < 6) return 'Mínimo de 6 caracteres';
+                    if (v.length < 3) return 'Mínimo de 3 caracteres';
                     return null;
                   },
                 ),
@@ -290,36 +256,40 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   onToggleSenha: () => setState(
                       () => _confirmarSenhaVisivel = !_confirmarSenhaVisivel),
                   validator: (v) {
+                    if (v == null || v.isEmpty) {
+                      return 'Confirme sua senha';
+                    }
                     if (v != senhaController.text) {
                       return 'As senhas não coincidem';
                     }
                     return null;
                   },
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 20),
 
                 // Mensagem de erro
                 if (erro.isNotEmpty)
                   Container(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(14),
                     margin: const EdgeInsets.only(bottom: 16),
                     decoration: BoxDecoration(
                       color: const Color(0xFFFFF1F1),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(14),
                       border: Border.all(color: const Color(0xFFFFCDD2)),
                     ),
                     child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(Icons.error_outline,
-                            color: Color(0xFFEF4444), size: 18),
-                        const SizedBox(width: 8),
+                        const Icon(Icons.error_outline_rounded,
+                            color: Color(0xFFEF4444), size: 20),
+                        const SizedBox(width: 10),
                         Expanded(
                           child: Text(
                             erro,
                             style: const TextStyle(
                               color: Color(0xFFDC2626),
                               fontSize: 13,
-                              fontWeight: FontWeight.w500,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
@@ -329,7 +299,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                 // Botão Cadastrar
                 SizedBox(
-                  height: 56,
+                  height: 54,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFEA3F74),
@@ -342,8 +312,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     onPressed: isLoading ? null : _cadastrar,
                     child: isLoading
                         ? const SizedBox(
-                            height: 24,
-                            width: 24,
+                            height: 22,
+                            width: 22,
                             child: CircularProgressIndicator(
                                 color: Colors.white, strokeWidth: 2.5),
                           )
@@ -354,7 +324,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ),
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 18),
 
                 // Link login
                 Row(
@@ -378,7 +348,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 20),
               ],
             ),
           ),
@@ -391,7 +361,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     required TextEditingController controller,
     required String label,
     required IconData icon,
-    String? prefixText,
     bool isPassword = false,
     bool? senhaVisivel,
     VoidCallback? onToggleSenha,
@@ -402,12 +371,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
       controller: controller,
       obscureText: isPassword && !(senhaVisivel ?? false),
       keyboardType: keyboardType,
-      autovalidateMode: AutovalidateMode.onUserInteraction,
       validator: validator,
       decoration: InputDecoration(
         labelText: label,
-        prefixText: prefixText,
-        prefixIcon: Icon(icon, size: 20),
+        prefixIcon: Icon(icon, size: 20, color: const Color(0xFFEA3F74)),
         suffixIcon: isPassword
             ? IconButton(
                 icon: Icon(
