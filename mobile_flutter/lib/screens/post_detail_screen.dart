@@ -65,6 +65,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     setState(() => carregando = true);
     final sucesso = await comentarioService.criarComentario(novo);
     
+    if (!mounted) return;
+
     if (sucesso) {
       controller.clear();
       FocusScope.of(context).unfocus();

@@ -4,6 +4,7 @@ import '../services/auth_service.dart';
 class LandingHeroView extends StatefulWidget {
   final VoidCallback onExplorar;
   final VoidCallback onEventos;
+  final VoidCallback? onMapa;
   final VoidCallback onComunidades;
   final VoidCallback onLogin;
   final VoidCallback onRegister;
@@ -12,6 +13,7 @@ class LandingHeroView extends StatefulWidget {
     super.key,
     required this.onExplorar,
     required this.onEventos,
+    this.onMapa,
     required this.onComunidades,
     required this.onLogin,
     required this.onRegister,
@@ -385,6 +387,52 @@ class _LandingHeroViewState extends State<LandingHeroView>
             ),
           ),
         ),
+
+        // CTA Quaternário - Mapa
+        if (widget.onMapa != null)
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(30),
+              border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.03),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: TextButton(
+              onPressed: widget.onMapa,
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFF0F172A),
+                padding: EdgeInsets.symmetric(
+                  horizontal: isDesktop ? 22 : 16,
+                  vertical: isDesktop ? 18 : 14,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.map_outlined, color: Color(0xFFEA3F74), size: 19),
+                  SizedBox(width: 8),
+                  Text(
+                    'Mapa',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF334155),
+                      letterSpacing: -0.2,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
       ],
     );
   }

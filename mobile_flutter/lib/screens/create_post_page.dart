@@ -43,6 +43,8 @@ class _CreatePostPageState extends State<CreatePostPage> {
 
     bool sucesso = await service.criarPost(post);
 
+    if (!mounted) return;
+
     setState(() {
       salvando = false;
     });
@@ -73,7 +75,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
             border: Border.all(color: const Color(0xFFE2E8F0)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.04),
+                color: Colors.black.withValues(alpha: 0.04),
                 blurRadius: 15,
                 offset: const Offset(0, 5),
               ),

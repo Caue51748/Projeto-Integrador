@@ -4,4 +4,6 @@ class ApiService {
   static String usuarios = '$baseUrl/usuarios';
   static String posts = '$baseUrl/posts';
   static String comentarios = '$baseUrl/comentarios';
+  static String comunidades = '$baseUrl/comunidades';
+  static String eventos = '$baseUrl/api/eventos';
 }
