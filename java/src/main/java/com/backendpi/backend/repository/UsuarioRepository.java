@@ -17,4 +17,5 @@ public interface UsuarioRepository
     );
 
     boolean existsByUsername(String username);
+    boolean existsByTelefone(String telefone);
 }

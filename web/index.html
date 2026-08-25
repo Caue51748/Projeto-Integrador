@@ -203,9 +203,12 @@
     <div class="modal-overlay" id="auth-modal">
         <div class="modal">
             <h2 id="auth-title">Acesso ao Painel</h2>
-            <input type="text" id="auth-nome" placeholder="Nome Completo" style="display: none;">
+            <input type="text" id="auth-nome-completo" placeholder="Nome completo">
+            <input type="text" id="auth-nome" placeholder="Nome de exibição" style="display: none;">
             <input type="text" id="auth-username" placeholder="Nome de usuário">
-            <input type="text" id="auth-email" placeholder="Email / Usuário">
+            <input type="date" id="auth-data-nascimento">
+            <input type="text" id="auth-email" placeholder="Email">
+            <input type="tel" id="auth-telefone" placeholder="Telefone">
             <input type="password" id="auth-senha" placeholder="Senha">
             <button class="btn-full" onclick="app.processarAuth()">Acessar</button>
             <button class="btn-cancel" onclick="app.fecharModal('auth-modal')">Cancelar</button>

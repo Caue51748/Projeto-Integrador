@@ -1,6 +1,8 @@
 // Usuario.java
 package com.backendpi.backend.model;
 
+import java.time.LocalDate;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -26,6 +28,15 @@ public class Usuario {
 
     @Column(nullable = false, unique = true)
     private String username;
+
+    @Column
+    private String telefone;
+
+    @Column(name = "nome_completo", nullable = false)
+    private String nomeCompleto;
+
+    @Column(name = "data_nascimento", nullable = false)
+    private LocalDate dataNascimento;
 
     public Long getIdUsuario() {
         return idUsuario;
@@ -73,5 +84,29 @@ public class Usuario {
 
     public void setUsername(String username) {
         this.username = username;
+    }
+
+    public String getTelefone() {
+        return telefone;
+    }
+
+    public void setTelefone(String telefone) {
+        this.telefone = telefone;
+    }
+
+    public String getNomeCompleto() {
+        return nomeCompleto;
+    }
+
+    public void setNomeCompleto(String nomeCompleto) {
+        this.nomeCompleto = nomeCompleto;
+    }
+
+    public LocalDate getDataNascimento() {
+        return dataNascimento;
+    }
+
+    public void setDataNascimento(LocalDate dataNascimento) {
+        this.dataNascimento = dataNascimento;
     }
 }

@@ -22,14 +22,35 @@ public class UsuarioService {
     }
 
     public Usuario salvar(Usuario usuario) {
+        if ((usuario.getEmail() == null
+                || usuario.getEmail().trim().isEmpty())
+                && (usuario.getTelefone() == null
+                || usuario.getTelefone().trim().isEmpty())) {
 
-        if (repository.existsByEmail(usuario.getEmail())) {
+            throw new RuntimeException(
+                    "Informe pelo menos um e-mail ou telefone"
+            );
+        }
+
+        if (usuario.getEmail() != null
+                && !usuario.getEmail().trim().isEmpty()
+                && repository.existsByEmail(usuario.getEmail())) {
+
             throw new RuntimeException("Email já cadastrado");
         }
 
         if (repository.existsByUsername(usuario.getUsername())) {
             throw new RuntimeException(
                     "Nome de usuário já cadastrado"
+            );
+        }
+
+        if (usuario.getTelefone() != null
+                && !usuario.getTelefone().trim().isEmpty()
+                && repository.existsByTelefone(usuario.getTelefone())) {
+
+            throw new RuntimeException(
+                    "Telefone já cadastrado"
             );
         }
 

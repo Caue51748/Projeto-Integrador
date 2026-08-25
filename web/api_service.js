@@ -13,14 +13,17 @@ export class ApiService {
     // --- USUÁRIOS ---
     static async listarUsuarios() { return await (await fetch(`${this.API_URL}/usuarios`)).json(); }
     static async criarUsuario(
+        nomeCompleto,
         nome,
         username,
+        dataNascimento,
         email,
+        telefone,
         senha
     ) {
         return await fetch(`${this.API_URL}/usuarios`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ nome, username, email, senha })
+            body: JSON.stringify({ nomeCompleto,nome, username, dataNascimento, email: email || null, telefone: telefone || null, senha })
         });
     }
 

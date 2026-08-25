@@ -153,21 +153,44 @@ class AppController {
     }
 
     async processarAuth() {
+        const nomeCompleto =
+            document.getElementById('auth-nome-completo').value.trim();
         const e = document.getElementById('auth-email').value.trim();
         const s = document.getElementById('auth-senha').value.trim();
         const n = document.getElementById('auth-nome').value.trim();
         const username =
             document.getElementById('auth-username').value.trim();
+        const dataNascimento =
+            document.getElementById('auth-data-nascimento').value;
+        const telefone =
+            document.getElementById('auth-telefone').value.trim();
 
         try {
             if (this.modoCadastro) {
-                if (!n || !username || !e || !s) {
-                    return alert("Preencha todos os campos.");
+                if (
+                    !nomeCompleto ||
+                    !n ||
+                    !username ||
+                    !dataNascimento ||
+                    !s
+                ) {
+                    return alert(
+                        "Preencha nome completo, nome de exibição, username, data de nascimento e senha."
+                    );
+                }
+
+                if (!e && !telefone) {
+                    return alert(
+                        "Informe pelo menos um e-mail ou telefone."
+                    );
                 }
                 const res = await ApiService.criarUsuario(
+                    nomeCompleto,
                     n,
                     username,
+                    dataNascimento,
                     e,
+                    telefone,
                     s
                 );
                 if (res.ok) { ApiService.salvarSessao(await res.json()); this.posLogin(); }
