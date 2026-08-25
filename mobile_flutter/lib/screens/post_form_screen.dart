@@ -58,6 +58,7 @@ class _PostFormScreenState
 
     await service.criarPost(post);
 
+    if (!mounted) return;
     Navigator.pop(context, true);
   }
 

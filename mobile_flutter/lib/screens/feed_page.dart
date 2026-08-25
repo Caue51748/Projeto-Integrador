@@ -101,7 +101,7 @@ class _FeedPageState extends State<FeedPage> {
                       borderRadius: BorderRadius.circular(16), // Cantos bem arredondados
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.04), // Sombra muito suave, apenas para destacar
+                          color: Colors.black.withValues(alpha: 0.04), // Sombra muito suave, apenas para destacar
                           blurRadius: 15,
                           offset: const Offset(0, 5),
                         ),

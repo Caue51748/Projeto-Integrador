@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../models/usuario.dart';
 import '../services/usuario_service.dart';
 import '../services/auth_service.dart';
 import 'home_screen.dart';
@@ -52,9 +53,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (!mounted) return;
 
     if (result['sucesso'] == true) {
+      final emailCadastrado = emailController.text.trim();
+      final nomeCadastrado = nomeController.text.trim();
+      final usernameCadastrado = usernameController.text.trim();
+
       // Faz login automático após cadastro
       final usuario = await _service.login(
-        emailController.text.trim(),
+        emailCadastrado,
         senhaController.text,
       );
 
@@ -63,9 +68,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (usuario != null && usuario.idUsuario != null) {
         AuthService.fazerLogin(
           idUsuario: usuario.idUsuario!,
-          nome: usuario.nome,
-          email: usuario.email,
-          username: usuario.username,
+          nome: usuario.nome.isNotEmpty ? usuario.nome : nomeCadastrado,
+          email: emailCadastrado,
+          username: usuario.username ?? usernameCadastrado,
           bio: usuario.bio,
         );
 
@@ -83,14 +88,38 @@ class _RegisterScreenState extends State<RegisterScreen> {
           (route) => false,
         );
       } else {
-        // Conta criada mas login falhou — volta para login
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Conta criada! Faça login para continuar.'),
-            backgroundColor: Color(0xFF10B981),
-          ),
-        );
-        Navigator.pop(context);
+        // Conta criada mas login automático não respondeu — salva com dados do cadastro se retornou ID
+        final novoUsuario = result['usuario'] as Usuario?;
+        if (novoUsuario != null && novoUsuario.idUsuario != null) {
+          AuthService.fazerLogin(
+            idUsuario: novoUsuario.idUsuario!,
+            nome: novoUsuario.nome.isNotEmpty ? novoUsuario.nome : nomeCadastrado,
+            email: emailCadastrado,
+            username: novoUsuario.username ?? usernameCadastrado,
+            bio: novoUsuario.bio,
+          );
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Conta criada com sucesso! Bem-vindo(a)!'),
+              backgroundColor: Color(0xFF10B981),
+              duration: Duration(seconds: 2),
+            ),
+          );
+
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => const HomeScreen()),
+            (route) => false,
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Conta criada! Faça login para continuar.'),
+              backgroundColor: Color(0xFF10B981),
+            ),
+          );
+          Navigator.pop(context);
+        }
       }
     } else {
       setState(() {

@@ -1,31 +1,47 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/post.dart';
+import 'api_service.dart';
 
 class PostService {
-  static const String baseUrl = 'http://localhost:8080';
+  String get baseUrl => ApiService.baseUrl;
 
   Future<List<Post>> listarPosts() async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/posts'));
+      final response = await http.get(
+        Uri.parse('$baseUrl/posts'),
+      ).timeout(const Duration(seconds: 8));
 
       if (response.statusCode == 200) {
         final List lista = jsonDecode(utf8.decode(response.bodyBytes));
         return lista.map((e) => Post.fromJson(e)).toList();
       }
     } catch (e) {
-      print('Erro ao listar posts: $e');
+      if (kDebugMode) print('Erro ao listar posts: $e');
+    }
+    return [];
+  }
+
+  Future<List<Post>> listarPostsPorUsuario(int idUsuario) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/posts/usuario/$idUsuario'),
+      ).timeout(const Duration(seconds: 8));
+
+      if (response.statusCode == 200) {
+        final List lista = jsonDecode(utf8.decode(response.bodyBytes));
+        return lista.map((e) => Post.fromJson(e)).toList();
+      }
+    } catch (e) {
+      if (kDebugMode) print('Erro ao listar posts do usuário: $e');
     }
     return [];
   }
 
   Future<bool> criarPost(Post post) async {
     try {
-      // 1. Converte para JSON e mostra no console do VS Code o que está sendo enviado
       final corpoJson = jsonEncode(post.toJson());
-      print('=== ENVIANDO POST PARA O BACKEND ===');
-      print('URL: $baseUrl/posts');
-      print('Corpo: $corpoJson');
 
       final response = await http.post(
         Uri.parse('$baseUrl/posts'),
@@ -34,22 +50,29 @@ class PostService {
           'Accept': 'application/json',
         },
         body: corpoJson,
-      );
-
-      // 2. Mostra no console do VS Code a resposta exata do Spring Boot
-      print('=== RESPOSTA DO BACKEND ===');
-      print('Status Code: ${response.statusCode}');
-      print('Body: ${response.body}');
+      ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        return true; // Sucesso!
+        return true;
       } else {
-        return false; // Falha (Backend recusou)
+        return false;
       }
     } catch (e) {
-      print('=== ERRO GRAVE DE REDE ===');
-      print('O Flutter não conseguiu falar com o servidor: $e');
-      return false; // Falha (Erro de conexão)
+      if (kDebugMode) print('Erro ao criar post: $e');
+      return false;
+    }
+  }
+
+  Future<bool> deletarPost(int idPost, int idUsuario) async {
+    try {
+      final response = await http.delete(
+        Uri.parse('$baseUrl/posts/$idPost/usuario/$idUsuario'),
+      ).timeout(const Duration(seconds: 8));
+
+      return response.statusCode == 200 || response.statusCode == 204;
+    } catch (e) {
+      if (kDebugMode) print('Erro ao deletar post: $e');
+      return false;
     }
   }
 }

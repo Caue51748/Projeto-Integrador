@@ -57,7 +57,7 @@ class _LoginScreenState extends State<LoginScreen> {
     AuthService.fazerLogin(
       idUsuario: usuario.idUsuario!,
       nome: usuario.nome,
-      email: usuario.email,
+      email: usuario.email.isNotEmpty ? usuario.email : emailController.text.trim(),
       username: usuario.username,
       bio: usuario.bio,
     );
