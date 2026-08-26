@@ -93,11 +93,26 @@ class AppController {
     }
 
     atualizarAuthUI() {
-        const nomeInput = document.getElementById('auth-nome');
-        document.getElementById('auth-title').innerText = this.modoCadastro ? 'Nova Conta' : 'Acesso ao Painel';
-        nomeInput.style.display = this.modoCadastro ? 'block' : 'none';
-        if (!this.modoCadastro) nomeInput.value = '';
-        document.getElementById('auth-toggle-btn').innerText = this.modoCadastro ? 'Já tem conta? Entrar' : 'Criar nova conta';
+        const modal = document.querySelector('.auth-modal');
+        const titulo = document.getElementById('auth-title');
+        const subtitulo = document.getElementById('auth-subtitle');
+        const submit = document.getElementById('auth-submit');
+        const forgot = document.getElementById('auth-forgot');
+
+        if (!modal || !titulo || !submit) return;
+
+        modal.classList.toggle('register-mode', this.modoCadastro);
+        titulo.innerText = this.modoCadastro ? 'Crie seu espaço' : 'Acesso ao Painel';
+        subtitulo.innerText = this.modoCadastro
+            ? 'Monte seu perfil e encontre eventos que combinam com você.'
+            : 'Entre para acompanhar eventos, comunidades e conversas.';
+        submit.innerText = this.modoCadastro ? 'Criar minha conta' : 'Entrar';
+        forgot.style.display = this.modoCadastro ? 'none' : 'block';
+
+        document.getElementById('auth-tab-login')?.classList.toggle('active', !this.modoCadastro);
+        document.getElementById('auth-tab-register')?.classList.toggle('active', this.modoCadastro);
+        this.mostrarAuthFeedback('');
+        this.atualizarForcaSenha();
     }
     mudarAba(nomeAba) {
         this.salvarViewAtual(nomeAba);
@@ -180,11 +195,67 @@ class AppController {
         this.atualizarAuthUI();
     }
 
+    definirModoAuth(modoCadastro) {
+        this.modoCadastro = modoCadastro;
+        this.atualizarAuthUI();
+    }
+
+    mostrarAuthFeedback(mensagem) {
+        const feedback = document.getElementById('auth-feedback');
+        if (!feedback) return;
+        feedback.innerText = mensagem;
+        feedback.classList.toggle('visible', Boolean(mensagem));
+    }
+
+    alternarVisibilidadeSenha(id, botao) {
+        const input = document.getElementById(id);
+        if (!input) return;
+        const visivel = input.type === 'text';
+        input.type = visivel ? 'password' : 'text';
+        botao.setAttribute('aria-label', visivel ? 'Mostrar senha' : 'Ocultar senha');
+        botao.querySelector('.material-icons').innerText = visivel ? 'visibility' : 'visibility_off';
+    }
+
+    atualizarForcaSenha() {
+        const indicador = document.getElementById('auth-password-strength');
+        const senha = document.getElementById('auth-senha')?.value || '';
+        if (!indicador) return;
+
+        if (!this.modoCadastro || !senha) {
+            indicador.innerText = '';
+            indicador.className = 'password-strength';
+            return;
+        }
+
+        const pontuacao = [
+            senha.length >= 8,
+            /[A-Z]/.test(senha),
+            /[0-9]/.test(senha),
+            /[^A-Za-z0-9]/.test(senha)
+        ].filter(Boolean).length;
+        const nivel = pontuacao <= 1 ? 'weak' : pontuacao <= 3 ? 'medium' : 'strong';
+        const texto = nivel === 'weak' ? 'Senha fraca' : nivel === 'medium' ? 'Senha média' : 'Senha forte';
+        indicador.innerText = texto;
+        indicador.className = `password-strength ${nivel}`;
+    }
+
+    definirAuthLoading(carregando) {
+        const botao = document.getElementById('auth-submit');
+        if (!botao) return;
+        botao.disabled = carregando;
+        botao.classList.toggle('loading', carregando);
+        botao.innerText = carregando ? 'Aguarde...' : (this.modoCadastro ? 'Criar minha conta' : 'Entrar');
+    }
+
+    recuperarSenha() {
+        this.mostrarAuthFeedback('A recuperação de senha ainda precisa ser habilitada no servidor.');
+    }
+
     async processarAuth() {
         const nomeCompleto =
             document.getElementById('auth-nome-completo').value.trim();
         const e = document.getElementById('auth-email').value.trim();
-        const s = document.getElementById('auth-senha').value.trim();
+        const s = document.getElementById('auth-senha').value;
         const n = document.getElementById('auth-nome').value.trim();
         const username =
             document.getElementById('auth-username').value.trim();
@@ -192,6 +263,18 @@ class AppController {
             document.getElementById('auth-data-nascimento').value;
         const telefone =
             document.getElementById('auth-telefone').value.trim();
+        const confirmarSenha =
+            document.getElementById('auth-confirmar-senha')?.value || '';
+
+        this.mostrarAuthFeedback('');
+
+        if (!s || (!this.modoCadastro && !e)) {
+            return this.mostrarAuthFeedback(
+                this.modoCadastro
+                    ? 'Informe uma senha para continuar.'
+                    : 'Informe seu e-mail e sua senha para continuar.'
+            );
+        }
 
         try {
             if (this.modoCadastro) {
@@ -202,16 +285,21 @@ class AppController {
                     !dataNascimento ||
                     !s
                 ) {
-                    return alert(
-                        "Preencha nome completo, nome de exibição, username, data de nascimento e senha."
-                    );
+                    return this.mostrarAuthFeedback('Preencha os campos obrigatórios do cadastro.');
                 }
 
                 if (!e && !telefone) {
-                    return alert(
-                        "Informe pelo menos um e-mail ou telefone."
-                    );
+                    return this.mostrarAuthFeedback('Informe pelo menos um e-mail ou telefone.');
                 }
+
+                if (s.length < 8) {
+                    return this.mostrarAuthFeedback('A senha precisa ter pelo menos 8 caracteres.');
+                }
+
+                if (s !== confirmarSenha) {
+                    return this.mostrarAuthFeedback('As senhas não coincidem.');
+                }
+                this.definirAuthLoading(true);
                 const res = await ApiService.criarUsuario(
                     nomeCompleto,
                     n,
@@ -222,7 +310,9 @@ class AppController {
                     s
                 );
                 if (res.ok) { ApiService.salvarSessao(await res.json()); this.posLogin(); }
+                else this.mostrarAuthFeedback('Não foi possível criar a conta. Verifique seus dados.');
             } else {
+                this.definirAuthLoading(true);
                 const res =
                     await ApiService.login(e, s);
 
@@ -237,10 +327,15 @@ class AppController {
 
                 } else {
 
-                    alert("Credenciais inválidas");
+                    this.mostrarAuthFeedback("E-mail ou senha incorretos.");
                 }
             }
-        } catch (err) { alert("Erro de conexão."); }
+        } catch (err) {
+            console.error(err);
+            this.mostrarAuthFeedback('Não foi possível conectar ao servidor. Tente novamente.');
+        } finally {
+            this.definirAuthLoading(false);
+        }
     }
 
     posLogin() {
