@@ -1,5 +1,5 @@
-name: login_front
-description: A new Flutter project.
+name: SocialJoin
+description: A melhor rede social para eventos.
 publish_to: 'none'
 
 version: 1.0.0+1
@@ -20,9 +20,16 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
 
 flutter:
   uses-material-design: true
   assets:
+    - ../.pub/icons/
     - assets/images/
     - slaq.png
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "../.pub/icons/logofb.png"

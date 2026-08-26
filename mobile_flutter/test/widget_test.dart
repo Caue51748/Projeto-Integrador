@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:login_front/main.dart';
+import 'package:SocialJoin/main.dart';
 
 void main() {
   testWidgets('Tela de login e home aparecem corretamente',
