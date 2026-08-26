@@ -67,12 +67,85 @@ class AppController {
         document.getElementById('welcome-screen').classList.add('active');
         document.getElementById('app-shell').classList.remove('active');
         this.telaBoasVindasVisivel = true;
+        this.carregarEventosDestaque();
     }
 
     esconderTelaBoasVindas() {
         document.getElementById('welcome-screen').classList.remove('active');
         document.getElementById('app-shell').classList.add('active');
         this.telaBoasVindasVisivel = false;
+    }
+
+    async carregarEventosDestaque() {
+        const container = document.getElementById('preview-events');
+        const dataContainer = document.getElementById('preview-date');
+
+        if (!container || !dataContainer) return;
+
+        try {
+            const resultado = await ApiService.buscarEventos({
+                status: 'AGENDADO',
+                page: 0,
+                size: 3
+            });
+            const eventos = (resultado.content || []).slice(0, 3);
+
+            if (!eventos.length) {
+                container.innerHTML = '<div class="preview-empty">Nenhum evento agendado por enquanto.</div>';
+                dataContainer.innerHTML = '<strong>--</strong><span>AGENDA<br><b>em breve</b></span>';
+                return;
+            }
+
+            const primeiroEvento = eventos[0];
+            const data = this.formatarDataDestaque(primeiroEvento.dataEvento);
+            dataContainer.innerHTML = `
+                <strong>${data.dia}</strong>
+                <span>${data.mes}<br><b>${data.semana}</b></span>
+            `;
+
+            container.innerHTML = eventos.map((evento, index) => {
+                const horario = evento.horarioInicio
+                    ? evento.horarioInicio.substring(0, 5)
+                    : '--:--';
+                const local = evento.localEvento || 'Local a confirmar';
+                const participantes = evento.quantidadeParticipantes || 0;
+                const limite = evento.limiteParticipantes
+                    ? ` · ${participantes}/${evento.limiteParticipantes} vagas`
+                    : '';
+
+                return `
+                    <div class="preview-event ${index === 0 ? 'preview-event-highlight' : ''}">
+                        <div class="preview-event-time">${horario}</div>
+                        <div><strong>${this.escaparHtmlDestaque(evento.titulo || 'Evento')}</strong><span>${this.escaparHtmlDestaque(local)}${limite}</span></div>
+                        <i class="material-icons">chevron_right</i>
+                    </div>
+                `;
+            }).join('');
+        } catch (erro) {
+            console.warn('Não foi possível carregar a agenda inicial.', erro);
+            container.innerHTML = '<div class="preview-empty">A agenda estará disponível em instantes.</div>';
+        }
+    }
+
+    formatarDataDestaque(dataEvento) {
+        if (!dataEvento) return { dia: '--', mes: 'AGENDA', semana: 'em breve' };
+
+        const data = new Date(`${dataEvento}T00:00:00`);
+        return {
+            dia: String(data.getDate()).padStart(2, '0'),
+            mes: data.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '').toUpperCase(),
+            semana: data.toLocaleDateString('pt-BR', { weekday: 'long' })
+        };
+    }
+
+    escaparHtmlDestaque(valor) {
+        return String(valor).replace(/[&<>'"]/g, caractere => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            "'": '&#39;',
+            '"': '&quot;'
+        }[caractere]));
     }
 
     selecionarOpcao(opcao) {

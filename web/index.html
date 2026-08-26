@@ -14,15 +14,43 @@
 
 <body>
     <section id="welcome-screen" class="welcome-screen active">
-        <div class="welcome-card">
-            <div class="welcome-badge">SocialJoin</div>
-            <h1>Boas-vindas à sua rede social de eventos</h1>
-            <p>Conecte-se, descubra comunidades e participe de conversas que realmente interessam a você.</p>
-            <div class="welcome-actions">
-                <button class="btn-primary welcome-btn" onclick="app.selecionarOpcao('login')">Entrar</button>
-                <button class="btn-secondary welcome-btn" onclick="app.selecionarOpcao('cadastro')">Criar conta</button>
-                <button class="btn-ghost welcome-btn" onclick="app.selecionarOpcao('visitante')">Entrar sem
-                    conta</button>
+        <div class="welcome-page">
+            <header class="welcome-nav">
+                <a class="welcome-brand" href="#" onclick="return false;">
+                    <span class="welcome-brand-mark"><i class="material-icons">hub</i></span>
+                    SocialJoin
+                </a>
+                <div class="welcome-nav-actions">
+                    <span>Já faz parte da comunidade?</span>
+                    <button class="welcome-login-link" onclick="app.selecionarOpcao('login')">Entrar</button>
+                </div>
+            </header>
+
+            <div class="welcome-layout">
+                <div class="welcome-copy">
+                    <div class="welcome-eyebrow"><span></span> Sua próxima experiência começa aqui</div>
+                    <h1>Encontre pessoas, <em>lugares</em> e momentos para lembrar.</h1>
+                    <p>Uma comunidade para descobrir eventos, entrar em conversas e construir conexões que saem da tela.</p>
+                    <div class="welcome-actions">
+                        <button class="btn-primary welcome-btn" onclick="app.selecionarOpcao('cadastro')">Criar minha conta <i class="material-icons">arrow_forward</i></button>
+                        <button class="btn-ghost welcome-btn" onclick="app.selecionarOpcao('visitante')">Explorar sem conta <i class="material-icons">north_east</i></button>
+                    </div>
+                    <div class="welcome-proof"><i class="material-icons">verified</i><span>Descubra sua próxima comunidade favorita.</span></div>
+                </div>
+
+                <div class="welcome-preview" aria-label="Prévia de eventos da comunidade">
+                    <div class="preview-orbit preview-orbit-one"></div>
+                    <div class="preview-orbit preview-orbit-two"></div>
+                    <div class="preview-window">
+                        <div class="preview-window-top"><span>Agenda perto de você</span><i class="material-icons">more_horiz</i></div>
+                        <div class="preview-date" id="preview-date"><strong>--</strong><span>AGENDA<br><b>carregando</b></span></div>
+                        <div id="preview-events" class="preview-events" aria-live="polite">
+                            <div class="preview-loading">Buscando próximos eventos...</div>
+                        </div>
+                        <div class="preview-footer"><span class="preview-avatars"><b>+</b><b>+</b><b>+</b></span><span>novas conexões começam aqui</span></div>
+                    </div>
+                    <div class="preview-sticker"><i class="material-icons">favorite</i><span>Feito para<br><b>conectar</b></span></div>
+                </div>
             </div>
         </div>
     </section>

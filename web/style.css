@@ -31,60 +31,360 @@ body {
 .welcome-screen {
     min-height: 100vh;
     display: none;
-    align-items: center;
-    justify-content: center;
-    padding: 24px;
-    background: linear-gradient(145deg, rgba(249, 172, 198, 0.24), transparent 55%);
+    background: linear-gradient(135deg, #fff9fb 0%, #fff1f6 100%);
+    overflow: hidden;
 }
 
 .welcome-screen.active {
     display: flex;
 }
 
-.welcome-card {
-    width: min(100%, 560px);
-    background: rgba(255, 255, 255, 0.95);
-    padding: 48px;
-    border: 1px solid rgba(234, 63, 116, 0.14);
-    border-radius: 20px;
-    box-shadow: 0 24px 60px rgba(120, 34, 66, 0.14);
-    text-align: center;
+.welcome-page {
+    width: min(100%, 1240px);
+    min-height: 100vh;
+    margin: 0 auto;
+    padding: 28px 42px 52px;
 }
 
-.welcome-badge {
-    display: inline-block;
-    padding: 8px 16px;
-    border-radius: 999px;
-    background: var(--secondary-pink);
+.welcome-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+}
+
+.welcome-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--text-main);
+    font-size: 20px;
+    font-weight: 800;
+    text-decoration: none;
+}
+
+.welcome-brand-mark {
+    display: grid;
+    width: 36px;
+    height: 36px;
+    place-items: center;
+    color: #fff;
+    background: var(--primary-blue);
+    border-radius: 11px;
+    box-shadow: 0 8px 18px rgba(234, 63, 116, 0.25);
+}
+
+.welcome-brand-mark .material-icons {
+    font-size: 20px;
+}
+
+.welcome-nav-actions {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+.welcome-login-link {
+    border: 0;
+    padding: 10px 16px;
     color: var(--primary-blue);
-    font-weight: 700;
-    margin-bottom: 16px;
+    background: transparent;
+    cursor: pointer;
+    font-weight: 800;
 }
 
-.welcome-card h1 {
-    margin: 0 0 12px;
-    font-size: 32px;
-    line-height: 1.2;
+.welcome-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 0.95fr) minmax(420px, 1.05fr);
+    align-items: center;
+    gap: clamp(40px, 8vw, 110px);
+    min-height: calc(100vh - 116px);
 }
 
-.welcome-card p {
+.welcome-copy {
+    max-width: 600px;
+    animation: welcomeRise 0.7s ease both;
+}
+
+.welcome-eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin-bottom: 20px;
+    color: var(--primary-blue);
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+}
+
+.welcome-eyebrow span {
+    width: 28px;
+    height: 2px;
+    background: var(--primary-blue);
+}
+
+.welcome-copy h1 {
+    max-width: 620px;
+    margin: 0 0 22px;
+    color: var(--text-main);
+    font-size: 68px;
+    line-height: 0.98;
+    letter-spacing: -0.055em;
+}
+
+.welcome-copy h1 em {
+    color: var(--primary-blue);
+    font-family: Georgia, serif;
+    font-weight: 400;
+}
+
+.welcome-copy > p {
+    max-width: 500px;
     margin: 0;
     color: var(--text-muted);
-    font-size: 16px;
-    line-height: 1.6;
+    font-size: 17px;
+    line-height: 1.65;
 }
 
 .welcome-actions {
-    display: grid;
+    display: flex;
+    flex-wrap: wrap;
     gap: 12px;
-    margin-top: 24px;
+    margin-top: 32px;
 }
 
 .welcome-btn {
-    width: 100%;
-    padding: 14px 20px;
+    display: inline-flex;
+    width: auto;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    min-height: 48px;
+    padding: 13px 19px;
+    border-radius: 10px;
+    font-size: 14px;
+}
+
+.welcome-btn .material-icons {
+    font-size: 18px;
+}
+
+.welcome-proof {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 25px;
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.welcome-proof .material-icons {
+    color: var(--primary-blue);
+    font-size: 17px;
+}
+
+.welcome-preview {
+    position: relative;
+    min-height: 500px;
+    animation: welcomeRise 0.8s 0.15s ease both;
+}
+
+.preview-window {
+    position: absolute;
+    z-index: 1;
+    top: 50%;
+    left: 50%;
+    width: min(100%, 470px);
+    padding: 25px;
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid rgba(234, 63, 116, 0.15);
+    border-radius: 18px;
+    box-shadow: 0 28px 65px rgba(120, 34, 66, 0.16);
+    transform: translate(-50%, -50%) rotate(2deg);
+}
+
+.preview-window-top,
+.preview-event,
+.preview-footer,
+.preview-date {
+    display: flex;
+    align-items: center;
+}
+
+.preview-window-top {
+    justify-content: space-between;
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.preview-window-top .material-icons {
+    color: var(--secondary-pink);
+}
+
+.preview-date {
+    gap: 11px;
+    margin: 25px 0 21px;
+}
+
+.preview-date strong {
+    color: var(--primary-blue);
+    font-size: 48px;
+    line-height: 0.85;
+}
+
+.preview-date span {
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.35;
+    text-transform: uppercase;
+}
+
+.preview-date b {
+    color: var(--text-main);
+    font-size: 13px;
+    text-transform: none;
+}
+
+.preview-event {
+    gap: 12px;
+    padding: 15px 0;
+    border-top: 1px solid var(--border-color);
+}
+
+.preview-event-time {
+    align-self: flex-start;
+    min-width: 40px;
+    color: var(--primary-blue);
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.preview-event strong,
+.preview-event span {
+    display: block;
+}
+
+.preview-event strong {
+    margin-bottom: 4px;
+    color: var(--text-main);
+    font-size: 13px;
+}
+
+.preview-event span {
+    color: var(--text-muted);
+    font-size: 11px;
+}
+
+.preview-event > .material-icons {
+    margin-left: auto;
+    color: var(--secondary-pink);
+    font-size: 20px;
+}
+
+.preview-event-highlight {
+    margin: 0 -10px;
+    padding: 15px 10px;
+    background: var(--bg-light);
+    border-radius: 9px;
+}
+
+.preview-loading,
+.preview-empty {
+    padding: 22px 4px;
+    color: var(--text-muted);
+    font-size: 12px;
+    text-align: center;
+}
+
+.preview-events {
+    min-height: 126px;
+}
+
+.preview-footer {
+    gap: 9px;
+    margin-top: 13px;
+    color: var(--text-muted);
+    font-size: 11px;
+}
+
+.preview-avatars {
+    display: flex;
+}
+
+.preview-avatars b {
+    display: grid;
+    width: 24px;
+    height: 24px;
+    margin-left: -5px;
+    place-items: center;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    color: #fff;
+    background: var(--primary-blue);
+    font-size: 9px;
+}
+
+.preview-avatars b:first-child {
+    margin-left: 0;
+    background: #e47d9d;
+}
+
+.preview-avatars b:last-child {
+    background: var(--text-main);
+}
+
+.preview-orbit {
+    position: absolute;
+    border-radius: 50%;
+}
+
+.preview-orbit-one {
+    top: 4%;
+    right: 1%;
+    width: 340px;
+    height: 340px;
+    border: 1px solid rgba(234, 63, 116, 0.18);
+}
+
+.preview-orbit-two {
+    right: 17%;
+    bottom: 5%;
+    width: 120px;
+    height: 120px;
+    background: var(--secondary-pink);
+    opacity: 0.55;
+}
+
+.preview-sticker {
+    position: absolute;
+    right: 0;
+    bottom: 8%;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 13px 16px;
+    color: #fff;
+    background: var(--primary-blue);
     border-radius: 12px;
-    font-size: 16px;
+    box-shadow: 0 13px 25px rgba(234, 63, 116, 0.25);
+    font-size: 11px;
+    line-height: 1.2;
+    transform: rotate(-5deg);
+}
+
+.preview-sticker .material-icons {
+    font-size: 22px;
+}
+
+@keyframes welcomeRise {
+    from { opacity: 0; transform: translateY(18px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 .btn-secondary {
@@ -790,8 +1090,57 @@ button:disabled {
         width: 100%;
     }
 
-    .welcome-card {
-        padding: 32px 24px;
+    .welcome-page {
+        padding: 22px 20px 38px;
+    }
+
+    .welcome-nav-actions > span {
+        display: none;
+    }
+
+    .welcome-layout {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 24px;
+        min-height: auto;
+        padding-top: 72px;
+    }
+
+    .welcome-copy h1 {
+        font-size: 44px;
+    }
+
+    .welcome-copy > p {
+        font-size: 15px;
+    }
+
+    .welcome-actions {
+        flex-direction: column;
+    }
+
+    .welcome-btn {
+        width: 100%;
+    }
+
+    .welcome-preview {
+        min-height: 390px;
+        margin-top: 10px;
+    }
+
+    .preview-window {
+        width: calc(100% - 18px);
+        padding: 20px;
+    }
+
+    .preview-orbit-one {
+        width: 260px;
+        height: 260px;
+    }
+
+    .preview-sticker {
+        right: 2px;
+        bottom: 2%;
     }
 }
 
