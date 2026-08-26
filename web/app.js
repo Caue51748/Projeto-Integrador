@@ -31,6 +31,14 @@ class AppController {
     }
     async inicializar() {
 
+        document.addEventListener('keydown', (evento) => {
+            if (evento.key === 'Escape') {
+                document.querySelectorAll('.modal-overlay').forEach(modal => {
+                    if (modal.style.display === 'flex') modal.style.display = 'none';
+                });
+            }
+        });
+
         const usuarioLogado =
             ApiService.getUsuarioLogado();
 
@@ -149,8 +157,6 @@ class AppController {
     }
 
     selecionarOpcao(opcao) {
-        this.esconderTelaBoasVindas();
-
         if (opcao === 'login') {
             this.modoCadastro = false;
             this.atualizarAuthUI();
@@ -160,9 +166,17 @@ class AppController {
             this.atualizarAuthUI();
             this.abrirModal('auth-modal');
         } else {
+            this.esconderTelaBoasVindas();
             this.atualizarMenuLateral();
             this.carregarDadosGlobais();
         }
+    }
+
+    async explorarEventos() {
+        this.esconderTelaBoasVindas();
+        this.atualizarMenuLateral();
+        await this.carregarDadosGlobais();
+        this.mudarAba('eventos');
     }
 
     atualizarAuthUI() {
@@ -181,6 +195,10 @@ class AppController {
             : 'Entre para acompanhar eventos, comunidades e conversas.';
         submit.innerText = this.modoCadastro ? 'Criar minha conta' : 'Entrar';
         forgot.style.display = this.modoCadastro ? 'none' : 'block';
+        document.getElementById('auth-senha').setAttribute(
+            'autocomplete',
+            this.modoCadastro ? 'new-password' : 'current-password'
+        );
 
         document.getElementById('auth-tab-login')?.classList.toggle('active', !this.modoCadastro);
         document.getElementById('auth-tab-register')?.classList.toggle('active', this.modoCadastro);
@@ -237,7 +255,14 @@ class AppController {
         }
     }
 
-    abrirModal(id) { document.getElementById(id).style.display = 'flex'; }
+    abrirModal(id) {
+        const modal = document.getElementById(id);
+        if (!modal) return;
+        modal.style.display = 'flex';
+        if (id === 'auth-modal') {
+            setTimeout(() => document.getElementById('auth-email')?.focus(), 0);
+        }
+    }
     fecharModal(id) { document.getElementById(id).style.display = 'none'; }
 
     abrirModalPost() {
@@ -331,7 +356,7 @@ class AppController {
         const s = document.getElementById('auth-senha').value;
         const n = document.getElementById('auth-nome').value.trim();
         const username =
-            document.getElementById('auth-username').value.trim();
+            document.getElementById('auth-username').value.trim().replace(/^@+/, '');
         const dataNascimento =
             document.getElementById('auth-data-nascimento').value;
         const telefone =
@@ -349,6 +374,10 @@ class AppController {
             );
         }
 
+        if (!this.modoCadastro && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) {
+            return this.mostrarAuthFeedback('Informe um e-mail válido.');
+        }
+
         try {
             if (this.modoCadastro) {
                 if (
@@ -363,6 +392,28 @@ class AppController {
 
                 if (!e && !telefone) {
                     return this.mostrarAuthFeedback('Informe pelo menos um e-mail ou telefone.');
+                }
+
+                if (e && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) {
+                    return this.mostrarAuthFeedback('Informe um e-mail válido.');
+                }
+
+                if (!/^[a-zA-Z0-9._-]{3,30}$/.test(username)) {
+                    return this.mostrarAuthFeedback('O username deve ter de 3 a 30 caracteres, sem espaços.');
+                }
+
+                const nascimento = new Date(`${dataNascimento}T00:00:00`);
+                const hoje = new Date();
+                const idade = hoje.getFullYear() - nascimento.getFullYear() -
+                    ((hoje.getMonth() < nascimento.getMonth() ||
+                        (hoje.getMonth() === nascimento.getMonth() && hoje.getDate() < nascimento.getDate())) ? 1 : 0);
+
+                if (Number.isNaN(nascimento.getTime()) || idade < 13 || idade > 120) {
+                    return this.mostrarAuthFeedback('Informe uma data de nascimento válida.');
+                }
+
+                if (telefone && telefone.replace(/\D/g, '').length < 10) {
+                    return this.mostrarAuthFeedback('Informe um telefone válido.');
                 }
 
                 if (s.length < 8) {

@@ -312,6 +312,23 @@ body {
     font-size: 11px;
 }
 
+.preview-footer {
+    flex-wrap: wrap;
+}
+
+.preview-events-link {
+    width: 100%;
+    margin-top: 8px;
+    border: 0;
+    padding: 0;
+    color: var(--primary-blue);
+    background: transparent;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 800;
+    text-align: left;
+}
+
 .preview-avatars {
     display: flex;
 }
@@ -1141,6 +1158,10 @@ button:disabled {
     .preview-sticker {
         right: 2px;
         bottom: 2%;
+    }
+
+    .auth-modal {
+        padding: 28px 22px;
     }
 }
 

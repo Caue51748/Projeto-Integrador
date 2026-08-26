@@ -42,12 +42,12 @@
                     <div class="preview-orbit preview-orbit-one"></div>
                     <div class="preview-orbit preview-orbit-two"></div>
                     <div class="preview-window">
-                        <div class="preview-window-top"><span>Agenda perto de você</span><i class="material-icons">more_horiz</i></div>
+                        <div class="preview-window-top"><span>Próximos eventos</span><i class="material-icons">more_horiz</i></div>
                         <div class="preview-date" id="preview-date"><strong>--</strong><span>AGENDA<br><b>carregando</b></span></div>
                         <div id="preview-events" class="preview-events" aria-live="polite">
                             <div class="preview-loading">Buscando próximos eventos...</div>
                         </div>
-                        <div class="preview-footer"><span class="preview-avatars"><b>+</b><b>+</b><b>+</b></span><span>novas conexões começam aqui</span></div>
+                        <div class="preview-footer"><span class="preview-avatars"><b>+</b><b>+</b><b>+</b></span><span>novas conexões começam aqui</span><button class="preview-events-link" onclick="app.explorarEventos()">Ver agenda completa</button></div>
                     </div>
                     <div class="preview-sticker"><i class="material-icons">favorite</i><span>Feito para<br><b>conectar</b></span></div>
                 </div>
@@ -231,7 +231,7 @@
         </main>
     </div>
 
-    <div class="modal-overlay" id="auth-modal">
+    <div class="modal-overlay" id="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title">
         <div class="modal auth-modal">
             <div class="auth-intro">
                 <span class="auth-kicker">SocialJoin</span>
