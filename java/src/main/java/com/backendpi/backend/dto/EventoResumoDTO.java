@@ -9,6 +9,8 @@ public class EventoResumoDTO {
     private Long id;
     private String titulo;
     private String descricao;
+    private String categoria;
+    private String imagemCapa;
     private LocalDate dataEvento;
     private LocalTime horarioInicio;
     private LocalTime horarioFim;
@@ -25,6 +27,8 @@ public class EventoResumoDTO {
             Long id,
             String titulo,
             String descricao,
+            String categoria,
+            String imagemCapa,
             LocalDate dataEvento,
             LocalTime horarioInicio,
             LocalTime horarioFim,
@@ -40,6 +44,8 @@ public class EventoResumoDTO {
         this.id = id;
         this.titulo = titulo;
         this.descricao = descricao;
+        this.categoria = categoria;
+        this.imagemCapa = imagemCapa;
         this.dataEvento = dataEvento;
         this.horarioInicio = horarioInicio;
         this.horarioFim = horarioFim;
@@ -63,6 +69,14 @@ public class EventoResumoDTO {
 
     public String getDescricao() {
         return descricao;
+    }
+
+    public String getCategoria() {
+        return categoria;
+    }
+
+    public String getImagemCapa() {
+        return imagemCapa;
     }
 
     public LocalDate getDataEvento() {

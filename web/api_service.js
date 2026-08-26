@@ -210,6 +210,7 @@ export class ApiService {
     static async buscarEventos({
         texto = null,
         status = null,
+        categoria = null,
         comunidadeId = null,
         dataInicio = null,
         dataFim = null,
@@ -225,6 +226,10 @@ export class ApiService {
 
         if (status) {
             params.append("status", status);
+        }
+
+        if (categoria) {
+            params.append("categoria", categoria);
         }
 
         if (comunidadeId) {
@@ -323,6 +328,27 @@ export class ApiService {
         }
 
         return await resposta.json();
+    }
+
+    static async listarEventosParticipando(idUsuario) {
+        const resposta = await fetch(
+            `${this.API_URL}/api/eventos/participando/${idUsuario}`
+        );
+
+        if (!resposta.ok) {
+            throw new Error("Erro ao buscar eventos do usuário");
+        }
+
+        return await resposta.json();
+    }
+
+    static async enviarCapaEvento(idEvento, capa) {
+        const dados = new FormData();
+        dados.append('capa', capa);
+        return fetch(`${this.API_URL}/api/eventos/${idEvento}/capa`, {
+            method: 'POST',
+            body: dados
+        });
     }
 
     static async buscarEventoPorId(idEvento) {

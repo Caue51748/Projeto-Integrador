@@ -86,16 +86,19 @@
 
             <div id="view-eventos" class="view-section">
                 <div class="page-header">
-                    <h1>Agenda de Eventos</h1>
+                    <div>
+                        <span class="section-kicker">Viva mais fora da tela</span>
+                        <h1>Descubra seu próximo evento</h1>
+                    </div>
                     <button class="btn-primary"
                         onclick="app.abrirModal('evento-modal')">Novo Evento</button>
                 </div>
-                <div style="
-    display:grid;
-    grid-template-columns:2fr 1fr 1fr 1fr;
-    gap:10px;
-    margin-bottom:16px;
-">
+                <div id="evento-destaque" class="evento-destaque"></div>
+                <div class="eventos-tabs" role="tablist" aria-label="Eventos">
+                    <button class="eventos-tab active" id="eventos-tab-descobrir" onclick="app.mudarVisaoEventos('descobrir')">Descobrir</button>
+                    <button class="eventos-tab" id="eventos-tab-meus" onclick="app.mudarVisaoEventos('meus')">Meus eventos</button>
+                </div>
+                <div class="eventos-filtros">
                     <input type="text" id="filtro-evento-texto" placeholder="Buscar por nome ou descrição..."
                         oninput="app.buscarEventosComDebounce()">
 
@@ -117,6 +120,21 @@
                         <option value="AGENDADO">Agendados</option>
                         <option value="CANCELADO">Cancelados</option>
                     </select>
+                    <select id="filtro-evento-categoria" onchange="app.filtrarEventos()">
+                        <option value="">Todas as categorias</option>
+                        <option value="Tecnologia">Tecnologia</option>
+                        <option value="Arte">Arte</option>
+                        <option value="Música">Música</option>
+                        <option value="Esportes">Esportes</option>
+                        <option value="Educação">Educação</option>
+                        <option value="Networking">Networking</option>
+                        <option value="Cultura">Cultura</option>
+                    </select>
+                    <select id="filtro-evento-formato" onchange="app.filtrarEventos()">
+                        <option value="">Todos os formatos</option>
+                        <option value="presencial">Presenciais</option>
+                        <option value="online">Online</option>
+                    </select>
                 </div>
                 <div id="filtro-evento-intervalo" style="
         display:none;
@@ -128,8 +146,7 @@
 
                     <input type="date" id="filtro-evento-data-fim" onchange="app.filtrarEventos()">
                 </div>
-                <div id="eventos-container"
-                    style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px;">
+                <div id="eventos-container" class="eventos-container">
                     Carregando eventos...
                 </div>
                 <div id="eventos-paginacao" style="
@@ -319,6 +336,13 @@
             <h2>Organizar Novo Evento</h2>
             <input type="text" id="evento-titulo" placeholder="Título do Evento (Ex: Workshop de Java)">
             <textarea id="evento-desc" placeholder="Descrição e detalhes do evento..."></textarea>
+            <select id="evento-categoria">
+                <option value="">Categoria do evento</option>
+                <option>Tecnologia</option><option>Arte</option><option>Música</option>
+                <option>Esportes</option><option>Educação</option><option>Networking</option><option>Cultura</option>
+            </select>
+            <label class="file-field" for="evento-capa">Imagem de capa (opcional)</label>
+            <input type="file" id="evento-capa" accept="image/*">
 
             <div style="display: flex; gap: 10px; margin-bottom: 12px;">
                 <input type="date" id="evento-data" style="width: 50%;">
@@ -458,6 +482,11 @@
             <input type="text" id="editar-evento-titulo" placeholder="Título do evento">
 
             <textarea id="editar-evento-descricao" placeholder="Descrição"></textarea>
+            <select id="editar-evento-categoria">
+                <option value="">Categoria do evento</option>
+                <option>Tecnologia</option><option>Arte</option><option>Música</option>
+                <option>Esportes</option><option>Educação</option><option>Networking</option><option>Cultura</option>
+            </select>
 
             <input type="date" id="editar-evento-data">
 

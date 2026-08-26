@@ -46,6 +46,20 @@ public class EventoService {
                 );
     }
 
+    public List<Evento> listarPorParticipante(Long idUsuario) {
+        return participacaoEventoRepository.findByUsuarioId(idUsuario)
+                .stream()
+                .map(participacao -> eventoRepository.findById(participacao.getEventoId()))
+                .flatMap(Optional::stream)
+                .sorted((primeiro, segundo) -> {
+                    int porData = primeiro.getDataEvento().compareTo(segundo.getDataEvento());
+                    return porData != 0
+                            ? porData
+                            : primeiro.getHorarioInicio().compareTo(segundo.getHorarioInicio());
+                })
+                .collect(Collectors.toList());
+    }
+
     public Optional<Evento> buscarPorId(Long id) {
         return eventoRepository.findById(id);
     }
@@ -143,6 +157,7 @@ public class EventoService {
     public Page<EventoResumoDTO> buscarComFiltros(
             String texto,
             String status,
+            String categoria,
             Long comunidadeId,
             LocalDate dataInicio,
             LocalDate dataFim,
@@ -170,6 +185,7 @@ public class EventoService {
                 = eventoRepository.buscarComFiltros(
                         texto,
                         status,
+                        categoria,
                         comunidadeId,
                         dataInicio,
                         dataFim,
@@ -218,6 +234,8 @@ public class EventoService {
                                 evento.getId(),
                                 evento.getTitulo(),
                                 evento.getDescricao(),
+                                evento.getCategoria(),
+                                evento.getImagemCapa(),
                                 evento.getDataEvento(),
                                 evento.getHorarioInicio(),
                                 evento.getHorarioFim(),

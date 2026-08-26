@@ -29,6 +29,12 @@ public class Evento {
     @Column(columnDefinition = "TEXT")
     private String descricao;
 
+    @Column(length = 40)
+    private String categoria;
+
+    @Column(name = "imagem_capa", length = 500)
+    private String imagemCapa;
+
     @Column(name = "data_evento", nullable = false)
     @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate dataEvento;
@@ -77,6 +83,22 @@ public class Evento {
 
     public String getDescricao() {
         return descricao;
+    }
+
+    public String getCategoria() {
+        return categoria;
+    }
+
+    public void setCategoria(String categoria) {
+        this.categoria = categoria;
+    }
+
+    public String getImagemCapa() {
+        return imagemCapa;
+    }
+
+    public void setImagemCapa(String imagemCapa) {
+        this.imagemCapa = imagemCapa;
     }
 
     public LocalDate getDataEvento() {

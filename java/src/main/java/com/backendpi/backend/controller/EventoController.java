@@ -1,7 +1,12 @@
 package com.backendpi.backend.controller;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.UUID;
 
 import org.springframework.data.domain.Page;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -16,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.backendpi.backend.dto.EventoResumoDTO;
 import com.backendpi.backend.model.Evento;
@@ -44,6 +50,13 @@ public class EventoController {
         return eventoService.listarPorCriador(idUsuario);
     }
 
+    @GetMapping("/participando/{idUsuario}")
+    public List<Evento> listarPorParticipante(
+            @PathVariable Long idUsuario) {
+
+        return eventoService.listarPorParticipante(idUsuario);
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<Evento> buscarPorId(@PathVariable Long id) {
         return eventoService.buscarPorId(id)
@@ -54,6 +67,30 @@ public class EventoController {
     @PostMapping
     public Evento criar(@RequestBody Evento evento) {
         return eventoService.salvar(evento);
+    }
+
+    @PostMapping("/{idEvento}/capa")
+    public ResponseEntity<Evento> enviarCapa(
+            @PathVariable Long idEvento,
+            @RequestParam("capa") MultipartFile capa) {
+        try {
+            if (capa.isEmpty() || capa.getContentType() == null
+                    || !capa.getContentType().startsWith("image/")) {
+                return ResponseEntity.badRequest().build();
+            }
+
+            Evento evento = eventoService.buscarPorId(idEvento)
+                    .orElseThrow(() -> new IllegalArgumentException("Evento não encontrado"));
+            Path pasta = Paths.get("uploads", "eventos");
+            Files.createDirectories(pasta);
+            String nome = UUID.randomUUID() + "-" +
+                    (capa.getOriginalFilename() == null ? "capa" : capa.getOriginalFilename());
+            Files.copy(capa.getInputStream(), pasta.resolve(nome));
+            evento.setImagemCapa("uploads/eventos/" + nome);
+            return ResponseEntity.ok(eventoService.salvar(evento));
+        } catch (IOException | IllegalArgumentException erro) {
+            return ResponseEntity.internalServerError().build();
+        }
     }
 
     @DeleteMapping("/{idEvento}/usuario/{idUsuario}")
@@ -91,6 +128,7 @@ public class EventoController {
     public Page<EventoResumoDTO> buscarComFiltros(
             @RequestParam(required = false) String texto,
             @RequestParam(required = false) String status,
+            @RequestParam(required = false) String categoria,
             @RequestParam(required = false) Long comunidadeId,
             @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataInicio,
@@ -102,6 +140,7 @@ public class EventoController {
         return eventoService.buscarComFiltros(
                 texto,
                 status,
+                categoria,
                 comunidadeId,
                 dataInicio,
                 dataFim,

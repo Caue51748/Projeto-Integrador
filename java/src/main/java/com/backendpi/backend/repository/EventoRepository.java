@@ -23,6 +23,7 @@ public interface EventoRepository extends JpaRepository<Evento, Long> {
              OR LOWER(e.titulo) LIKE LOWER(CONCAT('%', :texto, '%'))
              OR LOWER(e.descricao) LIKE LOWER(CONCAT('%', :texto, '%')))
         AND (:status IS NULL OR e.status = :status)
+        AND (:categoria IS NULL OR e.categoria = :categoria)
         AND (:comunidadeId IS NULL OR e.comunidadeId = :comunidadeId)
         AND (:dataInicio IS NULL OR e.dataEvento >= :dataInicio)
         AND (:dataFim IS NULL OR e.dataEvento <= :dataFim)
@@ -30,6 +31,7 @@ public interface EventoRepository extends JpaRepository<Evento, Long> {
     Page<Evento> buscarComFiltros(
             @Param("texto") String texto,
             @Param("status") String status,
+            @Param("categoria") String categoria,
             @Param("comunidadeId") Long comunidadeId,
             @Param("dataInicio") LocalDate dataInicio,
             @Param("dataFim") LocalDate dataFim,

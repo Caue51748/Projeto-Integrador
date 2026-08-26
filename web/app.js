@@ -22,12 +22,14 @@ class AppController {
         this.filtrosEventos = {
             texto: null,
             status: null,
+            categoria: null,
             comunidadeId: null,
             dataInicio: null,
             dataFim: null
         };
         this.timerBuscaEventos = null;
         this.viewAntesDoPerfil = 'feed';
+        this.visaoEventos = 'descobrir';
     }
     async inicializar() {
 
@@ -885,10 +887,22 @@ ${ApiService.getIdUsuarioLogado() ? `
                 size: this.tamanhoPaginaEventos
             });
 
-            const eventos = resultado.content;
+            let eventos = resultado.content || [];
+
+            const categoria = document.getElementById('filtro-evento-categoria')?.value;
+            const formato = document.getElementById('filtro-evento-formato')?.value;
+
+            if (formato) {
+                eventos = eventos.filter(evento => {
+                    const online = /^(https?:\/\/|www\.)/i.test(evento.localEvento || '');
+                    return formato === 'online' ? online : !online;
+                });
+            }
 
             this.listaEventos = eventos;
             this.totalPaginasEventos = resultado.totalPages;
+
+            this.renderizarEventoDestaque(eventos[0]);
 
             container.innerHTML = '';
 
@@ -900,10 +914,25 @@ ${ApiService.getIdUsuarioLogado() ? `
                 return;
             }
 
-            for (const evento of eventos) {
+            const grupos = eventos.reduce((acumulado, evento) => {
+                const chave = evento.dataEvento || 'sem-data';
+                (acumulado[chave] ||= []).push(evento);
+                return acumulado;
+            }, {});
+
+            for (const [data, eventosDoDia] of Object.entries(grupos)) {
+                const grupo = document.createElement('section');
+                grupo.className = 'eventos-grupo';
+                grupo.innerHTML = `<h2 class="eventos-grupo-titulo">${this.formatarDataEvento(data)}</h2>`;
+                const grade = document.createElement('div');
+                grade.className = 'eventos-grid';
+                grupo.appendChild(grade);
+                container.appendChild(grupo);
+
+                for (const evento of eventosDoDia) {
 
                 const div = document.createElement('div');
-                div.className = 'card';
+                div.className = 'evento-card';
 
                 const statusDetalhes =
                     evento.situacaoTemporal ||
@@ -914,21 +943,12 @@ ${ApiService.getIdUsuarioLogado() ? `
                     statusDetalhes === 'ACONTECENDO_AGORA'
                         ? 'ACONTECENDO AGORA'
                         : statusDetalhes;
-                const eventoCancelado = status === 'CANCELADO';
+                const eventoCancelado = statusDetalhes === 'CANCELADO';
 
                 const statusExibido =
-                    status === 'ACONTECENDO_AGORA'
+                    statusDetalhes === 'ACONTECENDO_AGORA'
                         ? 'ACONTECENDO AGORA'
-                        : status;
-
-                div.style.borderLeft = eventoCancelado
-                    ? '4px solid var(--danger)'
-                    : '4px solid var(--primary-blue)';
-
-                div.style.opacity = eventoCancelado ? '0.7' : '1';
-                div.style.display = 'flex';
-                div.style.flexDirection = 'column';
-                div.style.justifyContent = 'space-between';
+                        : statusDetalhes;
 
                 const dataFormatada = evento.dataEvento
                     ? evento.dataEvento.split('-').reverse().join('/')
@@ -959,77 +979,25 @@ ${ApiService.getIdUsuarioLogado() ? `
 
                 const quantidadeParticipantes =
                     evento.quantidadeParticipantes || 0;
+                const eventoLotado = evento.limiteParticipantes && quantidadeParticipantes >= evento.limiteParticipantes;
+                const idUsuario = ApiService.getIdUsuarioLogado();
+                const ehCriador = idUsuario && idUsuario == evento.criadorId;
+                const acao = ehCriador ? 'Organizador' : eventoLotado ? 'Evento lotado' : idUsuario ? 'Ver detalhes' : 'Entrar para participar';
                 div.innerHTML = `
-    <div
-        onclick="app.abrirDetalhesEvento(${evento.id})"
-        style="cursor:pointer;"
-    >
-        <div style="
-            display:flex;
-            justify-content:space-between;
-            align-items:flex-start;
-            gap:12px;
-        ">
-            <div>
-                <h3 style="margin:0 0 6px 0;">
-                    ${evento.titulo}
-                </h3>
-
-                <div style="
-                    font-size:13px;
-                    color:var(--text-muted);
-                ">
-                    📅 ${dataFormatada}
-                    • ⏰ ${horarioInicioFormatado} às ${horarioFimFormatado}
-                </div>
-            </div>
-
-            <span style="
-                font-size:12px;
-                font-weight:600;
-            ">
-                ${statusDetalhesExibido}
-            </span>
-        </div>
-
-        <p style="
-            color:var(--text-muted);
-            font-size:14px;
-            margin:12px 0;
-            overflow:hidden;
-            display:-webkit-box;
-            -webkit-line-clamp:2;
-            -webkit-box-orient:vertical;
-        ">
-            ${evento.descricao || 'Sem descrição informada.'}
-        </p>
-
-        <div style="
-            font-size:13px;
-            color:var(--text-muted);
-            display:flex;
-            flex-direction:column;
-            gap:4px;
-        ">
-            <div>
-                📍 ${evento.localEvento}
-            </div>
-
-            <div>
-                👥 ${evento.limiteParticipantes
-                        ? `${quantidadeParticipantes} de ${evento.limiteParticipantes}`
-                        : `${quantidadeParticipantes} participante(s)`
-                    }
-            </div>
-
-            <div>
-                👤 ${nomeCriador}
-            </div>
-        </div>
-    </div>
-`;
-
-                container.appendChild(div);
+                    <div class="evento-card-capa ${evento.imagemCapa ? '' : 'evento-card-capa-vazia'}" ${evento.imagemCapa ? `style="background-image:url('${this.urlCapaEvento(evento.imagemCapa)}')"` : ''}>
+                        ${!evento.imagemCapa ? '<i class="material-icons">event</i>' : ''}
+                        <span>${evento.categoria || 'Comunidade'}</span>
+                    </div>
+                    <div class="evento-card-body">
+                        <div class="evento-card-meta"><span>${horarioInicioFormatado} - ${horarioFimFormatado}</span><b>${statusExibido}</b></div>
+                        <h3>${evento.titulo}</h3>
+                        <p>${evento.descricao || 'Sem descrição informada.'}</p>
+                        <div class="evento-card-info"><span>📍 ${evento.localEvento}</span><span>👥 ${evento.limiteParticipantes ? `${quantidadeParticipantes}/${evento.limiteParticipantes}` : `${quantidadeParticipantes}`} participantes</span></div>
+                        <button class="btn-primary evento-card-action" onclick="app.abrirDetalhesEvento(${evento.id})">${acao}</button>
+                    </div>
+                `;
+                grade.appendChild(div);
+                }
             }
 
 
@@ -1040,6 +1008,61 @@ ${ApiService.getIdUsuarioLogado() ? `
                 "<p style='padding:16px; color:red;'>Erro ao conectar com a API de Eventos.</p>";
         }
         this.atualizarPaginacaoEventos();
+    }
+
+    formatarDataEvento(data) {
+        if (!data || data === 'sem-data') return 'Data a confirmar';
+        return new Date(`${data}T00:00:00`).toLocaleDateString('pt-BR', {
+            weekday: 'long', day: 'numeric', month: 'long'
+        });
+    }
+
+    renderizarEventoDestaque(evento) {
+        const container = document.getElementById('evento-destaque');
+        if (!container) return;
+        if (!evento) {
+            container.innerHTML = '<div class="evento-destaque-vazio">Nenhum evento encontrado com esses filtros.</div>';
+            return;
+        }
+        const data = evento.dataEvento ? new Date(`${evento.dataEvento}T00:00:00`).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '') : '--';
+        container.innerHTML = `
+            <div class="evento-destaque-copy"><span class="section-kicker">${evento.categoria || 'Em destaque'}</span><h2>${evento.titulo}</h2><p>${evento.descricao || 'Uma nova experiência está esperando por você.'}</p><div class="evento-destaque-details"><span>📅 ${data} · ${evento.horarioInicio?.substring(0, 5) || '--:--'}</span><span>📍 ${evento.localEvento || 'Local a confirmar'}</span></div><button class="btn-primary" onclick="app.abrirDetalhesEvento(${evento.id})">Ver detalhes <i class="material-icons">arrow_forward</i></button></div><div class="evento-destaque-art" ${evento.imagemCapa ? `style="background-image:linear-gradient(135deg,rgba(43,23,32,.2),rgba(234,63,116,.5)),url('${this.urlCapaEvento(evento.imagemCapa)}');background-size:cover;background-position:center;"` : ''}><i class="material-icons">celebration</i></div>
+        `;
+    }
+
+    urlCapaEvento(caminho) {
+        return caminho?.startsWith('http') ? caminho : `${ApiService.API_URL}/${caminho}`;
+    }
+
+    async mudarVisaoEventos(visao) {
+        this.visaoEventos = visao;
+        document.querySelectorAll('.eventos-tab').forEach(tab => tab.classList.remove('active'));
+        document.getElementById(`eventos-tab-${visao}`)?.classList.add('active');
+        if (visao === 'meus') {
+            await this.carregarMeusEventos();
+        } else {
+            await this.carregarEventos();
+        }
+    }
+
+    async carregarMeusEventos() {
+        const container = document.getElementById('eventos-container');
+        if (!container) return;
+        const idUsuario = ApiService.getIdUsuarioLogado();
+        if (!idUsuario) {
+            container.innerHTML = '<div class="evento-destaque-vazio">Entre para acompanhar os eventos dos quais você participa.</div>';
+            return;
+        }
+        container.innerHTML = 'Carregando seus eventos...';
+        try {
+            const eventos = await ApiService.listarEventosParticipando(idUsuario);
+            this.listaEventos = eventos;
+            this.renderizarEventoDestaque(eventos[0]);
+            container.innerHTML = eventos.length ? eventos.map(evento => `<div class="meu-evento-row"><div><strong>${evento.titulo}</strong><span>${this.formatarDataEvento(evento.dataEvento)} · ${evento.localEvento}</span></div><button class="btn-primary" onclick="app.abrirDetalhesEvento(${evento.id})">Ver evento</button></div>`).join('') : '<div class="evento-destaque-vazio">Você ainda não está participando de nenhum evento.</div>';
+        } catch (erro) {
+            console.error(erro);
+            container.innerHTML = '<div class="evento-destaque-vazio">Não foi possível carregar seus eventos.</div>';
+        }
     }
 
     async criarEvento() {
@@ -1055,6 +1078,12 @@ ${ApiService.getIdUsuarioLogado() ? `
 
         const descricao =
             document.getElementById('evento-desc').value.trim();
+
+        const categoria =
+            document.getElementById('evento-categoria').value;
+
+        const capa =
+            document.getElementById('evento-capa').files[0];
 
         const dataEvento =
             document.getElementById('evento-data').value;
@@ -1137,6 +1166,7 @@ ${ApiService.getIdUsuarioLogado() ? `
         const novoEvento = {
             titulo,
             descricao,
+            categoria: categoria || null,
             dataEvento,
 
             horarioInicio: horarioInicio + ":00",
@@ -1170,6 +1200,9 @@ ${ApiService.getIdUsuarioLogado() ? `
 
             if (res.ok) {
 
+                const eventoCriado = await res.json();
+                if (capa) await ApiService.enviarCapaEvento(eventoCriado.id, capa);
+
                 this.fecharModal('evento-modal');
 
                 document.getElementById('evento-titulo').value = '';
@@ -1182,6 +1215,8 @@ ${ApiService.getIdUsuarioLogado() ? `
                 document.getElementById('evento-comunidade-id').value = '';
                 document.getElementById('evento-limite').value = '';
                 document.getElementById('evento-checkin').checked = false;
+                document.getElementById('evento-categoria').value = '';
+                document.getElementById('evento-capa').value = '';
 
                 await this.carregarEventos();
 
@@ -1379,6 +1414,9 @@ ${ApiService.getIdUsuarioLogado() ? `
         document.getElementById('editar-evento-descricao').value =
             evento.descricao || '';
 
+        document.getElementById('editar-evento-categoria').value =
+            evento.categoria || '';
+
         document.getElementById('editar-evento-data').value =
             evento.dataEvento || '';
 
@@ -1428,6 +1466,9 @@ ${ApiService.getIdUsuarioLogado() ? `
 
         const descricao =
             document.getElementById('editar-evento-descricao').value.trim();
+
+        const categoria =
+            document.getElementById('editar-evento-categoria').value;
 
         const dataEvento =
             document.getElementById('editar-evento-data').value;
@@ -1496,6 +1537,7 @@ ${ApiService.getIdUsuarioLogado() ? `
         const eventoAtualizado = {
             titulo,
             descricao,
+            categoria: categoria || null,
             dataEvento,
 
             horarioInicio: horarioInicio + ":00",
@@ -1830,6 +1872,10 @@ ${ApiService.getIdUsuarioLogado() ? `
             document.getElementById('filtro-evento-status')
                 .value;
 
+        const categoria =
+            document.getElementById('filtro-evento-categoria')
+                .value;
+
         const periodo =
             document.getElementById('filtro-evento-periodo')
                 .value;
@@ -1927,13 +1973,17 @@ ${ApiService.getIdUsuarioLogado() ? `
             status:
                 status || null,
 
+            categoria:
+                categoria || null,
+
             dataInicio,
             dataFim
         };
 
         this.paginaEventos = 0;
 
-        await this.carregarEventos();
+        if (this.visaoEventos === 'meus') await this.carregarMeusEventos();
+        else await this.carregarEventos();
     }
 
     carregarFiltroComunidadesEventos() {
@@ -2094,6 +2144,8 @@ ${ApiService.getIdUsuarioLogado() ? `
                     ">
                         Organizado por ${nomeCriador}
                     </p>
+
+                    ${evento.categoria ? `<span class="evento-detalhe-categoria">${evento.categoria}</span>` : ''}
                 </div>
 
                 <span style="
@@ -2103,6 +2155,8 @@ ${ApiService.getIdUsuarioLogado() ? `
     ${situacaoEventoExibida}
 </span>
             </div>
+
+            ${evento.imagemCapa ? `<div class="evento-detalhe-capa" style="background-image:url('${this.urlCapaEvento(evento.imagemCapa)}')"></div>` : ''}
 
             <p style="
                 font-size:15px;
