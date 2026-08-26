@@ -1,14 +1,17 @@
 /* style.css */
 :root {
-    --bg-dark: #1e2433;
-    --bg-darker: #151a26;
-    --primary-blue: #2563eb;
-    --primary-hover: #1d4ed8;
-    --bg-light: #f8fafc;
+    --bg-dark: #fff7fa;
+    --bg-darker: #fff0f5;
+    --primary-blue: #EA3F74;
+    --primary-hover: #c92f60;
+    --secondary-pink: #f9acc6;
+    --bg-light: #fff4f8;
     --card-bg: #ffffff;
-    --text-main: #111827;
-    --text-muted: #6b7280;
-    --border-color: #e2e8f0;
+    --text-main: #2b1720;
+    --text-muted: #806873;
+    --border-color: #f1dce4;
+    --danger: #c93659;
+    --shadow-soft: 0 14px 35px rgba(120, 34, 66, 0.08);
 }
 
 * {
@@ -16,8 +19,8 @@
 }
 
 body {
-    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-    background: linear-gradient(135deg, #eff6ff 0%, #f8fafc 100%);
+    font-family: 'Manrope', 'Segoe UI', sans-serif;
+    background: radial-gradient(circle at 90% 0%, #ffe0eb 0, transparent 32%), #fff9fb;
     margin: 0;
     padding: 0;
     color: var(--text-main);
@@ -31,6 +34,7 @@ body {
     align-items: center;
     justify-content: center;
     padding: 24px;
+    background: linear-gradient(145deg, rgba(249, 172, 198, 0.24), transparent 55%);
 }
 
 .welcome-screen.active {
@@ -40,9 +44,10 @@ body {
 .welcome-card {
     width: min(100%, 560px);
     background: rgba(255, 255, 255, 0.95);
-    padding: 40px;
-    border-radius: 24px;
-    box-shadow: 0 20px 50px rgba(15, 23, 42, 0.15);
+    padding: 48px;
+    border: 1px solid rgba(234, 63, 116, 0.14);
+    border-radius: 20px;
+    box-shadow: 0 24px 60px rgba(120, 34, 66, 0.14);
     text-align: center;
 }
 
@@ -50,7 +55,7 @@ body {
     display: inline-block;
     padding: 8px 16px;
     border-radius: 999px;
-    background: #dbeafe;
+    background: var(--secondary-pink);
     color: var(--primary-blue);
     font-weight: 700;
     margin-bottom: 16px;
@@ -83,7 +88,7 @@ body {
 }
 
 .btn-secondary {
-    background: #111827;
+    background: var(--text-main);
     color: #fff;
     border: none;
     padding: 10px 20px;
@@ -94,13 +99,13 @@ body {
 }
 
 .btn-secondary:hover {
-    background: #1f2937;
+    background: #472632;
 }
 
 .btn-ghost {
     background: transparent;
     color: var(--primary-blue);
-    border: 1px solid var(--primary-blue);
+    border: 1px solid var(--secondary-pink);
     padding: 10px 20px;
     border-radius: 6px;
     font-weight: 600;
@@ -109,7 +114,7 @@ body {
 }
 
 .btn-ghost:hover {
-    background: #eff6ff;
+    background: var(--bg-light);
 }
 
 .app-shell {
@@ -125,7 +130,7 @@ body {
 aside {
     width: 260px;
     background-color: var(--bg-dark);
-    color: #fff;
+    color: var(--text-main);
     display: flex;
     flex-direction: column;
     flex-shrink: 0;
@@ -141,10 +146,10 @@ aside {
     padding: 24px;
     font-size: 20px;
     font-weight: 700;
-    color: #fff;
+    color: var(--primary-blue);
     background-color: var(--bg-darker);
     text-align: center;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    border-bottom: 1px solid var(--border-color);
 }
 
 .nav-menu {
@@ -156,7 +161,7 @@ aside {
     width: 100%;
     background: transparent;
     border: none;
-    color: #cbd5e1;
+    color: var(--text-muted);
     padding: 16px 24px;
     text-align: left;
     font-size: 15px;
@@ -168,20 +173,20 @@ aside {
 }
 
 .nav-btn:hover {
-    background: rgba(255, 255, 255, 0.05);
-    color: #fff;
+    background: var(--secondary-pink);
+    color: var(--text-main);
 }
 
 .nav-btn.active {
     background: var(--primary-blue);
     color: #fff;
-    border-left: 4px solid #fff;
+    border-left: 4px solid var(--secondary-pink);
     padding-left: 20px;
 }
 
 .sidebar-footer {
     padding: 16px;
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    border-top: 1px solid var(--border-color);
     margin-top: auto;
 }
 
@@ -235,7 +240,7 @@ main {
     color: #fff;
     border: none;
     padding: 10px 20px;
-    border-radius: 6px;
+    border-radius: 10px;
     font-weight: 600;
     cursor: pointer;
     transition: background 0.2s;
@@ -248,11 +253,11 @@ main {
 /* --- CARDS E POSTS --- */
 .card {
     background: var(--card-bg);
-    border-radius: 8px;
+    border-radius: 14px;
     padding: 20px;
     margin-bottom: 16px;
     border: 1px solid var(--border-color);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    box-shadow: var(--shadow-soft);
 }
 
 .post-header-area {
@@ -297,14 +302,14 @@ main {
 .post-body {
     font-size: 15px;
     line-height: 1.5;
-    color: #475569;
+    color: var(--text-muted);
     margin-bottom: 16px;
 }
 
 /* --- COMENTÁRIOS --- */
 .comment-preview {
     font-size: 14px;
-    color: #475569;
+    color: var(--text-muted);
     margin-bottom: 8px;
     background: var(--bg-light);
     padding: 10px;
@@ -331,6 +336,15 @@ main {
     border-radius: 6px;
     font-size: 14px;
     outline: none;
+    background: #fffafd;
+}
+
+input:focus,
+select:focus,
+textarea:focus,
+.search-bar:focus {
+    border-color: var(--primary-blue);
+    box-shadow: 0 0 0 3px rgba(234, 63, 116, 0.14);
 }
 
 .comment-input-container button {
@@ -381,6 +395,7 @@ main {
     font-size: 15px;
     margin-bottom: 20px;
     outline: none;
+    background: rgba(255, 255, 255, 0.82);
 }
 
 /* --- MODAIS --- */
@@ -390,7 +405,7 @@ main {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.6);
+    background: rgba(43, 23, 32, 0.52);
     display: none;
     align-items: center;
     justify-content: center;
@@ -406,8 +421,9 @@ main {
     width: 90%;
     max-width: 450px;
     padding: 32px;
-    border-radius: 8px;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    border-radius: 16px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 22px 55px rgba(43, 23, 32, 0.2);
 }
 
 .modal h2 {
@@ -424,6 +440,7 @@ main {
     border-radius: 6px;
     box-sizing: border-box;
     font-family: inherit;
+    background: #fffafd;
 }
 
 .modal textarea {
@@ -464,12 +481,12 @@ main {
 }
 
 .btn-danger {
-    background: #d32f2f;
+    background: var(--danger);
     color: white;
 }
 
 .btn-danger:hover {
-    background: #b71c1c;
+    background: #a52a49;
 }
 
 .membro-item {
@@ -482,7 +499,7 @@ main {
 
 .perfil-tabs {
     display: flex;
-    border-bottom: 1px solid #e5e7eb;
+    border-bottom: 1px solid var(--border-color);
     margin-top: 24px;
     margin-bottom: 20px;
 }
@@ -500,12 +517,12 @@ main {
 }
 
 .perfil-tab:hover {
-    background: #f9fafb;
-    color: #111827;
+    background: var(--bg-light);
+    color: var(--text-main);
 }
 
 .perfil-tab.active {
-    color: #111827;
+    color: var(--text-main);
 }
 
 .perfil-tab.active::after {
@@ -516,7 +533,75 @@ main {
     bottom: 0;
     height: 3px;
     border-radius: 3px 3px 0 0;
-    background: #10b981;
+    background: var(--primary-blue);
+}
+
+button,
+input,
+select,
+textarea {
+    font: inherit;
+}
+
+button:disabled {
+    cursor: not-allowed;
+    opacity: 0.58;
+}
+
+@media (max-width: 760px) {
+    aside {
+        width: 100%;
+        height: auto;
+        position: static;
+    }
+
+    .brand {
+        text-align: left;
+        padding: 18px 20px;
+    }
+
+    .nav-menu {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        padding: 0;
+    }
+
+    .nav-btn {
+        justify-content: center;
+        padding: 12px 6px;
+        font-size: 12px;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .nav-btn.active {
+        border-left: 0;
+        border-bottom: 3px solid var(--secondary-pink);
+        padding-left: 6px;
+    }
+
+    .sidebar-footer {
+        padding: 12px 16px;
+    }
+
+    main {
+        margin-left: 0;
+        padding: 24px 16px;
+    }
+
+    .page-header {
+        align-items: flex-start;
+        gap: 14px;
+        flex-direction: column;
+    }
+
+    .page-header .btn-primary {
+        width: 100%;
+    }
+
+    .welcome-card {
+        padding: 32px 24px;
+    }
 }
 
 .perfil-username {

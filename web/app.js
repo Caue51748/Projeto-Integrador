@@ -125,7 +125,7 @@ class AppController {
     <div style="
         font-size:14px;
         margin-bottom:8px;
-        color:#cbd5e1;
+        color:var(--text-muted);
     ">
         Logado como: <b>${user.nome}</b>
     </div>
@@ -139,7 +139,7 @@ class AppController {
 
     <button
         class="btn-primary"
-        style="width:100%; background:#ef4444;"
+        style="width:100%; background:var(--danger);"
         onclick="app.fazerLogout()">
         Sair do Sistema
     </button>
@@ -323,13 +323,13 @@ class AppController {
         <h3>${c.nome}</h3>
         <p>${c.descricao}</p>
 
-        <small style="color:#6b7280;">
+        <small style="color:var(--text-muted);">
             Administrador: ${c.criador ? c.criador.nome : "Desconhecido"}
         </small>
 
         <br>
 
-        <small style="color:#6b7280;">
+        <small style="color:var(--text-muted);">
             ${c.membros ? c.membros.length : 0} membro(s)
         </small>
     </div>
@@ -341,7 +341,7 @@ class AppController {
 
      ${ehAdministrador ? `
             <button class="btn-primary"
-                style="background:#2563eb;"
+                style="background:var(--primary-blue);"
                 onclick="app.gerenciarComunidade(${idCom})">
                 Gerenciar
             </button>
@@ -409,10 +409,10 @@ class AppController {
 
             if (this.usuarioParticipaDaComunidade) {
                 botao.innerText = "Sair";
-                botao.style.background = "#ef4444";
+                botao.style.background = "var(--danger)";
             } else {
                 botao.innerText = "Entrar";
-                botao.style.background = "#111827";
+                botao.style.background = "var(--text-main)";
             }
         }
 
@@ -472,10 +472,10 @@ class AppController {
 
             if (this.usuarioParticipaDaComunidade) {
                 btn.innerText = "Sair";
-                btn.style.background = "#ef4444";
+                btn.style.background = "var(--danger)";
             } else {
                 btn.innerText = "Entrar";
-                btn.style.background = "#111827";
+                btn.style.background = "var(--text-main)";
             }
 
             await this.carregarComunidades();
@@ -703,8 +703,8 @@ ${ApiService.getIdUsuarioLogado() ? `
                         : status;
 
                 div.style.borderLeft = eventoCancelado
-                    ? '4px solid #ef4444'
-                    : '4px solid #10b981';
+                    ? '4px solid var(--danger)'
+                    : '4px solid var(--primary-blue)';
 
                 div.style.opacity = eventoCancelado ? '0.7' : '1';
                 div.style.display = 'flex';
@@ -1894,7 +1894,7 @@ ${ApiService.getIdUsuarioLogado() ? `
             </p>
 
             <div style="
-                border-top:1px solid #f3f4f6;
+                border-top:1px solid var(--border-color);
                 padding-top:20px;
                 display:grid;
                 gap:10px;
@@ -2116,7 +2116,7 @@ ${ApiService.getIdUsuarioLogado() ? `
         </div>
 
         <div style="
-            border-top:1px solid #f3f4f6;
+            border-top:1px solid var(--border-color);
             padding-top:20px;
         ">
 
@@ -2463,8 +2463,8 @@ ${ApiService.getIdUsuarioLogado() ? `
                                     font-weight:700;
                                     padding:3px 7px;
                                     border-radius:12px;
-                                    background:#ecfdf5;
-                                    color:#059669;
+                                    background:var(--bg-light);
+                                    color:var(--primary-blue);
                                 ">
                                     Administrador
                                 </span>

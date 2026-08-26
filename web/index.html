@@ -5,6 +5,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Painel - Rede Social</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
@@ -56,7 +59,7 @@
             <div id="view-eventos" class="view-section">
                 <div class="page-header">
                     <h1>Agenda de Eventos</h1>
-                    <button class="btn-primary" style="background: #10b981;"
+                    <button class="btn-primary"
                         onclick="app.abrirModal('evento-modal')">Novo Evento</button>
                 </div>
                 <div style="
@@ -155,7 +158,7 @@
                         <p id="sub-desc" style="color: var(--text-muted); margin: 4px 0 0 0;">Descrição</p>
                     </div>
                     <div>
-                        <button class="btn-primary" id="btn-participar" style="background:#111827; margin-right:8px;"
+                        <button class="btn-primary" id="btn-participar" style="margin-right:8px;"
                             onclick="app.participarComunidade()">Entrar</button>
                         <button class="btn-primary" onclick="app.abrirModalPost()">Postar Aqui</button>
                     </div>
@@ -270,7 +273,7 @@
 
             <input type="datetime-local" id="evento-encerramento-inscricoes">
 
-            <button class="btn-full" style="background: #10b981;" onclick="app.criarEvento()">Agendar Evento</button>
+            <button class="btn-full" onclick="app.criarEvento()">Agendar Evento</button>
             <button class="btn-cancel" onclick="app.fecharModal('evento-modal')">Cancelar</button>
         </div>
     </div>
@@ -419,7 +422,7 @@
                     Salvar alterações
                 </button>
 
-                <button class="btn-secondary" style="background:#f59e0b; color:white;" onclick="app.cancelarEvento()">
+                <button class="btn-secondary" style="background:var(--secondary-pink); color:var(--text-main);" onclick="app.cancelarEvento()">
                     Cancelar evento
                 </button>
 
