@@ -326,11 +326,26 @@
 
             <h2>Editar Perfil</h2>
 
+            <label for="editar-perfil-foto">
+                Foto de perfil
+            </label>
+
+            <input type="file" id="editar-perfil-foto" accept="image/*">
+            <button type="button" class="btn-secondary" onclick="app.salvarFotoPerfil()">
+                Alterar foto
+            </button>
+
             <label for="editar-perfil-nome">
                 Nome
             </label>
 
             <input type="text" id="editar-perfil-nome" placeholder="Seu nome">
+
+            <label for="editar-perfil-username">
+                Username
+            </label>
+
+            <input type="text" id="editar-perfil-username" placeholder="Seu username">
 
             <label for="editar-perfil-bio">
                 Bio

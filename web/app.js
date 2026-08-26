@@ -29,9 +29,36 @@ class AppController {
         this.timerBuscaEventos = null;
         this.viewAntesDoPerfil = 'feed';
     }
-
     async inicializar() {
+
+        const usuarioLogado =
+            ApiService.getUsuarioLogado();
+
+        console.log(
+            "Usuário encontrado ao iniciar:",
+            usuarioLogado
+        );
+
         this.atualizarMenuLateral();
+
+        if (usuarioLogado) {
+
+            // PRIMEIRO mostra o sistema
+            this.esconderTelaBoasVindas();
+
+            // DEPOIS carrega os dados
+            try {
+                await this.carregarDadosGlobais();
+            } catch (erro) {
+                console.error(
+                    "Erro ao carregar dados iniciais:",
+                    erro
+                );
+            }
+
+            return;
+        }
+
         this.mostrarTelaBoasVindas();
     }
 
@@ -73,6 +100,7 @@ class AppController {
         document.getElementById('auth-toggle-btn').innerText = this.modoCadastro ? 'Já tem conta? Entrar' : 'Criar nova conta';
     }
     mudarAba(nomeAba) {
+        this.salvarViewAtual(nomeAba);
         document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
         document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
 
@@ -223,9 +251,13 @@ class AppController {
     }
 
     fazerLogout() {
+
         ApiService.fazerLogout();
+
         this.atualizarMenuLateral();
+
         this.mudarAba('feed');
+
         this.mostrarTelaBoasVindas();
     }
 
@@ -343,6 +375,12 @@ class AppController {
     }
 
     entrarSubreddit(id, nome, desc) {
+        this.salvarViewAtual('subreddit');
+
+        localStorage.setItem(
+            'comunidadeAtivaId',
+            id
+        );
 
         const usuarioLogado = ApiService.getIdUsuarioLogado();
         const botao = document.getElementById("btn-participar");
@@ -1720,6 +1758,13 @@ ${ApiService.getIdUsuarioLogado() ? `
 
     async abrirDetalhesEvento(idEvento) {
 
+        this.salvarViewAtual('evento-detalhes');
+
+        localStorage.setItem(
+            'eventoDetalhesId',
+            idEvento
+        );
+
         let evento = this.listaEventos.find(
             e => (e.idEvento || e.id) == idEvento
         );
@@ -1983,6 +2028,12 @@ ${ApiService.getIdUsuarioLogado() ? `
 
     async abrirPerfil(idUsuario) {
 
+        this.salvarViewAtual('perfil');
+        localStorage.setItem(
+            'perfilUsuarioId',
+            idUsuario
+        );
+
         try {
 
             const viewAtual =
@@ -2023,16 +2074,30 @@ ${ApiService.getIdUsuarioLogado() ? `
             margin-bottom:24px;
         ">
 
-            <div
-                class="avatar"
-                style="
-                    width:72px;
-                    height:72px;
-                    font-size:28px;
-                    flex-shrink:0;
-                ">
-                ${inicial}
-            </div>
+           ${usuario.fotoPerfil
+                    ? `
+        <img
+            src="http://localhost:8080/${usuario.fotoPerfil}?v=${Date.now()}"
+            alt="Foto de perfil"
+            style="
+                width:72px;
+                height:72px;
+                border-radius:50%;
+                object-fit:cover;
+                flex-shrink:0;
+            ">
+      `
+                    : `
+        <div class="avatar"
+             style="
+                width:72px;
+                height:72px;
+                font-size:28px;
+             ">
+            ${inicial}
+        </div>
+      `
+                }
 
             <div>
                 <h2 style="margin:0;">
@@ -2190,6 +2255,10 @@ ${ApiService.getIdUsuarioLogado() ? `
             ).value = usuario.nome || '';
 
             document.getElementById(
+                'editar-perfil-username'
+            ).value = usuario.username || '';
+
+            document.getElementById(
                 'editar-perfil-bio'
             ).value = usuario.bio || '';
 
@@ -2216,6 +2285,11 @@ ${ApiService.getIdUsuarioLogado() ? `
                 'editar-perfil-nome'
             ).value.trim();
 
+        const username =
+            document.getElementById(
+                'editar-perfil-username'
+            ).value.trim();
+
         const bio =
             document.getElementById(
                 'editar-perfil-bio'
@@ -2223,6 +2297,10 @@ ${ApiService.getIdUsuarioLogado() ? `
 
         if (!nome) {
             return alert("O nome não pode ficar vazio.");
+        }
+
+        if (!username) {
+            return alert("O username não pode ficar vazio.");
         }
 
         if (bio.length > 300) {
@@ -2237,6 +2315,7 @@ ${ApiService.getIdUsuarioLogado() ? `
                 await ApiService.atualizarPerfil(
                     idUsuario,
                     nome,
+                    username,
                     bio
                 );
 
@@ -2576,6 +2655,98 @@ ${ApiService.getIdUsuarioLogado() ? `
             comunidade.nome,
             comunidade.descricao
         );
+    }
+
+    async salvarFotoPerfil() {
+
+        console.log("1 - salvarFotoPerfil foi chamada");
+
+        const idUsuario =
+            ApiService.getIdUsuarioLogado();
+
+        console.log("2 - ID:", idUsuario);
+
+        const input =
+            document.getElementById('editar-perfil-foto');
+
+        console.log("3 - input:", input);
+
+        const foto = input?.files?.[0];
+
+        console.log("4 - foto:", foto);
+
+        if (!foto) {
+            return alert("Selecione uma imagem.");
+        }
+
+        if (!foto.type.startsWith('image/')) {
+            return alert("Selecione um arquivo de imagem.");
+        }
+
+        if (foto.size > 5 * 1024 * 1024) {
+            return alert("A imagem deve ter no máximo 5 MB.");
+        }
+        try {
+
+            console.log("5 - chamando ApiService");
+
+            const resposta =
+                await ApiService.atualizarFotoPerfil(
+                    idUsuario,
+                    foto
+                );
+
+            console.log("6 - resposta:", resposta);
+            console.log("7 - status:", resposta.status);
+
+            if (!resposta.ok) {
+
+                const erro = await resposta.text();
+
+                console.error("Resposta do backend:", erro);
+
+                return alert(
+                    "Não foi possível alterar a foto."
+                );
+            }
+
+            const usuarioAtualizado =
+                await resposta.json();
+
+            const usuarioSessao =
+                ApiService.getUsuarioLogado();
+
+            ApiService.salvarSessao({
+                ...usuarioSessao,
+                fotoPerfil: usuarioAtualizado.fotoPerfil
+            });
+
+            input.value = '';
+
+            this.fecharModal('editar-perfil-modal');
+
+            await this.abrirPerfil(idUsuario);
+
+            this.atualizarMenuLateral();
+
+            alert("Foto alterada com sucesso!");
+        } catch (erro) {
+
+            console.error(
+                "ERRO NO UPLOAD:",
+                erro
+            );
+
+            alert("Erro ao enviar a foto.");
+        }
+    }
+
+    salvarViewAtual(view) {
+        localStorage.setItem('viewAtual', view);
+    }
+
+    getViewSalva() {
+        return localStorage.getItem('viewAtual') || 'feed';
     }
 }
 

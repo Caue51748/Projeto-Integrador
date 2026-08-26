@@ -6,17 +6,20 @@ public class UsuarioPerfilDTO {
     private String nome;
     private String username;
     private String bio;
+    private String fotoPerfil;
 
     public UsuarioPerfilDTO(
             Long idUsuario,
             String nome,
             String username,
-            String bio) {
+            String bio,
+            String fotoPerfil) {
 
         this.idUsuario = idUsuario;
         this.nome = nome;
         this.username = username;
         this.bio = bio;
+        this.fotoPerfil = fotoPerfil;
     }
 
     public Long getIdUsuario() {
@@ -33,5 +36,9 @@ public class UsuarioPerfilDTO {
 
     public String getUsername() {
         return username;
+    }
+
+    public String getFotoPerfil() {
+        return fotoPerfil;
     }
 }

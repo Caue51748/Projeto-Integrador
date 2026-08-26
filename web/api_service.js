@@ -23,7 +23,7 @@ export class ApiService {
     ) {
         return await fetch(`${this.API_URL}/usuarios`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ nomeCompleto,nome, username, dataNascimento, email: email || null, telefone: telefone || null, senha })
+            body: JSON.stringify({ nomeCompleto, nome, username, dataNascimento, email: email || null, telefone: telefone || null, senha })
         });
     }
 
@@ -266,7 +266,7 @@ export class ApiService {
         return await resposta.json();
     }
 
-    static async atualizarPerfil(idUsuario, nome, bio) {
+    static async atualizarPerfil(idUsuario, nome, username, bio) {
 
         return fetch(
             `http://localhost:8080/usuarios/${idUsuario}/perfil`,
@@ -279,6 +279,7 @@ export class ApiService {
 
                 body: JSON.stringify({
                     nome,
+                    username,
                     bio
                 })
             }
@@ -352,6 +353,21 @@ export class ApiService {
                     email,
                     senha
                 })
+            }
+        );
+    }
+
+    static async atualizarFotoPerfil(idUsuario, foto) {
+
+        const formData = new FormData();
+
+        formData.append('foto', foto);
+
+        return fetch(
+            `http://localhost:8080/usuarios/${idUsuario}/foto`,
+            {
+                method: 'POST',
+                body: formData
             }
         );
     }
