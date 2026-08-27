@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../services/notification_service.dart';
 import 'landing_hero_view.dart';
 import 'feed_page.dart';
 import 'eventos_page.dart';
@@ -19,6 +21,8 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int paginaAtual = 0;
+  int? _eventoNotificacaoId;
+  StreamSubscription<String>? _notificationSub;
 
   final titles = const [
     "Início",
@@ -30,8 +34,34 @@ class _HomeScreenState extends State<HomeScreen> {
     "Meu Perfil",
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    NotificationService().inicializar();
+    _notificationSub = NotificationService.onNotificationClick.stream.listen((payload) {
+      final id = int.tryParse(payload);
+      if (id != null && mounted) {
+        setState(() {
+          _eventoNotificacaoId = id;
+          paginaAtual = 3; // Redireciona diretamente para o Mapa com o evento focado
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _notificationSub?.cancel();
+    super.dispose();
+  }
+
   void _selecionarPagina(int index) {
-    setState(() => paginaAtual = index);
+    setState(() {
+      paginaAtual = index;
+      if (index != 3) {
+        _eventoNotificacaoId = null;
+      }
+    });
   }
 
   void _abrirLogin() {
@@ -74,7 +104,10 @@ class _HomeScreenState extends State<HomeScreen> {
       case 2:
         return const EventosPage();
       case 3:
-        return const MapEventsPage();
+        return MapEventsPage(
+          eventoInicialId: _eventoNotificacaoId,
+          key: ValueKey(_eventoNotificacaoId),
+        );
       case 4:
         return const CommunitiesPage();
       case 5:
@@ -122,16 +155,19 @@ class _HomeScreenState extends State<HomeScreen> {
                   if (isDesktop) ...[
                     Expanded(
                       child: Center(
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            _buildDesktopNavLink(0, "Início"),
-                            _buildDesktopNavLink(1, "Explorar"),
-                            _buildDesktopNavLink(2, "Eventos"),
-                            _buildDesktopNavLink(3, "Mapa"),
-                            _buildDesktopNavLink(4, "Comunidades"),
-                            _buildDesktopNavLink(5, "Usuários"),
-                          ],
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _buildDesktopNavLink(0, "Início"),
+                              _buildDesktopNavLink(1, "Explorar"),
+                              _buildDesktopNavLink(2, "Eventos"),
+                              _buildDesktopNavLink(3, "Mapa"),
+                              _buildDesktopNavLink(4, "Comunidades"),
+                              _buildDesktopNavLink(5, "Usuários"),
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -395,7 +431,12 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    // Se visitante não autenticado
+    // Se visitante não autenticado no mobile, ações estão disponíveis no drawer e na landing page
+    if (!isDesktop) {
+      return const SizedBox.shrink();
+    }
+
+    // Se visitante não autenticado no Desktop
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -483,22 +524,25 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: const Icon(Icons.hub_rounded, color: Colors.white, size: 22),
                   ),
                   const SizedBox(width: 12),
-                  const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'SocialJoin',
-                        style: TextStyle(
-                          color: Color(0xFF0F172A),
-                          fontSize: 18,
-                          fontWeight: FontWeight.w900,
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'SocialJoin',
+                          style: TextStyle(
+                            color: Color(0xFF0F172A),
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
+                          ),
                         ),
-                      ),
-                      Text(
-                        'Viva experiências reais',
-                        style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
-                      ),
-                    ],
+                        Text(
+                          'Viva experiências reais',
+                          style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -516,7 +560,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 _buildDrawerItem(2, Icons.calendar_month_outlined, Icons.calendar_month_rounded, "Eventos"),
                 _buildDrawerItem(3, Icons.map_outlined, Icons.map_rounded, "Mapa"),
                 _buildDrawerItem(4, Icons.groups_outlined, Icons.groups_rounded, "Comunidades"),
-                _buildDrawerItem(5, Icons.people_outline, Icons.people_rounded, "Usuários"),
                 if (AuthService.logado)
                   _buildDrawerItem(6, Icons.person_outline_rounded, Icons.person_rounded, "Meu Perfil"),
               ],
@@ -629,13 +672,11 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildDrawerItem(int index, IconData icon, IconData activeIcon, String title) {
     final bool isSelected = paginaAtual == index;
 
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 3),
-      decoration: BoxDecoration(
-        color: isSelected ? const Color(0xFFFDF0F4) : Colors.transparent,
-        borderRadius: BorderRadius.circular(14),
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
       child: ListTile(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        tileColor: isSelected ? const Color(0xFFFDF0F4) : Colors.transparent,
         dense: true,
         onTap: () {
           _selecionarPagina(index);

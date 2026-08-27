@@ -13,6 +13,7 @@ class Evento {
   final bool exigeCheckin;
   final String? encerramentoInscricoes;
   final String? situacaoTemporal;
+  final bool? publico;
 
   Evento({
     required this.id,
@@ -29,6 +30,7 @@ class Evento {
     this.exigeCheckin = false,
     this.encerramentoInscricoes,
     this.situacaoTemporal,
+    this.publico,
   });
 
   factory Evento.fromJson(Map<String, dynamic> json) {
@@ -47,6 +49,7 @@ class Evento {
       exigeCheckin: json['exigeCheckin'] ?? false,
       encerramentoInscricoes: json['encerramentoInscricoes'],
       situacaoTemporal: json['situacaoTemporal'],
+      publico: json['publico'] ?? json['ehPublico'] ?? (json['comunidadeId'] == null),
     );
   }
 
@@ -63,7 +66,15 @@ class Evento {
       if (limiteParticipantes != null) 'limiteParticipantes': limiteParticipantes,
       'status': status,
       'exigeCheckin': exigeCheckin,
+      if (publico != null) 'publico': publico,
     };
+  }
+
+  /// Retorna se o evento é estritamente público (não associado a comunidade privada e não cancelado)
+  bool get ehPublico {
+    if (status == 'CANCELADO') return false;
+    if (publico != null) return publico!;
+    return comunidadeId == null;
   }
 
   /// Retorna a situação real do evento baseada em data/hora local

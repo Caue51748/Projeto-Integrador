@@ -1,12 +1,21 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:geolocator/geolocator.dart';
 import '../models/evento.dart';
 import '../services/evento_service.dart';
 import '../services/auth_service.dart';
+import '../services/location_service.dart';
+import '../services/notification_service.dart';
 
 class MapEventsPage extends StatefulWidget {
-  const MapEventsPage({super.key});
+  final int? eventoInicialId;
+
+  const MapEventsPage({
+    super.key,
+    this.eventoInicialId,
+  });
 
   @override
   State<MapEventsPage> createState() => _MapEventsPageState();
@@ -15,6 +24,8 @@ class MapEventsPage extends StatefulWidget {
 class _MapEventsPageState extends State<MapEventsPage> {
   late final MapController _mapController;
   final EventoService _eventoService = EventoService();
+  final LocationService _locationService = LocationService();
+  final NotificationService _notificationService = NotificationService();
 
   List<Evento> _eventosReais = [];
   List<Evento> _eventosFiltrados = [];
@@ -27,6 +38,12 @@ class _MapEventsPageState extends State<MapEventsPage> {
   bool _carregando = true;
   String? _erro;
 
+  // Estado de Localização do Usuário
+  Position? _posicaoUsuario;
+  bool _permissaoConcedida = false;
+  String? _statusPermissaoMensagem;
+  StreamSubscription<Position>? _posicaoSubscription;
+
   final List<String> _categorias = const [
     'Todos',
     'Tecnologia',
@@ -36,7 +53,7 @@ class _MapEventsPageState extends State<MapEventsPage> {
     'Comunidade',
   ];
 
-  // Coordenadas geográficas de referência para distribuição dos eventos na região metropolitana de São Paulo
+  // Coordenadas geográficas de referência para distribuição dos eventos
   final List<LatLng> _locaisReferencia = const [
     LatLng(-23.5615, -46.6560), // Av. Paulista
     LatLng(-23.5855, -46.6815), // Faria Lima
@@ -50,22 +67,139 @@ class _MapEventsPageState extends State<MapEventsPage> {
     LatLng(-23.5350, -46.6750), // Barra Funda / Perdizes
   ];
 
-  final List<String> _distanciasMock = const [
-    '1.2 km',
-    '2.5 km',
-    '3.8 km',
-    '4.2 km',
-    '5.6 km',
-    '7.1 km',
-    '8.4 km',
-    '9.9 km',
-  ];
-
   @override
   void initState() {
     super.initState();
     _mapController = MapController();
+    _notificationService.inicializar();
     _carregarEventos();
+    _inicializarLocalizacao();
+  }
+
+  @override
+  void dispose() {
+    _posicaoSubscription?.cancel();
+    super.dispose();
+  }
+
+  /// Inicializa a verificação de localização de forma transparente e consentida
+  Future<void> _inicializarLocalizacao({bool forcarDialogo = false}) async {
+    try {
+      LocationPermission permissao = await _locationService.verificarPermissao();
+
+      if (permissao == LocationPermission.denied && forcarDialogo) {
+        // Exibe diálogo explicativo antes da solicitação nativa
+        final aceitou = await _exibirDialogoConsentimentoLocalizacao();
+        if (aceitou == true) {
+          permissao = await _locationService.solicitarPermissao();
+        }
+      } else if (permissao == LocationPermission.denied) {
+        permissao = await _locationService.solicitarPermissao();
+      }
+
+      if (permissao == LocationPermission.always || permissao == LocationPermission.whileInUse) {
+        final pos = await _locationService.obterPosicaoAtual();
+        if (mounted) {
+          setState(() {
+            _permissaoConcedida = true;
+            _posicaoUsuario = pos;
+            _statusPermissaoMensagem = null;
+          });
+
+          // Inicia escuta controlada para economia de bateria
+          _iniciarEscutaPosicao();
+
+          // Se tiver posição e nenhum evento específico requisitado, recentraliza
+          if (pos != null && widget.eventoInicialId == null) {
+            _mapController.move(LatLng(pos.latitude, pos.longitude), 14.5);
+          }
+
+          // Verifica proximidade de eventos públicos
+          _verificarProximidade();
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            _permissaoConcedida = false;
+            _posicaoUsuario = null;
+            _statusPermissaoMensagem = 'Ative sua localização para encontrar eventos próximos de você.';
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _permissaoConcedida = false;
+        });
+      }
+    }
+  }
+
+  /// Diálogo amigável de transparência sobre o uso da localização
+  Future<bool?> _exibirDialogoConsentimentoLocalizacao() {
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.location_on_rounded, color: Color(0xFFEA3F74), size: 26),
+            SizedBox(width: 10),
+            Text('Sua Localização', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+          ],
+        ),
+        content: const Text(
+          'O SocialJoin precisa da sua permissão de localização para:\n\n'
+          '• Mostrar sua posição atual no mapa ("Estou aqui")\n'
+          '• Calcular a distância até os eventos\n'
+          '• Avisar quando houver eventos públicos a menos de 500m\n\n'
+          'Sua localização é processada com segurança no próprio dispositivo.',
+          style: TextStyle(fontSize: 14, color: Color(0xFF334155), height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Agora não', style: TextStyle(color: Color(0xFF64748B))),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFEA3F74),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Permitir Acesso'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Escuta atualizações de localização com filtro de 50m (economia de bateria)
+  void _iniciarEscutaPosicao() {
+    _posicaoSubscription?.cancel();
+    _posicaoSubscription = _locationService.ouvirPosicao(distanceFilter: 50).listen(
+      (pos) {
+        if (mounted) {
+          setState(() {
+            _posicaoUsuario = pos;
+          });
+          _verificarProximidade();
+        }
+      },
+      onError: (_) {},
+    );
+  }
+
+  /// Executa o cálculo de proximidade estritamente para eventos PÚBLICOS
+  void _verificarProximidade() {
+    if (_posicaoUsuario == null || _eventosReais.isEmpty) return;
+
+    _locationService.verificarProximidadeEventos(
+      posicaoUsuario: _posicaoUsuario!,
+      eventos: _eventosReais,
+      coordenadasEventos: _coordenadasEventos,
+    );
   }
 
   Future<void> _carregarEventos() async {
@@ -106,10 +240,17 @@ class _MapEventsPageState extends State<MapEventsPage> {
           _aplicarFiltroCategoria();
         });
 
-        if (_eventosFiltrados.isNotEmpty) {
+        // Se foi solicitado focar em um evento específico (ex: via notificação)
+        if (widget.eventoInicialId != null) {
+          _focarEventoPorId(widget.eventoInicialId!);
+        } else if (_posicaoUsuario != null) {
+          _mapController.move(LatLng(_posicaoUsuario!.latitude, _posicaoUsuario!.longitude), 14.5);
+        } else if (_eventosFiltrados.isNotEmpty) {
           final firstCoord = mapaCoords[_eventosFiltrados[0].id] ?? _locaisReferencia[0];
           _mapController.move(firstCoord, 13.5);
         }
+
+        _verificarProximidade();
       }
     } catch (e) {
       if (mounted) {
@@ -117,6 +258,23 @@ class _MapEventsPageState extends State<MapEventsPage> {
           _erro = 'Não foi possível carregar os eventos no mapa.';
           _carregando = false;
         });
+      }
+    }
+  }
+
+  void _focarEventoPorId(int eventoId) {
+    final idx = _eventosFiltrados.indexWhere((e) => e.id == eventoId);
+    if (idx != -1) {
+      _recenterToEvent(idx);
+    } else {
+      // Se estiver em outra categoria, reseta para "Todos"
+      setState(() {
+        _selectedCategory = 'Todos';
+        _aplicarFiltroCategoria();
+      });
+      final idxNovo = _eventosFiltrados.indexWhere((e) => e.id == eventoId);
+      if (idxNovo != -1) {
+        _recenterToEvent(idxNovo);
       }
     }
   }
@@ -164,7 +322,37 @@ class _MapEventsPageState extends State<MapEventsPage> {
     });
     final ev = _eventosFiltrados[index];
     final coord = _coordenadasEventos[ev.id] ?? _locaisReferencia[0];
-    _mapController.move(coord, 14.5);
+    _mapController.move(coord, 14.8);
+  }
+
+  /// Centraliza a visualização na localização atual do usuário
+  void _centralizarMinhaLocalizacao() async {
+    if (_posicaoUsuario != null) {
+      _mapController.move(LatLng(_posicaoUsuario!.latitude, _posicaoUsuario!.longitude), 15.5);
+      _snack('Centralizado na sua posição atual.', cor: const Color(0xFF0F172A));
+    } else {
+      await _inicializarLocalizacao(forcarDialogo: true);
+      if (_posicaoUsuario != null) {
+        _mapController.move(LatLng(_posicaoUsuario!.latitude, _posicaoUsuario!.longitude), 15.5);
+      }
+    }
+  }
+
+  String _calcularDistanciaTexto(Evento ev) {
+    final coord = _coordenadasEventos[ev.id];
+    if (_posicaoUsuario != null && coord != null) {
+      final distMetros = _locationService.calcularDistanciaMetros(
+        lat1: _posicaoUsuario!.latitude,
+        lon1: _posicaoUsuario!.longitude,
+        lat2: coord.latitude,
+        lon2: coord.longitude,
+      );
+      if (distMetros < 1000) {
+        return '${distMetros.round()} m';
+      }
+      return '${(distMetros / 1000).toStringAsFixed(1)} km';
+    }
+    return '1.5 km';
   }
 
   Future<void> _toggleParticipacao(Evento evento) async {
@@ -184,7 +372,7 @@ class _MapEventsPageState extends State<MapEventsPage> {
           final atual = _participantesContagem[evento.id] ?? 1;
           _participantesContagem[evento.id] = (atual > 0) ? atual - 1 : 0;
         });
-        _snack('Presença cancelada com sucesso.', cor: const Color(0xFF64748B));
+        _snack('Presença cancelada.', cor: const Color(0xFF64748B));
       }
     } else {
       final ok = await _eventoService.participarEvento(evento.id, userId);
@@ -259,20 +447,20 @@ class _MapEventsPageState extends State<MapEventsPage> {
     final bool isInscrito = selectedEvent != null && _eventosInscritos.contains(selectedEvent.id);
     final int participantes = selectedEvent != null ? (_participantesContagem[selectedEvent.id] ?? 0) : 0;
     final String categoriaSelected = selectedEvent != null ? _detectarCategoria(selectedEvent) : 'Geral';
-    final String distanciaSelected = selectedEvent != null
-        ? _distanciasMock[selectedEvent.id % _distanciasMock.length]
-        : '1.5 km';
+    final String distanciaSelected = selectedEvent != null ? _calcularDistanciaTexto(selectedEvent) : '1.5 km';
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       body: Stack(
         children: [
-          // MAPA INTERATIVO (OpenStreetMap)
+          // MAPA INTERATIVO COM CAMADAS (OpenStreetMap)
           FlutterMap(
             mapController: _mapController,
-            options: const MapOptions(
-              initialCenter: LatLng(-23.5615, -46.6560),
-              initialZoom: 13.0,
+            options: MapOptions(
+              initialCenter: _posicaoUsuario != null
+                  ? LatLng(_posicaoUsuario!.latitude, _posicaoUsuario!.longitude)
+                  : const LatLng(-23.5615, -46.6560),
+              initialZoom: 13.5,
               minZoom: 3.0,
               maxZoom: 18.0,
             ),
@@ -281,65 +469,128 @@ class _MapEventsPageState extends State<MapEventsPage> {
                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 userAgentPackageName: 'com.socialjoin.app',
               ),
-              MarkerLayer(
-                markers: _eventosFiltrados.asMap().entries.map((entry) {
-                  final int index = entry.key;
-                  final Evento event = entry.value;
-                  final bool isSelected = index == _selectedEventIndex;
-                  final LatLng coord = _coordenadasEventos[event.id] ?? _locaisReferencia[0];
 
-                  return Marker(
-                    width: isSelected ? 80 : 54,
-                    height: isSelected ? 84 : 60,
-                    point: coord,
-                    child: GestureDetector(
-                      onTap: () => _recenterToEvent(index),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: isSelected ? const Color(0xFFEA3F74) : const Color(0xFF0F172A),
-                              borderRadius: BorderRadius.circular(14),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: isSelected
-                                      ? const Color(0xFFEA3F74).withValues(alpha: 0.45)
-                                      : Colors.black26,
-                                  blurRadius: isSelected ? 12 : 4,
-                                  offset: const Offset(0, 3),
+              // CAMADA DE MARCADORES (Eventos + Marcador Único do Usuário "Estou aqui")
+              MarkerLayer(
+                markers: [
+                  // 1. MARCADOR VISUAL DESTACADO DO USUÁRIO ("Estou aqui")
+                  if (_posicaoUsuario != null)
+                    Marker(
+                      width: 70,
+                      height: 70,
+                      point: LatLng(_posicaoUsuario!.latitude, _posicaoUsuario!.longitude),
+                      child: Tooltip(
+                        message: 'Você está aqui',
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF2563EB),
+                                borderRadius: BorderRadius.circular(10),
+                                boxShadow: const [
+                                  BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2)),
+                                ],
+                              ),
+                              child: const Text(
+                                'Estou aqui',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w800,
                                 ),
-                              ],
+                              ),
                             ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.location_on, color: Colors.white, size: 12),
-                                const SizedBox(width: 4),
-                                Text(
-                                  event.titulo.length > 10
-                                      ? '${event.titulo.substring(0, 8)}...'
-                                      : event.titulo,
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: isSelected ? 11 : 10,
-                                    fontWeight: FontWeight.bold,
+                            const SizedBox(height: 2),
+                            Container(
+                              width: 26,
+                              height: 26,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF2563EB),
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white, width: 3),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFF2563EB).withValues(alpha: 0.45),
+                                    blurRadius: 10,
+                                    spreadRadius: 3,
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
+                              child: const Center(
+                                child: Icon(Icons.person, color: Colors.white, size: 14),
+                              ),
                             ),
-                          ),
-                          Icon(
-                            Icons.arrow_drop_down,
-                            color: isSelected ? const Color(0xFFEA3F74) : const Color(0xFF0F172A),
-                            size: isSelected ? 26 : 18,
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
-                  );
-                }).toList(),
+
+                  // 2. MARCADORES DE EVENTOS (Estilo Pin Rosa/Escuro)
+                  ..._eventosFiltrados.asMap().entries.map((entry) {
+                    final int index = entry.key;
+                    final Evento event = entry.value;
+                    final bool isSelected = index == _selectedEventIndex;
+                    final LatLng coord = _coordenadasEventos[event.id] ?? _locaisReferencia[0];
+
+                    return Marker(
+                      width: isSelected ? 84 : 56,
+                      height: isSelected ? 86 : 62,
+                      point: coord,
+                      child: GestureDetector(
+                        onTap: () => _recenterToEvent(index),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: isSelected ? const Color(0xFFEA3F74) : const Color(0xFF0F172A),
+                                borderRadius: BorderRadius.circular(14),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: isSelected
+                                        ? const Color(0xFFEA3F74).withValues(alpha: 0.45)
+                                        : Colors.black26,
+                                    blurRadius: isSelected ? 12 : 4,
+                                    offset: const Offset(0, 3),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    event.ehPublico ? Icons.event_rounded : Icons.lock_outline_rounded,
+                                    color: Colors.white,
+                                    size: 12,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    event.titulo.length > 10
+                                        ? '${event.titulo.substring(0, 8)}...'
+                                        : event.titulo,
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: isSelected ? 11 : 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Icon(
+                              Icons.arrow_drop_down,
+                              color: isSelected ? const Color(0xFFEA3F74) : const Color(0xFF0F172A),
+                              size: isSelected ? 26 : 18,
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }),
+                ],
               ),
             ],
           ),
@@ -386,14 +637,64 @@ class _MapEventsPageState extends State<MapEventsPage> {
             ),
           ),
 
-          // Botões de Zoom e Recenter na lateral direita
+          // Banner não intrusivo se localização estiver desativada
+          if (_statusPermissaoMensagem != null && !_permissaoConcedida)
+            Positioned(
+              top: 70,
+              left: 16,
+              right: 16,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 10, offset: const Offset(0, 4)),
+                  ],
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.location_off_rounded, color: Color(0xFFEA3F74), size: 20),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        _statusPermissaoMensagem!,
+                        style: const TextStyle(fontSize: 12, color: Color(0xFF334155), fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => _inicializarLocalizacao(forcarDialogo: true),
+                      style: TextButton.styleFrom(
+                        foregroundColor: const Color(0xFFEA3F74),
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                      ),
+                      child: const Text('Ativar', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+          // Botões de Controle e "Minha Localização" na Lateral Direita
           Positioned(
             right: 16,
-            top: 74,
+            top: 130,
             child: Column(
               children: [
+                // Botão "Minha Localização"
                 FloatingActionButton.small(
-                  heroTag: 'zoom_in',
+                  heroTag: 'minha_localizacao_btn',
+                  onPressed: _centralizarMinhaLocalizacao,
+                  backgroundColor: Colors.white,
+                  foregroundColor: const Color(0xFF2563EB), // Azul distintivo
+                  elevation: 4,
+                  tooltip: 'Minha Localização',
+                  child: const Icon(Icons.my_location_rounded, size: 20),
+                ),
+                const SizedBox(height: 8),
+                FloatingActionButton.small(
+                  heroTag: 'zoom_in_btn',
                   onPressed: () {
                     final zoom = _mapController.camera.zoom + 1;
                     _mapController.move(_mapController.camera.center, zoom);
@@ -401,11 +702,11 @@ class _MapEventsPageState extends State<MapEventsPage> {
                   backgroundColor: Colors.white,
                   foregroundColor: const Color(0xFF0F172A),
                   elevation: 4,
-                  child: const Icon(Icons.add),
+                  child: const Icon(Icons.add_rounded),
                 ),
                 const SizedBox(height: 8),
                 FloatingActionButton.small(
-                  heroTag: 'zoom_out',
+                  heroTag: 'zoom_out_btn',
                   onPressed: () {
                     final zoom = _mapController.camera.zoom - 1;
                     _mapController.move(_mapController.camera.center, zoom);
@@ -413,20 +714,11 @@ class _MapEventsPageState extends State<MapEventsPage> {
                   backgroundColor: Colors.white,
                   foregroundColor: const Color(0xFF0F172A),
                   elevation: 4,
-                  child: const Icon(Icons.remove),
+                  child: const Icon(Icons.remove_rounded),
                 ),
                 const SizedBox(height: 8),
                 FloatingActionButton.small(
-                  heroTag: 'recenter',
-                  onPressed: () => _recenterToEvent(_selectedEventIndex),
-                  backgroundColor: Colors.white,
-                  foregroundColor: const Color(0xFFEA3F74),
-                  elevation: 4,
-                  child: const Icon(Icons.my_location),
-                ),
-                const SizedBox(height: 8),
-                FloatingActionButton.small(
-                  heroTag: 'refresh_map',
+                  heroTag: 'refresh_map_btn',
                   onPressed: _carregarEventos,
                   backgroundColor: Colors.white,
                   foregroundColor: const Color(0xFF64748B),
@@ -454,29 +746,52 @@ class _MapEventsPageState extends State<MapEventsPage> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Header do Card: Categoria, Distância e Navegação
+                      // Header do Card: Categoria, Tag Público/Privado, Distância e Navegação
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFDF0F4),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: const Color(0xFFFFCBD8)),
-                            ),
-                            child: Text(
-                              categoriaSelected,
-                              style: const TextStyle(
-                                color: Color(0xFFEA3F74),
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFDF0F4),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: const Color(0xFFFFCBD8)),
+                                ),
+                                child: Text(
+                                  categoriaSelected,
+                                  style: const TextStyle(
+                                    color: Color(0xFFEA3F74),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                               ),
-                            ),
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: selectedEvent.ehPublico ? const Color(0xFFECFDF5) : const Color(0xFFF1F5F9),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: selectedEvent.ehPublico ? const Color(0xFFA7F3D0) : const Color(0xFFE2E8F0),
+                                  ),
+                                ),
+                                child: Text(
+                                  selectedEvent.ehPublico ? 'Público' : 'Comunidade',
+                                  style: TextStyle(
+                                    color: selectedEvent.ehPublico ? const Color(0xFF059669) : const Color(0xFF64748B),
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                           Row(
                             children: [
-                              const Icon(Icons.near_me, size: 14, color: Color(0xFFEA3F74)),
+                              const Icon(Icons.near_me_rounded, size: 14, color: Color(0xFFEA3F74)),
                               const SizedBox(width: 4),
                               Text(
                                 distanciaSelected,
@@ -486,8 +801,7 @@ class _MapEventsPageState extends State<MapEventsPage> {
                                   fontSize: 12,
                                 ),
                               ),
-                              const SizedBox(width: 12),
-                              // Setas para alternar eventos
+                              const SizedBox(width: 10),
                               GestureDetector(
                                 onTap: () {
                                   if (_selectedEventIndex > 0) {
@@ -536,7 +850,7 @@ class _MapEventsPageState extends State<MapEventsPage> {
                       // Local
                       Row(
                         children: [
-                          const Icon(Icons.location_on, size: 16, color: Color(0xFFEF4444)),
+                          const Icon(Icons.location_on_rounded, size: 16, color: Color(0xFFEF4444)),
                           const SizedBox(width: 6),
                           Expanded(
                             child: Text(
@@ -579,7 +893,7 @@ class _MapEventsPageState extends State<MapEventsPage> {
                                 _snack('Traçando rota para ${selectedEvent.localEvento}...',
                                     cor: const Color(0xFF0F172A));
                               },
-                              icon: const Icon(Icons.directions, size: 16),
+                              icon: const Icon(Icons.directions_rounded, size: 16),
                               label: const Text('Como Chegar'),
                               style: OutlinedButton.styleFrom(
                                 foregroundColor: const Color(0xFF0F172A),
@@ -623,40 +937,6 @@ class _MapEventsPageState extends State<MapEventsPage> {
                                   ),
                           ),
                         ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            )
-          else if (_eventosReais.isNotEmpty && _eventosFiltrados.isEmpty)
-            Positioned(
-              left: 20,
-              right: 20,
-              bottom: 24,
-              child: Card(
-                elevation: 6,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.info_outline, color: Color(0xFFEA3F74)),
-                      const SizedBox(width: 12),
-                      const Expanded(
-                        child: Text(
-                          'Nenhum evento encontrado nesta categoria.',
-                          style: TextStyle(fontSize: 13, color: Color(0xFF475569)),
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          setState(() {
-                            _selectedCategory = 'Todos';
-                            _aplicarFiltroCategoria();
-                          });
-                        },
-                        child: const Text('Ver Todos'),
                       ),
                     ],
                   ),

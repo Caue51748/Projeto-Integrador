@@ -167,13 +167,16 @@ class _LandingHeroViewState extends State<LandingHeroView>
             ),
           ),
           const SizedBox(width: 8),
-          const Text(
-            'A rede definitiva para viver momentos inesquecíveis',
-            style: TextStyle(
-              color: Color(0xFFEA3F74),
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              letterSpacing: -0.2,
+          const Flexible(
+            child: Text(
+              'A rede definitiva para viver momentos inesquecíveis',
+              style: TextStyle(
+                color: Color(0xFFEA3F74),
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                letterSpacing: -0.2,
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],

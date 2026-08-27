@@ -37,23 +37,33 @@ class UsuarioService {
     }
   }
 
-  /// Cadastro via POST /usuarios — envia nome, username, email, senha
+  /// Cadastro via POST /usuarios — envia nome, nomeCompleto, username, email, senha, dataNascimento
   Future<Map<String, dynamic>> criarUsuario({
     required String nome,
     required String username,
     required String email,
     required String senha,
+    String? dataNascimento,
+    String? nomeCompleto,
   }) async {
     try {
+      final payload = {
+        'nome': nome,
+        'nomeCompleto': (nomeCompleto != null && nomeCompleto.isNotEmpty)
+            ? nomeCompleto
+            : nome,
+        'username': username,
+        'email': email,
+        'senha': senha,
+        'dataNascimento': (dataNascimento != null && dataNascimento.isNotEmpty)
+            ? dataNascimento
+            : '2000-01-01',
+      };
+
       final response = await http.post(
         Uri.parse('$baseUrl/usuarios'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'nome': nome,
-          'username': username,
-          'email': email,
-          'senha': senha,
-        }),
+        body: jsonEncode(payload),
       ).timeout(const Duration(seconds: 10));
 
       if (kDebugMode) {
@@ -86,24 +96,32 @@ class UsuarioService {
         }
       }
 
-      if (mensagemErro.isEmpty) {
-        final bodyLower = response.body.toLowerCase();
-        if (bodyLower.contains('username') ||
-            bodyLower.contains('usuário') ||
-            bodyLower.contains('usuario')) {
-          mensagemErro = 'Este nome de usuário já está cadastrado.';
-        } else if (bodyLower.contains('email')) {
-          mensagemErro = 'Este e-mail já está cadastrado.';
-        } else {
-          mensagemErro =
-              'Erro ao criar conta no servidor (Status: ${response.statusCode}).';
-        }
+      // Sanitiza erros técnicos garantindo mensagens amigáveis ao usuário
+      final bodyLower = mensagemErro.toLowerCase();
+      if (bodyLower.contains('dataintegrity') ||
+          bodyLower.contains('internal server error') ||
+          bodyLower.contains('500') ||
+          response.statusCode == 500) {
+        mensagemErro = 'Não foi possível concluir o cadastro. Verifique os dados informados.';
+      } else if (bodyLower.contains('username') ||
+          bodyLower.contains('usuário') ||
+          bodyLower.contains('usuario')) {
+        mensagemErro = 'Este nome de usuário já está cadastrado.';
+      } else if (bodyLower.contains('email')) {
+        mensagemErro = 'Este e-mail já está cadastrado.';
+      } else if (bodyLower.contains('nascimento') || bodyLower.contains('date')) {
+        mensagemErro = 'Data de nascimento inválida.';
+      } else if (mensagemErro.isEmpty || response.statusCode == 400) {
+        mensagemErro = 'Dados de cadastro inválidos. Verifique as informações.';
       }
 
       return {'sucesso': false, 'erro': mensagemErro};
     } catch (e) {
       if (kDebugMode) print('Erro no cadastro: $e');
-      return {'sucesso': false, 'erro': 'Não foi possível conectar ao servidor (http://localhost:8080).'};
+      return {
+        'sucesso': false,
+        'erro': 'Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.'
+      };
     }
   }
 
