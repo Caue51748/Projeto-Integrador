@@ -59,32 +59,63 @@
         <aside>
             <div class="brand">SocialJoin</div>
             <nav class="nav-menu">
-                <button class="nav-btn active" id="tab-feed" onclick="app.mudarAba('feed')">
-                    <i class="material-icons">dashboard</i> Feed Geral
-                </button>
-                <button class="nav-btn" id="tab-eventos" onclick="app.mudarAba('eventos')">
+                <button class="nav-btn active" id="tab-eventos" onclick="app.mudarAba('eventos')">
                     <i class="material-icons">event</i> Eventos
+                </button>
+                <button class="nav-btn" id="tab-feed" onclick="app.mudarAba('feed')">
+                    <i class="material-icons">dashboard</i> Feed Geral
                 </button>
                 <button class="nav-btn" id="tab-comunidades" onclick="app.mudarAba('comunidades')">
                     <i class="material-icons">forum</i> Comunidades
                 </button>
                 <button class="nav-btn" id="tab-busca" onclick="app.mudarAba('busca')">
-                    <i class="material-icons">people</i> Usuários
+                    <i class="material-icons">people</i> Pessoas
                 </button>
             </nav>
             <div class="sidebar-footer" id="header-buttons"></div>
         </aside>
 
         <main id="app-main">
-            <div id="view-feed" class="view-section active">
+            <div id="view-feed" class="view-section">
                 <div class="page-header">
-                    <h1>Feed Global</h1>
+                    <div>
+                        <span class="section-kicker">Conversa que vira encontro</span>
+                        <h1>O que está acontecendo</h1>
+                    </div>
                     <button class="btn-primary" onclick="app.abrirModalPost()">Novo Post</button>
                 </div>
-                <div id="feed-container">Carregando feed...</div>
+                <div class="feed-layout">
+                    <div class="feed-main">
+                        <div class="feed-toolbar">
+                            <div class="feed-tabs" role="tablist" aria-label="Filtro do feed">
+                                <button class="feed-tab active" id="feed-tab-todos" onclick="app.mudarFiltroFeed('todos')">Tudo</button>
+                                <button class="feed-tab" id="feed-tab-comunidades" onclick="app.mudarFiltroFeed('comunidades')">Comunidades</button>
+                                <button class="feed-tab" id="feed-tab-meus" onclick="app.mudarFiltroFeed('meus')">Meus posts</button>
+                            </div>
+                            <select id="feed-ordenacao" onchange="app.mudarOrdenacaoFeed(this.value)" aria-label="Ordenar feed">
+                                <option value="recentes">Mais recentes</option>
+                                <option value="comentados">Mais comentados</option>
+                                <option value="curtidos">Mais curtidos</option>
+                            </select>
+                        </div>
+                        <div id="feed-container">Carregando feed...</div>
+                    </div>
+                    <div class="feed-sidebar">
+                        <div class="feed-sidebar-heading"><span class="section-kicker">Não perca</span><h2>Próximos encontros</h2></div>
+                        <div id="feed-eventos-destaque">Carregando eventos...</div>
+                        <button class="feed-sidebar-link" onclick="app.mudarAba('eventos')">Ver agenda completa <i class="material-icons">arrow_forward</i></button>
+                    </div>
+                </div>
             </div>
 
-            <div id="view-eventos" class="view-section">
+            <div id="view-post-detalhes" class="view-section">
+                <button class="detail-back-button" onclick="app.voltarDoPost()">
+                    <i class="material-icons">arrow_back</i> Voltar ao feed
+                </button>
+                <div id="post-detalhes-conteudo"></div>
+            </div>
+
+            <div id="view-eventos" class="view-section active">
                 <div class="page-header">
                     <div>
                         <span class="section-kicker">Viva mais fora da tela</span>
@@ -173,34 +204,38 @@
 
             <div id="view-comunidades" class="view-section">
                 <div class="page-header">
-                    <h1>Comunidades</h1>
+                    <div>
+                        <span class="section-kicker">Encontre sua turma</span>
+                        <h1>Comunidades</h1>
+                    </div>
                     <button class="btn-primary" onclick="app.abrirModal('comunidade-modal')">Nova Comunidade</button>
                 </div>
-                <div class="card" style="padding: 0;">
-                    <div id="comunidades-container">Carregando comunidades...</div>
+                <div class="comunidades-toolbar">
+                    <input class="search-bar" id="comunidades-search" type="search" placeholder="Buscar por nome ou interesse..." oninput="app.filtrarComunidades()">
+                    <select id="comunidades-ordenacao" onchange="app.filtrarComunidades()"><option value="relevantes">Mais relevantes</option><option value="membros">Mais membros</option><option value="recentes">Mais recentes</option></select>
                 </div>
+                <div id="comunidades-container" class="comunidades-grid">Carregando comunidades...</div>
             </div>
 
             <div id="view-busca" class="view-section">
                 <div class="page-header">
-                    <h1>Pesquisar Usuários</h1>
+                    <div><span class="section-kicker">Descubra quem faz acontecer</span><h1>Pessoas</h1></div>
                 </div>
-                <input type="text" class="search-bar" id="search-input" placeholder="Digite um nome..."
-                    onkeyup="app.filtrarUsuarios()">
-                <div class="card" style="padding: 0;">
-                    <div id="users-container">Carregando...</div>
+                <div class="pessoas-toolbar">
+                    <input type="search" class="search-bar" id="search-input" placeholder="Buscar por nome ou username..." oninput="app.filtrarUsuarios()">
+                    <select id="pessoas-filtro" onchange="app.filtrarUsuarios()"><option value="todas">Todas as pessoas</option><option value="organizadores">Organizadores de eventos</option><option value="comunidades">Membros de comunidades</option></select>
                 </div>
+                <div class="pessoas-sugestoes"><div><span class="section-kicker">Para conhecer</span><h2>Pessoas da comunidade</h2></div><p>Encontre organizadores, participantes e novas conversas.</p></div>
+                <div id="users-container" class="pessoas-grid">Carregando...</div>
             </div>
 
             <div id="view-subreddit" class="view-section">
                 <div class="page-header">
                     <div>
-                        <button onclick="app.mudarAba('comunidades')"
-                            style="background:none;border:none;cursor:pointer;color:var(--text-muted);margin-bottom:8px;"><i
-                                class="material-icons" style="font-size: 16px; vertical-align: middle;">arrow_back</i>
-                            Voltar</button>
-                        <h1 id="sub-titulo">Nome da Comunidade</h1>
+                        <button class="detail-back-button" onclick="app.mudarAba('comunidades')"><i class="material-icons">arrow_back</i> Voltar</button>
+                        <div class="comunidade-header-title"><div id="sub-community-visual" class="comunidade-mark">C</div><div><h1 id="sub-titulo">Nome da Comunidade</h1>
                         <p id="sub-desc" style="color: var(--text-muted); margin: 4px 0 0 0;">Descrição</p>
+                        </div></div>
                     </div>
                     <div>
                         <button class="btn-primary" id="btn-participar" style="margin-right:8px;"
@@ -208,6 +243,7 @@
                         <button class="btn-primary" onclick="app.abrirModalPost()">Postar Aqui</button>
                     </div>
                 </div>
+                <div class="comunidade-tabs"><button class="comunidade-tab active" id="comunidade-tab-posts" onclick="app.mudarAbaComunidade('posts')">Posts</button><button class="comunidade-tab" id="comunidade-tab-eventos" onclick="app.mudarAbaComunidade('eventos')">Eventos</button><button class="comunidade-tab" id="comunidade-tab-membros" onclick="app.mudarAbaComunidade('membros')">Membros</button></div>
                 <div id="subreddit-feed-container"></div>
             </div>
 
@@ -316,6 +352,9 @@
             <h2 id="modal-post-title">Nova Publicação</h2>
             <input type="text" id="post-titulo" placeholder="Título">
             <textarea id="post-conteudo" placeholder="Conteúdo..."></textarea>
+            <select id="post-comunidade-id">
+                <option value="">Publicar no feed global</option>
+            </select>
             <button class="btn-full" onclick="app.enviarPost()">Publicar</button>
             <button class="btn-cancel" onclick="app.fecharModal('post-modal')">Cancelar</button>
         </div>
@@ -326,6 +365,12 @@
             <h2>Criar Comunidade</h2>
             <input type="text" id="comunidade-nome" placeholder="Ex: Desenvolvedores Java">
             <textarea id="comunidade-desc" placeholder="Qual o foco do grupo?"></textarea>
+            <select id="comunidade-categoria"><option value="">Categoria</option><option>Tecnologia</option><option>Arte</option><option>Música</option><option>Esportes</option><option>Educação</option><option>Networking</option><option>Cultura</option></select>
+            <label for="comunidade-cor">Cor da comunidade</label>
+            <input type="color" id="comunidade-cor" value="#EA3F74">
+            <label for="comunidade-imagem">Imagem da comunidade (opcional)</label>
+            <input type="file" id="comunidade-imagem" accept="image/*">
+            <small class="form-hint">Escolha uma imagem que represente os interesses da sua comunidade.</small>
             <button class="btn-full" onclick="app.criarComunidade()">Salvar</button>
             <button class="btn-cancel" onclick="app.fecharModal('comunidade-modal')">Cancelar</button>
         </div>
@@ -384,6 +429,11 @@
             <input type="text" id="editar-comunidade-nome" placeholder="Nome da comunidade">
 
             <textarea id="editar-comunidade-desc" placeholder="Descrição"></textarea>
+            <select id="editar-comunidade-categoria"><option value="">Categoria</option><option>Tecnologia</option><option>Arte</option><option>Música</option><option>Esportes</option><option>Educação</option><option>Networking</option><option>Cultura</option></select>
+            <label for="editar-comunidade-cor">Cor da comunidade</label>
+            <input type="color" id="editar-comunidade-cor" value="#EA3F74">
+            <label for="editar-comunidade-imagem">Imagem da comunidade (opcional)</label>
+            <input type="file" id="editar-comunidade-imagem" accept="image/*">
 
             <div style="display:flex; gap:10px; margin-top:20px; flex-wrap: wrap;">
                 <button class="btn-primary" onclick="app.salvarEdicaoComunidade()">

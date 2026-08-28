@@ -26,6 +26,10 @@ public class Comunidade {
 
     private String nome;
     private String descricao;
+    private String categoria;
+    private String cor = "#EA3F74";
+    @Column(name = "imagem_comunidade", length = 500)
+    private String imagemComunidade;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "criador_id")
@@ -64,6 +68,13 @@ public class Comunidade {
     public String getDescricao() {
         return descricao;
     }
+
+    public String getCategoria() { return categoria; }
+    public void setCategoria(String categoria) { this.categoria = categoria; }
+    public String getCor() { return cor; }
+    public void setCor(String cor) { this.cor = cor; }
+    public String getImagemComunidade() { return imagemComunidade; }
+    public void setImagemComunidade(String imagemComunidade) { this.imagemComunidade = imagemComunidade; }
 
     public void setDescricao(String descricao) {
         this.descricao = descricao;

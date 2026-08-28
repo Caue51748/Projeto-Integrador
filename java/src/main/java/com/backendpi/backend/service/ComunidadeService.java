@@ -37,6 +37,15 @@ public class ComunidadeService {
         return repository.findAll();
     }
 
+    public Comunidade buscarPorId(Long idComunidade) {
+        return repository.findById(idComunidade)
+                .orElseThrow(() -> new RuntimeException("Comunidade não encontrada"));
+    }
+
+    public Comunidade salvar(Comunidade comunidade) {
+        return repository.save(comunidade);
+    }
+
     public List<Comunidade> listarPorUsuario(Long idUsuario) {
     return repository.findByMembroId(idUsuario);
 }
@@ -52,6 +61,8 @@ public class ComunidadeService {
 
         comunidade.setNome(dados.get("nome").toString());
         comunidade.setDescricao(dados.get("descricao").toString());
+        comunidade.setCategoria(dados.get("categoria") == null ? null : dados.get("categoria").toString());
+        comunidade.setCor(dados.get("cor") == null ? "#EA3F74" : dados.get("cor").toString());
         comunidade.setCriador(criador);
         comunidade.getMembros().add(criador);
 
@@ -71,6 +82,8 @@ public class ComunidadeService {
 
         comunidade.setNome(nova.getNome());
         comunidade.setDescricao(nova.getDescricao());
+        comunidade.setCategoria(nova.getCategoria());
+        comunidade.setCor(nova.getCor());
 
         return repository.save(comunidade);
     }

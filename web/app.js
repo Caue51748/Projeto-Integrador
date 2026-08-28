@@ -9,6 +9,10 @@ class AppController {
         this.listaComunidades = [];
         this.comentariosPorPost = {};
         this.posts = [];
+        this.votos = [];
+        this.postsSalvos = [];
+        this.filtroFeed = 'todos';
+        this.ordenacaoFeed = 'recentes';
         this.modoCadastro = false;
         this.telaBoasVindasVisivel = true;
         this.comunidadeAtivaId = null;
@@ -30,14 +34,22 @@ class AppController {
         this.timerBuscaEventos = null;
         this.viewAntesDoPerfil = 'feed';
         this.visaoEventos = 'descobrir';
+        this.agendaIniciadaNaEntrada = false;
     }
     async inicializar() {
 
         document.addEventListener('keydown', (evento) => {
             if (evento.key === 'Escape') {
+                document.querySelector('.account-menu')?.classList.remove('open');
                 document.querySelectorAll('.modal-overlay').forEach(modal => {
                     if (modal.style.display === 'flex') modal.style.display = 'none';
                 });
+            }
+        });
+
+        document.addEventListener('click', (evento) => {
+            if (!evento.target.closest('.account-menu')) {
+                document.querySelector('.account-menu')?.classList.remove('open');
             }
         });
 
@@ -55,6 +67,10 @@ class AppController {
 
             // PRIMEIRO mostra o sistema
             this.esconderTelaBoasVindas();
+
+            // A agenda é a tela principal e não deve esperar o carregamento do feed.
+            this.agendaIniciadaNaEntrada = true;
+            this.carregarEventos();
 
             // DEPOIS carrega os dados
             try {
@@ -220,7 +236,10 @@ class AppController {
         this.comunidadeAtivaId = null; // Reseta se sair da tela de subreddit
 
         if (nomeAba === 'busca') this.renderizarUsuarios(this.listaUsuariosCompleta);
-        if (nomeAba === 'feed') this.renderizarFeedGeral();
+        if (nomeAba === 'feed') {
+            this.renderizarFeedGeral();
+            this.carregarEventosFeed();
+        }
         if (nomeAba === 'comunidades') this.carregarComunidades();
         if (nomeAba === 'eventos') this.carregarEventos();
     }
@@ -229,32 +248,35 @@ class AppController {
         const container = document.getElementById('header-buttons');
         const user = ApiService.getUsuarioLogado();
         if (user) {
+            const inicial = (user.nome || 'U').charAt(0).toUpperCase();
             container.innerHTML = `
-    <div style="
-        font-size:14px;
-        margin-bottom:8px;
-        color:var(--text-muted);
-    ">
-        Logado como: <b>${user.nome}</b>
+    <div class="account-menu">
+        <button class="account-trigger" aria-haspopup="true" aria-expanded="false" onclick="app.alternarMenuConta(event)">
+            <span class="account-avatar">${inicial}</span>
+            <span class="account-name">${this.escaparHtmlDestaque(user.nome || 'Minha conta')}</span>
+            <i class="material-icons account-chevron">expand_more</i>
+        </button>
+        <div class="account-dropdown" role="menu">
+            <div class="account-dropdown-label">Conta conectada</div>
+            <button class="account-menu-item" role="menuitem" onclick="app.abrirMeuPerfil()">
+                <i class="material-icons">person_outline</i> Meu perfil
+            </button>
+            <button class="account-menu-item account-menu-logout" role="menuitem" onclick="app.fazerLogout()">
+                <i class="material-icons">logout</i> Sair do sistema
+            </button>
+        </div>
     </div>
-
-    <button
-        class="btn-primary"
-        style="width:100%; margin-bottom:8px;"
-        onclick="app.abrirMeuPerfil()">
-        Meu Perfil
-    </button>
-
-    <button
-        class="btn-primary"
-        style="width:100%; background:var(--danger);"
-        onclick="app.fazerLogout()">
-        Sair do Sistema
-    </button>
 `;
         } else {
             container.innerHTML = `<button class="btn-primary" style="width:100%;" onclick="app.abrirModal('auth-modal')">Fazer Login</button>`;
         }
+    }
+
+    alternarMenuConta(evento) {
+        evento.stopPropagation();
+        const menu = document.querySelector('.account-menu');
+        const aberto = menu.classList.toggle('open');
+        menu.querySelector('.account-trigger').setAttribute('aria-expanded', aberto);
     }
 
     abrirModal(id) {
@@ -284,6 +306,16 @@ class AppController {
                 `Postar em: ${this.comunidadesMap[this.comunidadeAtivaId]}`;
         } else {
             tituloEl.innerText = "Nova Publicação Global";
+        }
+
+        const seletorComunidade = document.getElementById('post-comunidade-id');
+        if (seletorComunidade) {
+            seletorComunidade.innerHTML = '<option value="">Publicar no feed global</option>';
+            this.listaComunidades.forEach(comunidade => {
+                const id = comunidade.idComunidade || comunidade.id;
+                seletorComunidade.innerHTML += `<option value="${id}">${this.escaparHtmlDestaque(comunidade.nome)}</option>`;
+            });
+            if (this.comunidadeAtivaId) seletorComunidade.value = this.comunidadeAtivaId;
         }
 
         this.abrirModal('post-modal');
@@ -479,41 +511,50 @@ class AppController {
 
         this.mudarAba('feed');
 
+        this.agendaIniciadaNaEntrada = false;
         this.mostrarTelaBoasVindas();
     }
 
     // --- CARREGAMENTO GLOBAL ---
     async carregarDadosGlobais() {
         try {
-            this.listaUsuariosCompleta = await ApiService.listarUsuarios();
+            const [usuarios, comunidades, comentarios, votos, salvos, posts] = await Promise.all([
+                ApiService.listarUsuarios(),
+                ApiService.listarComunidades().catch(() => []),
+                ApiService.listarComentarios(),
+                ApiService.listarVotos().catch(() => []),
+                ApiService.listarPostsSalvos().catch(() => []),
+                ApiService.listarPosts()
+            ]);
+
+            this.listaUsuariosCompleta = usuarios;
             this.listaUsuariosCompleta.forEach(u => this.usuariosMap[u.idUsuario || u.id] = u.nome);
 
-            // Tenta carregar comunidades para mapear os nomes (Para mostrar no Feed Geral)
-            try {
-                const coms = await ApiService.listarComunidades();
+            this.listaComunidades = comunidades;
+            comunidades.forEach(c =>
+                this.comunidadesMap[c.idComunidade || c.id] = c.nome
+            );
+            this.carregarFiltroComunidadesEventos();
 
-                this.listaComunidades = coms;
-
-                coms.forEach(c =>
-                    this.comunidadesMap[c.idComunidade || c.id] = c.nome
-                );
-                this.carregarFiltroComunidadesEventos();
-            } catch (e) {
-                console.warn("API de Comunidades não encontrada ainda.");
-            }
-            const listaComentarios = await ApiService.listarComentarios();
             this.comentariosPorPost = {};
-            listaComentarios.forEach(c => {
+            comentarios.forEach(c => {
                 let idPost = c.idPost || c.id_post;
                 if (!this.comentariosPorPost[idPost]) this.comentariosPorPost[idPost] = [];
                 this.comentariosPorPost[idPost].push(c);
             });
 
-            this.posts = (await ApiService.listarPosts()).reverse();
+            this.votos = votos;
+            this.postsSalvos = salvos;
+            this.posts = posts.reverse();
 
-            // Se estiver dentro de uma comunidade recarrega ela, se não, feed geral
+            // Atualiza a view que estiver visível depois dos dados compartilhados carregarem.
             if (this.comunidadeAtivaId) this.renderizarSubreddit(this.comunidadeAtivaId);
-            else this.renderizarFeedGeral();
+            else if (document.getElementById('view-eventos')?.classList.contains('active') && !this.agendaIniciadaNaEntrada) {
+                this.carregarEventos();
+            } else {
+                this.renderizarFeedGeral();
+                this.carregarEventosFeed();
+            }
 
         } catch (e) {
             console.error(e);
@@ -527,11 +568,28 @@ class AppController {
         try {
             const comunidades = await ApiService.listarComunidades();
             this.listaComunidades = comunidades;
-            container.innerHTML = '';
-            comunidades.forEach(c => {
+            this.renderizarComunidades(comunidades);
+        } catch (e) {
+            container.innerHTML = "<div class='comunidade-empty'>Nenhuma comunidade pôde ser carregada.</div>";
+        }
+    }
+
+    renderizarComunidades(comunidades) {
+        const container = document.getElementById('comunidades-container');
+        if (!container) return;
+        if (!comunidades.length) {
+            container.innerHTML = '<div class="comunidade-empty">Nenhuma comunidade encontrada. Crie a primeira.</div>';
+            return;
+        }
+        const eventosPorComunidade = this.listaEventos.reduce((total, evento) => {
+            total[evento.comunidadeId] = (total[evento.comunidadeId] || 0) + 1;
+            return total;
+        }, {});
+        container.innerHTML = '';
+        comunidades.forEach(c => {
                 const idCom = c.idComunidade || c.id;
                 const div = document.createElement('div');
-                div.className = 'list-item';
+                div.className = 'comunidade-card';
 
                 const idUsuarioLogado = ApiService.getIdUsuarioLogado();
 
@@ -539,43 +597,25 @@ class AppController {
                     c.criador &&
                     (c.criador.idUsuario || c.criador.id) == idUsuarioLogado;
 
-                div.innerHTML = `
-    <div class="list-item-info">
-        <h3>${c.nome}</h3>
-        <p>${c.descricao}</p>
+                div.style.setProperty('--community-color', c.cor || '#EA3F74');
+                const imagemComunidade = c.imagemComunidade ? `style="background-image:url('${this.urlCapaEvento(c.imagemComunidade)}')"` : '';
+                div.innerHTML = `<div class="comunidade-card-top"><div class="comunidade-mark ${c.imagemComunidade ? 'has-image' : ''}" ${imagemComunidade}>${!c.imagemComunidade ? this.escaparHtmlDestaque((c.nome || 'C').charAt(0).toUpperCase()) : ''}</div><span>${this.escaparHtmlDestaque(c.categoria || 'Comunidade')}</span></div><h2>${this.escaparHtmlDestaque(c.nome)}</h2><p>${this.escaparHtmlDestaque(c.descricao || 'Uma comunidade para trocar ideias e viver experiências.')}</p><div class="comunidade-stats"><span>👥 ${c.membros ? c.membros.length : 0} membros</span><span>🎟 ${eventosPorComunidade[idCom] || 0} eventos</span></div><div class="comunidade-card-footer"><span>Por ${this.escaparHtmlDestaque(c.criador?.nome || 'Administrador')}</span><button class="btn-primary" onclick="app.entrarSubreddit(${idCom})">Acessar</button>${ehAdministrador ? `<button class="btn-compact" onclick="app.gerenciarComunidade(${idCom})">Gerenciar</button>` : ''}</div>`;
 
-        <small style="color:var(--text-muted);">
-            Administrador: ${c.criador ? c.criador.nome : "Desconhecido"}
-        </small>
-
-        <br>
-
-        <small style="color:var(--text-muted);">
-            ${c.membros ? c.membros.length : 0} membro(s)
-        </small>
-    </div>
-
-    <button class="btn-primary"
-        onclick="app.entrarSubreddit(${idCom}, '${c.nome}', '${c.descricao}')">
-        Acessar
-    </button>
-
-     ${ehAdministrador ? `
-            <button class="btn-primary"
-                style="background:var(--primary-blue);"
-                onclick="app.gerenciarComunidade(${idCom})">
-                Gerenciar
-            </button>
-        ` : ""}
-      </div>
-    
- `;
+                div.addEventListener('click', evento => {
+                    if (!evento.target.closest('button')) this.entrarSubreddit(idCom);
+                });
 
                 container.appendChild(div);
             });
-        } catch (e) {
-            container.innerHTML = "<p style='padding:16px;'>Crie a tabela Comunidade no Java primeiro!</p>";
-        }
+    }
+
+    filtrarComunidades() {
+        const termo = document.getElementById('comunidades-search')?.value.toLowerCase() || '';
+        const ordem = document.getElementById('comunidades-ordenacao')?.value;
+        let comunidades = this.listaComunidades.filter(c => `${c.nome} ${c.descricao} ${c.categoria || ''}`.toLowerCase().includes(termo));
+        if (ordem === 'membros') comunidades.sort((a, b) => (b.membros?.length || 0) - (a.membros?.length || 0));
+        if (ordem === 'recentes') comunidades = comunidades.reverse();
+        this.renderizarComunidades(comunidades);
     }
 
     async criarComunidade() {
@@ -583,12 +623,22 @@ class AppController {
 
         const nome = document.getElementById('comunidade-nome').value.trim();
         const desc = document.getElementById('comunidade-desc').value.trim();
+        const categoria = document.getElementById('comunidade-categoria').value;
+        const cor = document.getElementById('comunidade-cor').value;
+        const imagem = document.getElementById('comunidade-imagem').files[0];
         const criadorId = ApiService.getIdUsuarioLogado();
 
-        const res = await ApiService.criarComunidadeAPI(nome, desc, criadorId);
+        const res = await ApiService.criarComunidadeAPI(nome, desc, criadorId, categoria, cor);
 
         if (res.ok) {
+            const comunidadeCriada = await res.json();
+            if (imagem) await ApiService.enviarImagemComunidade(comunidadeCriada.id, imagem);
             this.fecharModal('comunidade-modal');
+            document.getElementById('comunidade-nome').value = '';
+            document.getElementById('comunidade-desc').value = '';
+            document.getElementById('comunidade-categoria').value = '';
+            document.getElementById('comunidade-cor').value = '#EA3F74';
+            document.getElementById('comunidade-imagem').value = '';
             this.carregarComunidades();
         } else {
             alert("Não foi possível criar a comunidade.");
@@ -611,6 +661,9 @@ class AppController {
         const comunidade = this.listaComunidades.find(
             c => (c.idComunidade || c.id) == id
         );
+
+        nome = comunidade?.nome || nome;
+        desc = comunidade?.descricao || desc;
 
         const idAdministrador =
             comunidade?.criador?.idUsuario || comunidade?.criador?.id;
@@ -641,6 +694,12 @@ class AppController {
         // porque todo usuário deve conseguir acessar a comunidade.
         document.getElementById('sub-titulo').innerText = nome;
         document.getElementById('sub-desc').innerText = desc;
+        const visual = document.getElementById('sub-community-visual');
+        if (visual) {
+            visual.style.backgroundColor = comunidade?.cor || '#EA3F74';
+            visual.style.backgroundImage = comunidade?.imagemComunidade ? `url('${this.urlCapaEvento(comunidade.imagemComunidade)}')` : '';
+            visual.innerText = comunidade?.imagemComunidade ? '' : (nome || 'C').charAt(0).toUpperCase();
+        }
 
         document.querySelectorAll('.view-section')
             .forEach(el => el.classList.remove('active'));
@@ -649,6 +708,26 @@ class AppController {
             .classList.add('active');
 
         this.renderizarSubreddit(id);
+        this.mudarAbaComunidade('posts');
+    }
+
+    mudarAbaComunidade(aba) {
+        document.querySelectorAll('.comunidade-tab').forEach(tab => tab.classList.remove('active'));
+        document.getElementById(`comunidade-tab-${aba}`)?.classList.add('active');
+        if (aba === 'posts') return this.renderizarSubreddit(this.comunidadeAtivaId);
+        if (aba === 'membros') {
+            const comunidade = this.listaComunidades.find(c => (c.idComunidade || c.id) == this.comunidadeAtivaId);
+            this.montarMembrosComunidade(comunidade?.membros || []);
+            return;
+        }
+        const eventos = this.listaEventos.filter(evento => evento.comunidadeId == this.comunidadeAtivaId);
+        const container = document.getElementById('subreddit-feed-container');
+        container.innerHTML = eventos.length ? eventos.map(evento => `<div class="comunidade-evento-item"><div><span>${evento.dataEvento || ''}</span><strong>${this.escaparHtmlDestaque(evento.titulo)}</strong><small>${this.escaparHtmlDestaque(evento.localEvento || 'Local a confirmar')}</small></div><button class="btn-primary" onclick="app.abrirDetalhesEvento(${evento.id})">Ver evento</button></div>`).join('') : '<div class="comunidade-empty">Esta comunidade ainda não tem eventos.</div>';
+    }
+
+    montarMembrosComunidade(membros) {
+        const container = document.getElementById('subreddit-feed-container');
+        container.innerHTML = membros.length ? `<div class="membros-grid">${membros.map(membro => `<div class="membro-card"><div class="avatar">${this.escaparHtmlDestaque((membro.nome || 'U').charAt(0).toUpperCase())}</div><strong>${this.escaparHtmlDestaque(membro.nome || 'Usuário')}</strong><span>@${this.escaparHtmlDestaque(membro.username || '')}</span></div>`).join('')}</div>` : '<div class="comunidade-empty">Nenhum membro encontrado.</div>';
     }
 
     async participarComunidade() {
@@ -676,7 +755,7 @@ class AppController {
 
                 // Se ainda não participa, está tentando ENTRAR
                 resposta = await fetch(
-                    `http://localhost:8080/comunidades/${this.comunidadeAtivaId}/participar/${idLogado}`,
+                    `${ApiService.API_URL}/comunidades/${this.comunidadeAtivaId}/participar/${idLogado}`,
                     {
                         method: "POST"
                     }
@@ -714,8 +793,78 @@ class AppController {
     }
 
     renderizarFeedGeral() {
-        // Mostra todos
-        this.montarCardsPosts(this.posts, 'feed-container', true);
+        let posts = [...this.posts];
+        const idUsuario = ApiService.getIdUsuarioLogado();
+        const imagem = document.getElementById("editar-comunidade-imagem")?.files?.[0];
+
+        if (this.filtroFeed === 'comunidades') posts = posts.filter(post => post.idComunidade || post.id_comunidade);
+        if (this.filtroFeed === 'meus') posts = posts.filter(post => (post.idUsuario || post.id_usuario) == idUsuario);
+        if (this.ordenacaoFeed === 'comentados') posts.sort((a, b) => (this.comentariosPorPost[b.idPost || b.id] || []).length - (this.comentariosPorPost[a.idPost || a.id] || []).length);
+        if (this.ordenacaoFeed === 'curtidos') posts.sort((a, b) => this.contarVotos(b.idPost || b.id) - this.contarVotos(a.idPost || a.id));
+
+        this.montarCardsPosts(posts, 'feed-container', true);
+    }
+
+    mudarFiltroFeed(filtro) {
+        this.filtroFeed = filtro;
+        document.querySelectorAll('.feed-tab').forEach(tab => tab.classList.remove('active'));
+        document.getElementById(`feed-tab-${filtro}`)?.classList.add('active');
+        this.renderizarFeedGeral();
+    }
+
+    mudarOrdenacaoFeed(ordenacao) {
+        this.ordenacaoFeed = ordenacao;
+        this.renderizarFeedGeral();
+    }
+
+    contarVotos(idPost) {
+        return this.votos.filter(voto => voto.idPost == idPost && voto.tipo === 'like').length;
+    }
+
+    votoDoUsuario(idPost) {
+        const idUsuario = ApiService.getIdUsuarioLogado();
+        return this.votos.find(voto => voto.idPost == idPost && voto.idUsuario == idUsuario && voto.tipo === 'like');
+    }
+
+    postEstaSalvo(idPost) {
+        const idUsuario = ApiService.getIdUsuarioLogado();
+        return this.postsSalvos.find(post => post.idPost == idPost && post.idUsuario == idUsuario);
+    }
+
+    async alternarCurtida(idPost) {
+        const idUsuario = ApiService.getIdUsuarioLogado();
+        if (!idUsuario) return alert('Faça login para curtir publicações.');
+        const voto = this.votoDoUsuario(idPost);
+        const resposta = voto
+            ? await ApiService.deletarVoto(voto.idVoto)
+            : await ApiService.criarVoto(idUsuario, idPost);
+        if (!resposta.ok) return alert('Não foi possível atualizar a curtida.');
+        this.votos = voto ? this.votos.filter(item => item.idVoto !== voto.idVoto) : [...this.votos, await resposta.json()];
+        this.renderizarFeedGeral();
+    }
+
+    async alternarPostSalvo(idPost) {
+        const idUsuario = ApiService.getIdUsuarioLogado();
+        if (!idUsuario) return alert('Faça login para salvar publicações.');
+        const salvo = this.postEstaSalvo(idPost);
+        const resposta = salvo
+            ? await ApiService.removerPostSalvo(salvo.id)
+            : await ApiService.salvarPost(idUsuario, idPost);
+        if (!resposta.ok) return alert('Não foi possível atualizar os salvos.');
+        this.postsSalvos = salvo ? this.postsSalvos.filter(item => item.id !== salvo.id) : [...this.postsSalvos, await resposta.json()];
+        this.renderizarFeedGeral();
+    }
+
+    async carregarEventosFeed() {
+        const container = document.getElementById('feed-eventos-destaque');
+        if (!container) return;
+        try {
+            const resultado = await ApiService.buscarEventos({ status: 'AGENDADO', page: 0, size: 3 });
+            const eventos = resultado.content || [];
+            container.innerHTML = eventos.length ? eventos.map(evento => `<button class="feed-evento-item" onclick="app.abrirDetalhesEvento(${evento.id})"><span>${evento.dataEvento ? evento.dataEvento.split('-').reverse().join('/') : '--'}</span><strong>${this.escaparHtmlDestaque(evento.titulo)}</strong><small>${this.escaparHtmlDestaque(evento.localEvento || 'Local a confirmar')}</small></button>`).join('') : '<p class="feed-sidebar-empty">Nenhum evento agendado.</p>';
+        } catch (erro) {
+            container.innerHTML = '<p class="feed-sidebar-empty">Agenda indisponível no momento.</p>';
+        }
     }
 
     // --- FUNÇÕES DE POSTS/COMENTARIOS REUTILIZÁVEIS ---
@@ -723,13 +872,15 @@ class AppController {
         const idLogado = ApiService.getIdUsuarioLogado();
         const titulo = document.getElementById('post-titulo').value.trim();
         const conteudo = document.getElementById('post-conteudo').value.trim();
+        const comunidadeSelecionada = document.getElementById('post-comunidade-id')?.value;
 
         // Se this.comunidadeAtivaId existir, envia o post vinculado à comunidade
-        const res = await ApiService.criarPost(titulo, conteudo, idLogado, this.comunidadeAtivaId);
+        const res = await ApiService.criarPost(titulo, conteudo, idLogado, comunidadeSelecionada || null);
         if (res.ok) {
             this.fecharModal('post-modal');
             document.getElementById('post-titulo').value = '';
             document.getElementById('post-conteudo').value = '';
+            document.getElementById('post-comunidade-id').value = '';
             await this.carregarDadosGlobais();
         } else alert(`Não foi possível publicar o post.`);
     }
@@ -773,10 +924,17 @@ class AppController {
 
             let nomeAutor = this.usuariosMap[idAutor] || 'Desconhecido';
             let nomeComunidade = this.comunidadesMap[idComunidade];
+            let dataPostagem = post.dataPostagem
+                ? new Date(post.dataPostagem).toLocaleDateString('pt-BR')
+                : 'Agora';
 
-            let htmlComentarios = (this.comentariosPorPost[idPost] || []).map(c =>
-                `<div class="comment-preview"><span>${this.usuariosMap[c.idUsuario || c.id_usuario] || 'User'}:</span>${c.conteudo}</div>`
+            const comentarios = this.comentariosPorPost[idPost] || [];
+            let htmlComentarios = comentarios.slice(0, 2).map(c =>
+                `<div class="comment-preview"><span>${this.escaparHtmlDestaque(this.usuariosMap[c.idUsuario || c.id_usuario] || 'User')}:</span>${this.escaparHtmlDestaque(c.conteudo)}</div>`
             ).join('');
+            if (comentarios.length > 2) {
+                htmlComentarios += `<button class="comments-more" onclick="app.abrirDetalhesPost(${idPost})">Ver todos os ${comentarios.length} comentários</button>`;
+            }
 
             const idUsuarioLogado = ApiService.getIdUsuarioLogado();
 
@@ -794,18 +952,31 @@ class AppController {
                 );
 
             const div = document.createElement('div');
-            div.className = 'card';
+            div.className = 'card post-card';
+            div.tabIndex = 0;
+            div.setAttribute('role', 'link');
+            div.setAttribute('aria-label', `Abrir publicação: ${post.titulo}`);
+            const curtido = this.votoDoUsuario(idPost);
+            const salvo = this.postEstaSalvo(idPost);
+            const totalCurtidas = this.contarVotos(idPost);
             div.innerHTML = `
                 <div class="post-header-area">
                     <div class="avatar">${nomeAutor.charAt(0).toUpperCase()}</div>
                     <div>
-                        <span class="post-author">${nomeAutor}</span>
-                        ${mostrarTagComunidade && nomeComunidade ? `<span class="post-community-tag">em c/${nomeComunidade}</span>` : ''}
+                        <span class="post-author">${this.escaparHtmlDestaque(nomeAutor)}</span>
+                        <div class="post-meta">${mostrarTagComunidade && nomeComunidade ? `em c/${this.escaparHtmlDestaque(nomeComunidade)}` : 'Feed global'} · ${dataPostagem}</div>
                     </div>
+                    <button class="post-more" aria-label="Mais opções"><i class="material-icons">more_horiz</i></button>
                 </div>
-                <div class="post-title">${post.titulo}</div>
-               <div class="post-body">${post.conteudo}</div>
+                <div class="post-title">${this.escaparHtmlDestaque(post.titulo)}</div>
+               <div class="post-body">${this.escaparHtmlDestaque(post.conteudo)}</div>
                ${htmlComentarios}
+
+                <div class="post-actions">
+                    <button class="post-action ${curtido ? 'active' : ''}" onclick="app.alternarCurtida(${idPost})"><i class="material-icons">${curtido ? 'favorite' : 'favorite_border'}</i><span>${totalCurtidas}</span></button>
+                    <button class="post-action" onclick="document.getElementById('comentario-${idPost}').focus()"><i class="material-icons">chat_bubble_outline</i><span>${comentarios.length}</span></button>
+                    <button class="post-action ${salvo ? 'active' : ''}" onclick="app.alternarPostSalvo(${idPost})"><i class="material-icons">${salvo ? 'bookmark' : 'bookmark_border'}</i></button>
+                </div>
 
 ${podeExcluir ? `
     <div style="margin-top: 10px;">
@@ -819,56 +990,142 @@ ${podeExcluir ? `
 
 ${ApiService.getIdUsuarioLogado() ? `
                     <div class="comment-input-container">
-                       <input type="text" placeholder="Comentar...">
+                       <input id="comentario-${idPost}" type="text" placeholder="Escreva um comentário..." onkeydown="if(event.key === 'Enter') app.enviarComentario(${idPost}, this.nextElementSibling)">
 <button onclick="app.enviarComentario(${idPost}, this)">Enviar</button>
                     </div>` : ''}
             `;
+            div.addEventListener('click', evento => {
+                if (evento.target.closest('button, input, textarea, select')) return;
+                this.abrirDetalhesPost(idPost);
+            });
+            div.addEventListener('keydown', evento => {
+                if (evento.key !== 'Enter' && evento.key !== ' ') return;
+                evento.preventDefault();
+                this.abrirDetalhesPost(idPost);
+            });
             container.appendChild(div);
         });
+    }
+
+    async abrirDetalhesPost(idPost) {
+        let post = this.posts.find(item => (item.idPost || item.id) == idPost);
+        if (!post) {
+            try {
+                post = await ApiService.buscarPostPorId(idPost);
+            } catch (erro) {
+                return alert('Não foi possível abrir a publicação.');
+            }
+        }
+
+        const container = document.getElementById('post-detalhes-conteudo');
+        if (!container) return;
+
+        const idAutor = post.idUsuario || post.id_usuario;
+        const nomeAutor = this.usuariosMap[idAutor] || 'Desconhecido';
+        const idComunidade = post.idComunidade || post.id_comunidade;
+        const nomeComunidade = this.comunidadesMap[idComunidade];
+        const comentarios = this.comentariosPorPost[idPost] || [];
+        const curtido = this.votoDoUsuario(idPost);
+        const salvo = this.postEstaSalvo(idPost);
+        const dataPostagem = post.dataPostagem
+            ? new Date(post.dataPostagem).toLocaleDateString('pt-BR')
+            : 'Agora';
+
+        container.innerHTML = `
+            <article class="post-detail-card">
+                <div class="post-detail-header">
+                    <div class="avatar">${this.escaparHtmlDestaque(nomeAutor.charAt(0).toUpperCase())}</div>
+                    <div><strong>${this.escaparHtmlDestaque(nomeAutor)}</strong><span>${nomeComunidade ? `em c/${this.escaparHtmlDestaque(nomeComunidade)}` : 'Feed global'} · ${dataPostagem}</span></div>
+                </div>
+                <h1>${this.escaparHtmlDestaque(post.titulo)}</h1>
+                <div class="post-detail-body">${this.escaparHtmlDestaque(post.conteudo)}</div>
+                <div class="post-actions post-detail-actions">
+                    <button class="post-action ${curtido ? 'active' : ''}" onclick="app.alternarCurtidaDetalhe(${idPost})"><i class="material-icons">${curtido ? 'favorite' : 'favorite_border'}</i><span>${this.contarVotos(idPost)}</span></button>
+                    <button class="post-action ${salvo ? 'active' : ''}" onclick="app.alternarPostSalvoDetalhe(${idPost})"><i class="material-icons">${salvo ? 'bookmark' : 'bookmark_border'}</i><span>${salvo ? 'Salvo' : 'Salvar'}</span></button>
+                </div>
+                <section class="post-comments-section">
+                    <div class="post-comments-heading"><h2>Comentários</h2><span>${comentarios.length}</span></div>
+                    ${ApiService.getIdUsuarioLogado() ? `<div class="detail-comment-box"><input id="comentario-detalhe-${idPost}" type="text" placeholder="Escreva um comentário..." onkeydown="if(event.key === 'Enter') app.enviarComentarioDetalhe(${idPost})"><button onclick="app.enviarComentarioDetalhe(${idPost})">Comentar</button></div>` : '<p class="comments-login-note">Entre para participar da conversa.</p>'}
+                    <div class="post-detail-comments">${comentarios.length ? comentarios.map(c => `<div class="detail-comment"><div class="avatar detail-comment-avatar">${this.escaparHtmlDestaque((this.usuariosMap[c.idUsuario || c.id_usuario] || 'U').charAt(0).toUpperCase())}</div><div><strong>${this.escaparHtmlDestaque(this.usuariosMap[c.idUsuario || c.id_usuario] || 'Usuário')}</strong><p>${this.escaparHtmlDestaque(c.conteudo)}</p></div></div>`).join('') : '<p class="comments-empty">Ainda não há comentários. Seja o primeiro a participar.</p>'}</div>
+                </section>
+            </article>
+        `;
+
+        this.salvarViewAtual('post-detalhes');
+        document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+        document.getElementById('view-post-detalhes').classList.add('active');
+        document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+        document.getElementById('tab-feed')?.classList.add('active');
+    }
+
+    async enviarComentarioDetalhe(idPost) {
+        const input = document.getElementById(`comentario-detalhe-${idPost}`);
+        if (!input) return;
+        const conteudo = input.value.trim();
+        if (!conteudo) return;
+        const resposta = await ApiService.criarComentario(conteudo, ApiService.getIdUsuarioLogado(), idPost);
+        if (!resposta.ok) return alert('Não foi possível enviar o comentário.');
+        await this.carregarDadosGlobais();
+        await this.abrirDetalhesPost(idPost);
+    }
+
+    async alternarCurtidaDetalhe(idPost) {
+        await this.alternarCurtida(idPost);
+        await this.abrirDetalhesPost(idPost);
+    }
+
+    async alternarPostSalvoDetalhe(idPost) {
+        await this.alternarPostSalvo(idPost);
+        await this.abrirDetalhesPost(idPost);
+    }
+
+    voltarDoPost() {
+        document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+        document.getElementById('view-feed').classList.add('active');
+        document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+        document.getElementById('tab-feed')?.classList.add('active');
+        this.salvarViewAtual('feed');
+        this.renderizarFeedGeral();
     }
 
     // --- ABA BUSCA ---
     filtrarUsuarios() {
         const txt = document.getElementById('search-input').value.toLowerCase();
-        this.renderizarUsuariosthis.listaUsuariosCompleta.filter(u =>
-            u.nome.toLowerCase().includes(txt) ||
-            (u.username || '').toLowerCase().includes(txt)
-        );
+        const filtro = document.getElementById('pessoas-filtro')?.value || 'todas';
+        const organizadores = new Set(this.listaEventos.map(evento => String(evento.criadorId)));
+        const membros = new Set(this.listaComunidades.flatMap(comunidade => (comunidade.membros || []).map(membro => String(membro.idUsuario || membro.id))));
+        const pessoas = this.listaUsuariosCompleta.filter(usuario => {
+            const id = String(usuario.idUsuario || usuario.id);
+            const correspondeTexto = (usuario.nome || '').toLowerCase().includes(txt) || (usuario.username || '').toLowerCase().includes(txt);
+            const correspondeFiltro = filtro === 'organizadores' ? organizadores.has(id) : filtro === 'comunidades' ? membros.has(id) : true;
+            return correspondeTexto && correspondeFiltro;
+        });
+        this.renderizarUsuarios(pessoas);
     }
 
     renderizarUsuarios(lista) {
         const container = document.getElementById('users-container');
         container.innerHTML = '';
+        if (!lista.length) {
+            container.innerHTML = '<div class="pessoas-empty">Nenhuma pessoa encontrada com esses filtros.</div>';
+            return;
+        }
         lista.forEach(u => {
             const div = document.createElement('div');
-            div.className = 'list-item';
-            div.innerHTML = `
-    <div
-        style="
-            display:flex;
-            align-items:center;
-            cursor:pointer;
-            width:100%;
-        "
-        onclick="app.abrirPerfil(${u.idUsuario || u.id})"
-    >
-        <div class="avatar"
-             style="
-                width:32px;
-                height:32px;
-                margin-right:12px;
-             ">
-            ${u.nome.charAt(0).toUpperCase()}
-        </div>
-
-        <span style="font-weight:600;">
-            ${u.nome}
-            <small style="color:var(--text-muted);">
-    @${u.username}
-</small>
-        </span>
-    </div>
-`;
+            div.className = 'pessoa-card';
+            div.tabIndex = 0;
+            div.setAttribute('role', 'link');
+            const id = u.idUsuario || u.id;
+            const comunidades = this.listaComunidades.filter(comunidade => (comunidade.membros || []).some(membro => (membro.idUsuario || membro.id) == id));
+            const eventos = this.listaEventos.filter(evento => evento.criadorId == id);
+            div.innerHTML = `<div class="pessoa-card-main"><div class="avatar">${this.escaparHtmlDestaque((u.nome || 'U').charAt(0).toUpperCase())}</div><div><h2>${this.escaparHtmlDestaque(u.nome || 'Usuário')}</h2><span>@${this.escaparHtmlDestaque(u.username || 'usuario')}</span></div></div><p>${this.escaparHtmlDestaque(u.bio || 'Participa da comunidade SocialJoin.')}</p><div class="pessoa-card-stats"><span>${comunidades.length} comunidade(s)</span><span>${eventos.length} evento(s)</span></div>`;
+            div.addEventListener('click', () => this.abrirPerfil(id));
+            div.addEventListener('keydown', evento => {
+                if (evento.key === 'Enter' || evento.key === ' ') {
+                    evento.preventDefault();
+                    this.abrirPerfil(id);
+                }
+            });
             container.appendChild(div);
         });
     }
@@ -1247,6 +1504,8 @@ ${ApiService.getIdUsuarioLogado() ? `
 
         document.getElementById("editar-comunidade-desc").value =
             comunidade.descricao;
+        document.getElementById("editar-comunidade-categoria").value = comunidade.categoria || '';
+        document.getElementById("editar-comunidade-cor").value = comunidade.cor || '#EA3F74';
 
         this.abrirModal("gerenciar-comunidade-modal");
     }
@@ -1255,21 +1514,28 @@ ${ApiService.getIdUsuarioLogado() ? `
 
         const nome = document.getElementById("editar-comunidade-nome").value.trim();
         const descricao = document.getElementById("editar-comunidade-desc").value.trim();
+        const categoria = document.getElementById("editar-comunidade-categoria").value;
+        const cor = document.getElementById("editar-comunidade-cor").value;
 
         const idComunidade =
             this.comunidadeEditando.idComunidade || this.comunidadeEditando.id;
 
         const idUsuario = ApiService.getIdUsuarioLogado();
+        const imagem = document.getElementById("editar-comunidade-imagem")?.files?.[0];
 
         const resposta = await ApiService.atualizarComunidade(
             idComunidade,
             idUsuario,
             nome,
-            descricao
+            descricao,
+            categoria,
+            cor
         );
 
         if (resposta.ok) {
+            if (imagem) await ApiService.enviarImagemComunidade(idComunidade, imagem);
             this.fecharModal("gerenciar-comunidade-modal");
+            document.getElementById("editar-comunidade-imagem").value = '';
 
             await this.carregarComunidades();
 
@@ -2336,9 +2602,11 @@ ${ApiService.getIdUsuarioLogado() ? `
 
             const container =
                 document.getElementById('perfil-conteudo');
+            const comunidadesUsuario = this.listaComunidades.filter(comunidade => (comunidade.membros || []).some(membro => (membro.idUsuario || membro.id) == idUsuario));
+            const eventosUsuario = this.listaEventos.filter(evento => evento.criadorId == idUsuario);
 
             container.innerHTML = `
-    <div class="card">
+    <div class="card perfil-hero">
 
         <div style="
             display:flex;
@@ -2350,7 +2618,7 @@ ${ApiService.getIdUsuarioLogado() ? `
            ${usuario.fotoPerfil
                     ? `
         <img
-            src="http://localhost:8080/${usuario.fotoPerfil}?v=${Date.now()}"
+            src="${ApiService.API_URL}/${usuario.fotoPerfil}?v=${Date.now()}"
             alt="Foto de perfil"
             style="
                 width:72px;
@@ -2386,6 +2654,12 @@ ${ApiService.getIdUsuarioLogado() ? `
                 </p>
             </div>
 
+        </div>
+
+        <div class="perfil-stats">
+            <div><strong>${postsUsuario.length}</strong><span>Publicações</span></div>
+            <div><strong>${comunidadesUsuario.length}</strong><span>Comunidades</span></div>
+            <div><strong>${eventosUsuario.length}</strong><span>Eventos</span></div>
         </div>
 
         <div style="

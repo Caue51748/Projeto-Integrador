@@ -1,7 +1,13 @@
 package com.backendpi.backend.model;
 
-import jakarta.persistence.*;
 import java.sql.Timestamp;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "posts")
@@ -40,4 +46,6 @@ public class Post {
 
     public Long getIdComunidade() { return idComunidade; }
     public void setIdComunidade(Long idComunidade) { this.idComunidade = idComunidade; }
+
+    public Timestamp getDataPostagem() { return dataPostagem; }
 }

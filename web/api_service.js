@@ -30,6 +30,12 @@ export class ApiService {
     // --- POSTS E COMENTÁRIOS ---
     static async listarPosts() { return await (await fetch(`${this.API_URL}/posts`)).json(); }
 
+    static async buscarPostPorId(idPost) {
+        const resposta = await fetch(`${this.API_URL}/posts/${idPost}`);
+        if (!resposta.ok) throw new Error('Post não encontrado');
+        return await resposta.json();
+    }
+
     static async criarPost(titulo, conteudo, idUsuario, idComunidade = null) {
         let bodyObj = { titulo, conteudo, idUsuario: parseInt(idUsuario) };
         if (idComunidade !== null) { bodyObj.idComunidade = parseInt(idComunidade); } // Se tiver comunidade, envia junto
@@ -48,20 +54,63 @@ export class ApiService {
         });
     }
 
+    static async listarVotos() {
+        return await (await fetch(`${this.API_URL}/votos`)).json();
+    }
+
+    static async criarVoto(idUsuario, idPost, tipo = 'like') {
+        return await fetch(`${this.API_URL}/votos`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ idUsuario, idPost, tipo })
+        });
+    }
+
+    static async deletarVoto(idVoto) {
+        return await fetch(`${this.API_URL}/votos/${idVoto}`, { method: 'DELETE' });
+    }
+
+    static async listarPostsSalvos() {
+        return await (await fetch(`${this.API_URL}/posts_salvos`)).json();
+    }
+
+    static async salvarPost(idUsuario, idPost) {
+        return await fetch(`${this.API_URL}/posts_salvos`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ idUsuario, idPost })
+        });
+    }
+
+    static async removerPostSalvo(idSalvo) {
+        return await fetch(`${this.API_URL}/posts_salvos/${idSalvo}`, { method: 'DELETE' });
+    }
+
     // --- COMUNIDADES ---
     static async listarComunidades() {
         return await (await fetch(`${this.API_URL}/comunidades`)).json();
     }
 
-    static async criarComunidadeAPI(nome, descricao, criadorId) {
+    static async criarComunidadeAPI(nome, descricao, criadorId, categoria, cor) {
         return await fetch(`${this.API_URL}/comunidades`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 nome,
                 descricao,
-                criadorId
+                criadorId,
+                categoria: categoria || null,
+                cor: cor || '#EA3F74'
             })
+        });
+    }
+
+    static async enviarImagemComunidade(idComunidade, imagem) {
+        const dados = new FormData();
+        dados.append('imagem', imagem);
+        return fetch(`${this.API_URL}/comunidades/${idComunidade}/imagem`, {
+            method: 'POST',
+            body: dados
         });
     }
 
@@ -81,7 +130,7 @@ export class ApiService {
         });
     }
 
-    static async atualizarComunidade(idComunidade, idUsuario, nome, descricao) {
+    static async atualizarComunidade(idComunidade, idUsuario, nome, descricao, categoria, cor) {
         return await fetch(`${this.API_URL}/comunidades/${idComunidade}/usuario/${idUsuario}`, {
             method: "PUT",
             headers: {
@@ -89,7 +138,9 @@ export class ApiService {
             },
             body: JSON.stringify({
                 nome,
-                descricao
+                descricao,
+                categoria: categoria || null,
+                cor: cor || '#EA3F74'
             })
         });
     }
@@ -261,7 +312,7 @@ export class ApiService {
     static async buscarUsuarioPorId(idUsuario) {
 
         const resposta = await fetch(
-            `http://localhost:8080/usuarios/${idUsuario}`
+            `${this.API_URL}/usuarios/${idUsuario}`
         );
 
         if (!resposta.ok) {
@@ -274,7 +325,7 @@ export class ApiService {
     static async atualizarPerfil(idUsuario, nome, username, bio) {
 
         return fetch(
-            `http://localhost:8080/usuarios/${idUsuario}/perfil`,
+            `${this.API_URL}/usuarios/${idUsuario}/perfil`,
             {
                 method: 'PUT',
 
@@ -294,7 +345,7 @@ export class ApiService {
     static async listarPostsPorUsuario(idUsuario) {
 
         const resposta = await fetch(
-            `http://localhost:8080/posts/usuario/${idUsuario}`
+            `${this.API_URL}/posts/usuario/${idUsuario}`
         );
 
         if (!resposta.ok) {
@@ -307,7 +358,7 @@ export class ApiService {
     static async listarComunidadesPorUsuario(idUsuario) {
 
         const resposta = await fetch(
-            `http://localhost:8080/comunidades/usuario/${idUsuario}`
+            `${this.API_URL}/comunidades/usuario/${idUsuario}`
         );
 
         if (!resposta.ok) {
@@ -320,7 +371,7 @@ export class ApiService {
     static async listarEventosPorUsuario(idUsuario) {
 
         const resposta = await fetch(
-            `http://localhost:8080/api/eventos/usuario/${idUsuario}`
+            `${this.API_URL}/api/eventos/usuario/${idUsuario}`
         );
 
         if (!resposta.ok) {
@@ -354,7 +405,7 @@ export class ApiService {
     static async buscarEventoPorId(idEvento) {
 
         const resposta = await fetch(
-            `http://localhost:8080/api/eventos/${idEvento}`
+            `${this.API_URL}/api/eventos/${idEvento}`
         );
 
         if (!resposta.ok) {
@@ -367,7 +418,7 @@ export class ApiService {
     static async login(email, senha) {
 
         return fetch(
-            'http://localhost:8080/usuarios/login',
+            `${this.API_URL}/usuarios/login`,
             {
                 method: 'POST',
 
@@ -390,7 +441,7 @@ export class ApiService {
         formData.append('foto', foto);
 
         return fetch(
-            `http://localhost:8080/usuarios/${idUsuario}/foto`,
+            `${this.API_URL}/usuarios/${idUsuario}/foto`,
             {
                 method: 'POST',
                 body: formData
