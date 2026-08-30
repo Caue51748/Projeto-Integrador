@@ -23,6 +23,7 @@ class AppController {
         this.paginaEventos = 0;
         this.totalPaginasEventos = 0;
         this.tamanhoPaginaEventos = 12;
+        this.interessesSelecionados = [];
         this.filtrosEventos = {
             texto: null,
             status: null,
@@ -197,6 +198,60 @@ class AppController {
         this.mudarAba('eventos');
     }
 
+    getInteressesDisponiveis() {
+        return [
+            'Tecnologia', 'Arte', 'Música', 'Esportes', 'Networking',
+            'Cultura', 'Educação', 'Games', 'Gastronomia', 'Saúde',
+            'Filmes', 'Fotografia', 'Natureza', 'Inovação', 'Social'
+        ];
+    }
+
+    getInteressesSelecionados() {
+        const usuarioLogado = ApiService.getUsuarioLogado();
+        if (usuarioLogado && Array.isArray(usuarioLogado.interesses) && usuarioLogado.interesses.length) {
+            return usuarioLogado.interesses;
+        }
+
+        return [...this.interessesSelecionados];
+    }
+
+    toggleInteresse(interesse) {
+        const selecionados = new Set(this.getInteressesSelecionados());
+
+        if (selecionados.has(interesse)) {
+            selecionados.delete(interesse);
+        } else {
+            if (selecionados.size >= 5) {
+                this.mostrarAuthFeedback('Você pode escolher até 5 interesses.');
+                return;
+            }
+            selecionados.add(interesse);
+        }
+
+        this.interessesSelecionados = [...selecionados];
+        this.renderizarSelecaoInteresses();
+        this.mostrarAuthFeedback('');
+    }
+
+    renderizarSelecaoInteresses() {
+        const container = document.getElementById('auth-interesses-list');
+        if (!container) return;
+
+        const selecionados = new Set(this.getInteressesSelecionados());
+        container.innerHTML = this.getInteressesDisponiveis()
+            .map(interesse => `
+                <button
+                    type="button"
+                    class="interesse-chip ${selecionados.has(interesse) ? 'active' : ''}"
+                    data-interesse="${interesse}"
+                    onclick="app.toggleInteresse('${interesse}')"
+                >
+                    ${interesse}
+                </button>
+            `)
+            .join('');
+    }
+
     atualizarAuthUI() {
         const modal = document.querySelector('.auth-modal');
         const titulo = document.getElementById('auth-title');
@@ -222,6 +277,7 @@ class AppController {
         document.getElementById('auth-tab-register')?.classList.toggle('active', this.modoCadastro);
         this.mostrarAuthFeedback('');
         this.atualizarForcaSenha();
+        if (this.modoCadastro) this.renderizarSelecaoInteresses();
     }
     mudarAba(nomeAba) {
         this.salvarViewAtual(nomeAba);
@@ -383,6 +439,28 @@ class AppController {
         this.mostrarAuthFeedback('A recuperação de senha ainda precisa ser habilitada no servidor.');
     }
 
+    getInteresseScore(item, interessesUsuario) {
+        if (!interessesUsuario || !interessesUsuario.length) return 0;
+
+        const texto = `${item?.categoria || ''} ${item?.titulo || ''} ${item?.nome || ''} ${item?.descricao || ''}`.toLowerCase();
+        let score = 0;
+
+        interessesUsuario.forEach(interesse => {
+            const termo = interesse.toLowerCase();
+            if ((item?.categoria || '').toLowerCase().includes(termo)) score += 3;
+            if (texto.includes(termo)) score += 1;
+        });
+
+        return score;
+    }
+
+    ordenarPorInteresses(lista) {
+        const interessesUsuario = this.getInteressesSelecionados();
+        if (!interessesUsuario.length || !lista?.length) return lista;
+
+        return [...lista].sort((a, b) => this.getInteresseScore(b, interessesUsuario) - this.getInteresseScore(a, interessesUsuario));
+    }
+
     async processarAuth() {
         const nomeCompleto =
             document.getElementById('auth-nome-completo').value.trim();
@@ -397,6 +475,7 @@ class AppController {
             document.getElementById('auth-telefone').value.trim();
         const confirmarSenha =
             document.getElementById('auth-confirmar-senha')?.value || '';
+        const interesses = this.getInteressesSelecionados();
 
         this.mostrarAuthFeedback('');
 
@@ -465,10 +544,16 @@ class AppController {
                     dataNascimento,
                     e,
                     telefone,
-                    s
+                    s,
+                    interesses
                 );
-                if (res.ok) { ApiService.salvarSessao(await res.json()); this.posLogin(); }
-                else this.mostrarAuthFeedback('Não foi possível criar a conta. Verifique seus dados.');
+                if (res.ok) {
+                    const usuario = await res.json();
+                    usuario.interesses = interesses;
+                    this.interessesSelecionados = [...interesses];
+                    ApiService.salvarSessao(usuario);
+                    this.posLogin();
+                } else this.mostrarAuthFeedback('Não foi possível criar a conta. Verifique seus dados.');
             } else {
                 this.definirAuthLoading(true);
                 const res =
@@ -497,6 +582,8 @@ class AppController {
     }
 
     posLogin() {
+        const usuario = ApiService.getUsuarioLogado();
+        this.interessesSelecionados = Array.isArray(usuario?.interesses) ? [...usuario.interesses] : [];
         this.fecharModal('auth-modal');
         this.esconderTelaBoasVindas();
         this.atualizarMenuLateral();
@@ -506,6 +593,7 @@ class AppController {
     fazerLogout() {
 
         ApiService.fazerLogout();
+        this.interessesSelecionados = [];
 
         this.atualizarMenuLateral();
 
@@ -577,7 +665,10 @@ class AppController {
     renderizarComunidades(comunidades) {
         const container = document.getElementById('comunidades-container');
         if (!container) return;
-        if (!comunidades.length) {
+
+        const comunidadesOrdenadas = this.ordenarPorInteresses(comunidades);
+
+        if (!comunidadesOrdenadas.length) {
             container.innerHTML = '<div class="comunidade-empty">Nenhuma comunidade encontrada. Crie a primeira.</div>';
             return;
         }
@@ -586,7 +677,7 @@ class AppController {
             return total;
         }, {});
         container.innerHTML = '';
-        comunidades.forEach(c => {
+        comunidadesOrdenadas.forEach(c => {
                 const idCom = c.idComunidade || c.id;
                 const div = document.createElement('div');
                 div.className = 'comunidade-card';
@@ -1156,6 +1247,7 @@ ${ApiService.getIdUsuarioLogado() ? `
                 });
             }
 
+            eventos = this.ordenarPorInteresses(eventos);
             this.listaEventos = eventos;
             this.totalPaginasEventos = resultado.totalPages;
 

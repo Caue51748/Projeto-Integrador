@@ -81,7 +81,8 @@ public class UsuarioController {
                                     usuario.getNome(),
                                     usuario.getUsername(),
                                     usuario.getBio(),
-                                    usuario.getFotoPerfil()
+                                    usuario.getFotoPerfil(),
+                                    usuario.getInteresses()
                             );
 
                     return ResponseEntity.ok(perfil);
@@ -130,7 +131,8 @@ public class UsuarioController {
                                     atualizado.getNome(),
                                     atualizado.getUsername(),
                                     atualizado.getBio(),
-                                    atualizado.getFotoPerfil()
+                                    atualizado.getFotoPerfil(),
+                                    atualizado.getInteresses()
                             );
 
                     return ResponseEntity.ok(perfil);
@@ -158,7 +160,8 @@ public class UsuarioController {
                         usuario.getNome(),
                         usuario.getUsername(),
                         usuario.getBio(),
-                        usuario.getFotoPerfil()
+                        usuario.getFotoPerfil(),
+                        usuario.getInteresses()
                 );
 
         return ResponseEntity.ok(perfil);
@@ -240,7 +243,8 @@ public class UsuarioController {
                             usuario.getNome(),
                             usuario.getUsername(),
                             usuario.getBio(),
-                            usuario.getFotoPerfil()
+                            usuario.getFotoPerfil(),
+                            usuario.getInteresses()
                     );
 
             return ResponseEntity.ok(perfil);

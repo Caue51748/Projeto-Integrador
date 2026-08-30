@@ -1136,6 +1136,43 @@ textarea:focus,
     font-weight: 500;
 }
 
+.auth-interesses-intro {
+    margin: 0 0 12px;
+    color: var(--text-muted);
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.auth-interesses-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.interesse-chip {
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    padding: 8px 12px;
+    background: #fff;
+    color: var(--text-main);
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 700;
+    transition: all 0.2s ease;
+}
+
+.interesse-chip:hover {
+    border-color: var(--secondary-pink);
+    transform: translateY(-1px);
+}
+
+.interesse-chip.active {
+    border-color: var(--primary-blue);
+    background: rgba(234, 63, 116, 0.08);
+    color: var(--primary-blue);
+    box-shadow: 0 5px 15px rgba(234, 63, 116, 0.12);
+}
+
 .auth-input-wrap {
     display: flex;
     align-items: center;

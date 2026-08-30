@@ -340,6 +340,12 @@
                 <div class="auth-input-wrap"><i class="material-icons">lock_reset</i><input type="password" id="auth-confirmar-senha" placeholder="Repita sua senha" autocomplete="new-password"><button type="button" class="password-toggle" onclick="app.alternarVisibilidadeSenha('auth-confirmar-senha', this)" aria-label="Mostrar senha"><i class="material-icons">visibility</i></button></div>
             </div>
 
+            <div class="auth-field auth-register-only">
+                <label>Interesses</label>
+                <div class="auth-interesses-intro">Escolha até 5 temas que mais combinam com você.</div>
+                <div id="auth-interesses-list" class="auth-interesses-list" aria-label="Selecionar interesses"></div>
+            </div>
+
             <button type="button" class="btn-full auth-submit" id="auth-submit" onclick="app.processarAuth()">Entrar</button>
             <button type="button" class="auth-forgot" id="auth-forgot" onclick="app.recuperarSenha()">Esqueci minha senha</button>
             <button type="button" class="btn-cancel" onclick="app.fecharModal('auth-modal')">Cancelar</button>
