@@ -40,6 +40,7 @@ class AppController {
         this.listaConversas = [];
         this.conversaAtiva = null;
         this.chatSocket = null;
+        this.chatSidebarAberto = true;
     }
     async inicializar() {
 
@@ -78,6 +79,25 @@ class AppController {
             );
         }
 
+        const chatToggleBtn =
+            document.getElementById('chat-toggle-btn');
+
+        if (chatToggleBtn) {
+            chatToggleBtn.addEventListener(
+                'click',
+                () => this.alternarChatSidebar()
+            );
+        }
+
+        const chatSearchInput =
+            document.getElementById('chat-search-input');
+
+        if (chatSearchInput) {
+            chatSearchInput.addEventListener(
+                'input',
+                (event) => this.filtrarConversas(event.target.value)
+            );
+        }
 
         const usuarioLogado =
             ApiService.getUsuarioLogado();
@@ -126,6 +146,37 @@ class AppController {
         }
 
         this.conversaAtiva = null;
+    }
+
+    alternarChatSidebar() {
+        const sidebar = document.getElementById('chat-sidebar');
+        const toggleBtn = document.getElementById('chat-toggle-btn');
+
+        if (!sidebar || !toggleBtn) {
+            return;
+        }
+
+        this.chatSidebarAberto = !this.chatSidebarAberto;
+        sidebar.classList.toggle('collapsed', !this.chatSidebarAberto);
+        toggleBtn.textContent = this.chatSidebarAberto ? '‹' : '›';
+        toggleBtn.setAttribute('title', this.chatSidebarAberto ? 'Recolher mensagens' : 'Expandir mensagens');
+    }
+
+    filtrarConversas(termoBusca = '') {
+        const container = document.getElementById('chat-conversations');
+
+        if (!container) {
+            return;
+        }
+
+        const texto = termoBusca.trim().toLowerCase();
+        const conversasFiltradas = this.listaConversas.filter((conversa) => {
+            const nome = (conversa.nomeOutroUsuario || '').toLowerCase();
+            const username = (conversa.usernameOutroUsuario || '').toLowerCase();
+            return nome.includes(texto) || username.includes(texto);
+        });
+
+        this.renderizarConversas(conversasFiltradas, texto);
     }
 
     // --- MENU E NAVEGAÇÃO ---
@@ -3608,7 +3659,7 @@ ${ApiService.getIdUsuarioLogado() ? `
         }
     }
 
-    renderizarConversas() {
+    renderizarConversas(conversas = this.listaConversas, termoBusca = '') {
         const container =
             document.getElementById('chat-conversations');
 
@@ -3616,10 +3667,14 @@ ${ApiService.getIdUsuarioLogado() ? `
             return;
         }
 
-        if (this.listaConversas.length === 0) {
+        if (conversas.length === 0) {
+            const mensagemVazia = termoBusca
+                ? 'Nenhuma conversa encontrada.'
+                : 'Nenhuma conversa ainda.';
+
             container.innerHTML = `
             <p class="chat-empty">
-                Nenhuma conversa ainda.
+                ${mensagemVazia}
             </p>
         `;
             return;
@@ -3627,10 +3682,14 @@ ${ApiService.getIdUsuarioLogado() ? `
 
         container.innerHTML = '';
 
-        this.listaConversas.forEach(conversa => {
+        conversas.forEach(conversa => {
             const item = document.createElement('div');
 
             item.className = 'chat-conversation-item';
+
+            if (this.conversaAtiva && String(conversa.idConversa) === String(this.conversaAtiva.idConversa)) {
+                item.classList.add('active');
+            }
 
             const nome =
                 conversa.nomeOutroUsuario || 'Usuário';
@@ -3677,20 +3736,28 @@ ${ApiService.getIdUsuarioLogado() ? `
         const avatar =
             document.getElementById('chat-user-avatar');
 
+        const status =
+            document.getElementById('chat-user-status');
+
         if (!janela) {
             return;
         }
 
-        nome.textContent =
+        const nomeExibicao =
             conversa.nomeOutroUsuario || 'Usuário';
+
+        nome.textContent = nomeExibicao;
 
         username.textContent =
             conversa.usernameOutroUsuario
                 ? `@${conversa.usernameOutroUsuario}`
-                : '';
+                : 'Usuário';
+
+        status.textContent = 'online';
+        status.classList.add('active');
 
         avatar.textContent =
-            (conversa.nomeOutroUsuario || '?')
+            nomeExibicao
                 .charAt(0)
                 .toUpperCase();
 
@@ -3820,10 +3887,11 @@ ${ApiService.getIdUsuarioLogado() ? `
             return;
         }
 
-        const input =
-            document.getElementById('chat-message-input');
+        const form = document.getElementById('chat-message-form');
+        const input = document.getElementById('chat-message-input');
+        const botaoEnviar = form?.querySelector('button[type="submit"]');
 
-        if (!input) {
+        if (!input || !form) {
             return;
         }
 
@@ -3833,27 +3901,22 @@ ${ApiService.getIdUsuarioLogado() ? `
             return;
         }
 
-        const idUsuario =
-            ApiService.getIdUsuarioLogado();
+        const idUsuario = ApiService.getIdUsuarioLogado();
+
+        form.classList.add('sending');
+        input.disabled = true;
+        botaoEnviar.disabled = true;
+        botaoEnviar.textContent = 'Enviando...';
 
         try {
-            const mensagem =
-                await ApiService.enviarMensagem(
-                    this.conversaAtiva.idConversa,
-                    idUsuario,
-                    conteudo
-                );
-
-            input.value = '';
-
-            /*
-             * Recarrega o histórico para garantir que
-             * a tela representa exatamente o banco.
-             */
-            await this.carregarMensagens(
-                this.conversaAtiva.idConversa
+            await ApiService.enviarMensagem(
+                this.conversaAtiva.idConversa,
+                idUsuario,
+                conteudo
             );
 
+            input.value = '';
+            await this.carregarMensagens(this.conversaAtiva.idConversa);
             input.focus();
 
         } catch (erro) {
@@ -3866,6 +3929,12 @@ ${ApiService.getIdUsuarioLogado() ? `
                 erro.message ||
                 'Não foi possível enviar a mensagem.'
             );
+        } finally {
+            form.classList.remove('sending');
+            input.disabled = false;
+            botaoEnviar.disabled = false;
+            botaoEnviar.textContent = 'Enviar';
+            input.focus();
         }
     }
 
