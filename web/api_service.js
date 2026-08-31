@@ -1,7 +1,7 @@
 // api_service.js
 export class ApiService {
-    //static API_URL = 'http://localhost:8080';
-    static API_URL = 'https://projeto-integrador-m4jn.onrender.com';
+    static API_URL = 'http://localhost:8080';
+    //static API_URL = 'https://projeto-integrador-m4jn.onrender.com';
     //static API_URL = 'http://143.106.241.xx:8080';
 
     static getUsuarioLogado() { return JSON.parse(localStorage.getItem('usuarioLogado')); }
@@ -450,5 +450,76 @@ export class ApiService {
                 body: formData
             }
         );
+    }
+
+    static async criarOuBuscarConversa(idUsuario, idOutroUsuario) {
+        const resposta = await fetch(
+            `${this.API_URL}/conversas`,
+            {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    idUsuario,
+                    idOutroUsuario
+                })
+            }
+        );
+
+        if (!resposta.ok) {
+            const erro = await resposta.text();
+            throw new Error(erro || 'Erro ao criar conversa');
+        }
+
+        return await resposta.json();
+    }
+
+    static async listarConversasDoUsuario(idUsuario) {
+        const resposta = await fetch(
+            `${this.API_URL}/conversas/usuario/${idUsuario}`
+        );
+
+        if (!resposta.ok) {
+            throw new Error('Erro ao buscar conversas');
+        }
+
+        return await resposta.json();
+    }
+
+    static async enviarMensagem(idConversa, idRemetente, conteudo) {
+        const resposta = await fetch(
+            `${this.API_URL}/mensagens`,
+            {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    idConversa,
+                    idRemetente,
+                    conteudo
+                })
+            }
+        );
+
+        if (!resposta.ok) {
+            const erro = await resposta.text();
+            throw new Error(erro || 'Erro ao enviar mensagem');
+        }
+
+        return await resposta.json();
+    }
+
+    static async listarMensagens(idConversa) {
+        const resposta = await fetch(
+            `${this.API_URL}/mensagens/conversa/${idConversa}`
+        );
+
+        if (!resposta.ok) {
+            throw new Error('Erro ao buscar mensagens');
+        }
+
+        return await resposta.json();
     }
 }

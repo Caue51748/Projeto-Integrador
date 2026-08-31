@@ -7,7 +7,8 @@
     <title>Painel - Rede Social</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
@@ -30,26 +31,37 @@
                 <div class="welcome-copy">
                     <div class="welcome-eyebrow"><span></span> Sua próxima experiência começa aqui</div>
                     <h1>Encontre pessoas, <em>lugares</em> e momentos para lembrar.</h1>
-                    <p>Uma comunidade para descobrir eventos, entrar em conversas e construir conexões que saem da tela.</p>
+                    <p>Uma comunidade para descobrir eventos, entrar em conversas e construir conexões que saem da tela.
+                    </p>
                     <div class="welcome-actions">
-                        <button class="btn-primary welcome-btn" onclick="app.selecionarOpcao('cadastro')">Criar minha conta <i class="material-icons">arrow_forward</i></button>
-                        <button class="btn-ghost welcome-btn" onclick="app.selecionarOpcao('visitante')">Explorar sem conta <i class="material-icons">north_east</i></button>
+                        <button class="btn-primary welcome-btn" onclick="app.selecionarOpcao('cadastro')">Criar minha
+                            conta <i class="material-icons">arrow_forward</i></button>
+                        <button class="btn-ghost welcome-btn" onclick="app.selecionarOpcao('visitante')">Explorar sem
+                            conta <i class="material-icons">north_east</i></button>
                     </div>
-                    <div class="welcome-proof"><i class="material-icons">verified</i><span>Descubra sua próxima comunidade favorita.</span></div>
+                    <div class="welcome-proof"><i class="material-icons">verified</i><span>Descubra sua próxima
+                            comunidade favorita.</span></div>
                 </div>
 
                 <div class="welcome-preview" aria-label="Prévia de eventos da comunidade">
                     <div class="preview-orbit preview-orbit-one"></div>
                     <div class="preview-orbit preview-orbit-two"></div>
                     <div class="preview-window">
-                        <div class="preview-window-top"><span>Próximos eventos</span><i class="material-icons">more_horiz</i></div>
-                        <div class="preview-date" id="preview-date"><strong>--</strong><span>AGENDA<br><b>carregando</b></span></div>
+                        <div class="preview-window-top"><span>Próximos eventos</span><i
+                                class="material-icons">more_horiz</i></div>
+                        <div class="preview-date" id="preview-date">
+                            <strong>--</strong><span>AGENDA<br><b>carregando</b></span>
+                        </div>
                         <div id="preview-events" class="preview-events" aria-live="polite">
                             <div class="preview-loading">Buscando próximos eventos...</div>
                         </div>
-                        <div class="preview-footer"><span class="preview-avatars"><b>+</b><b>+</b><b>+</b></span><span>novas conexões começam aqui</span><button class="preview-events-link" onclick="app.explorarEventos()">Ver agenda completa</button></div>
+                        <div class="preview-footer"><span
+                                class="preview-avatars"><b>+</b><b>+</b><b>+</b></span><span>novas conexões começam
+                                aqui</span><button class="preview-events-link" onclick="app.explorarEventos()">Ver
+                                agenda completa</button></div>
                     </div>
-                    <div class="preview-sticker"><i class="material-icons">favorite</i><span>Feito para<br><b>conectar</b></span></div>
+                    <div class="preview-sticker"><i class="material-icons">favorite</i><span>Feito
+                            para<br><b>conectar</b></span></div>
                 </div>
             </div>
         </div>
@@ -75,118 +87,156 @@
             <div class="sidebar-footer" id="header-buttons"></div>
         </aside>
 
-        <main id="app-main">
-            <div id="view-feed" class="view-section">
-                <div class="page-header">
-                    <div>
-                        <span class="section-kicker">Conversa que vira encontro</span>
-                        <h1>O que está acontecendo</h1>
-                    </div>
-                    <button class="btn-primary" onclick="app.abrirModalPost()">Novo Post</button>
+        <div class="app-content">
+
+            <!-- CHAT LATERAL -->
+            <section id="chat-sidebar" class="chat-sidebar">
+                <div class="chat-sidebar-header">
+                    <h3>Mensagens</h3>
+
+                    <button id="chat-toggle-btn" class="chat-toggle-btn" type="button" title="Recolher mensagens">
+                        ‹
+                    </button>
                 </div>
-                <div class="feed-layout">
-                    <div class="feed-main">
-                        <div class="feed-toolbar">
-                            <div class="feed-tabs" role="tablist" aria-label="Filtro do feed">
-                                <button class="feed-tab active" id="feed-tab-todos" onclick="app.mudarFiltroFeed('todos')">Tudo</button>
-                                <button class="feed-tab" id="feed-tab-comunidades" onclick="app.mudarFiltroFeed('comunidades')">Comunidades</button>
-                                <button class="feed-tab" id="feed-tab-meus" onclick="app.mudarFiltroFeed('meus')">Meus posts</button>
-                            </div>
-                            <select id="feed-ordenacao" onchange="app.mudarOrdenacaoFeed(this.value)" aria-label="Ordenar feed">
-                                <option value="recentes">Mais recentes</option>
-                                <option value="comentados">Mais comentados</option>
-                                <option value="curtidos">Mais curtidos</option>
-                            </select>
+
+                <div class="chat-search">
+                    <input id="chat-search-input" type="text" placeholder="Buscar conversa..." autocomplete="off">
+                </div>
+
+                <div id="chat-conversations" class="chat-conversations">
+                    <p class="chat-empty">
+                        Nenhuma conversa ainda.
+                    </p>
+                </div>
+            </section>
+
+
+            <main id="app-main">
+                <div id="view-feed" class="view-section">
+                    <div class="page-header">
+                        <div>
+                            <span class="section-kicker">Conversa que vira encontro</span>
+                            <h1>O que está acontecendo</h1>
                         </div>
-                        <div id="feed-container">Carregando feed...</div>
+                        <button class="btn-primary" onclick="app.abrirModalPost()">Novo Post</button>
                     </div>
-                    <div class="feed-sidebar">
-                        <div class="feed-sidebar-heading"><span class="section-kicker">Para você</span><h2>Recomendado</h2></div>
-                        <div id="feed-recomendados" class="feed-recomendados">Carregando sugestões...</div>
+                    <div class="feed-layout">
+                        <div class="feed-main">
+                            <div class="feed-toolbar">
+                                <div class="feed-tabs" role="tablist" aria-label="Filtro do feed">
+                                    <button class="feed-tab active" id="feed-tab-todos"
+                                        onclick="app.mudarFiltroFeed('todos')">Tudo</button>
+                                    <button class="feed-tab" id="feed-tab-comunidades"
+                                        onclick="app.mudarFiltroFeed('comunidades')">Comunidades</button>
+                                    <button class="feed-tab" id="feed-tab-meus"
+                                        onclick="app.mudarFiltroFeed('meus')">Meus posts</button>
+                                </div>
+                                <select id="feed-ordenacao" onchange="app.mudarOrdenacaoFeed(this.value)"
+                                    aria-label="Ordenar feed">
+                                    <option value="recentes">Mais recentes</option>
+                                    <option value="comentados">Mais comentados</option>
+                                    <option value="curtidos">Mais curtidos</option>
+                                </select>
+                            </div>
+                            <div id="feed-container">Carregando feed...</div>
+                        </div>
+                        <div class="feed-sidebar">
+                            <div class="feed-sidebar-heading"><span class="section-kicker">Para você</span>
+                                <h2>Recomendado</h2>
+                            </div>
+                            <div id="feed-recomendados" class="feed-recomendados">Carregando sugestões...</div>
 
-                        <div class="feed-sidebar-heading" style="margin-top: 18px;"><span class="section-kicker">Perfil parecido</span><h2>Pessoas para seguir</h2></div>
-                        <div id="feed-sugestoes-pessoas" class="feed-sugestoes-pessoas">Carregando pessoas...</div>
+                            <div class="feed-sidebar-heading" style="margin-top: 18px;"><span
+                                    class="section-kicker">Perfil parecido</span>
+                                <h2>Pessoas para seguir</h2>
+                            </div>
+                            <div id="feed-sugestoes-pessoas" class="feed-sugestoes-pessoas">Carregando pessoas...</div>
 
-                        <div class="feed-sidebar-heading" style="margin-top: 18px;"><span class="section-kicker">Não perca</span><h2>Próximos encontros</h2></div>
-                        <div id="feed-eventos-destaque">Carregando eventos...</div>
-                        <button class="feed-sidebar-link" onclick="app.mudarAba('eventos')">Ver agenda completa <i class="material-icons">arrow_forward</i></button>
+                            <div class="feed-sidebar-heading" style="margin-top: 18px;"><span class="section-kicker">Não
+                                    perca</span>
+                                <h2>Próximos encontros</h2>
+                            </div>
+                            <div id="feed-eventos-destaque">Carregando eventos...</div>
+                            <button class="feed-sidebar-link" onclick="app.mudarAba('eventos')">Ver agenda completa <i
+                                    class="material-icons">arrow_forward</i></button>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <div id="view-post-detalhes" class="view-section">
-                <button class="detail-back-button" onclick="app.voltarDoPost()">
-                    <i class="material-icons">arrow_back</i> Voltar ao feed
-                </button>
-                <div id="post-detalhes-conteudo"></div>
-            </div>
+                <div id="view-post-detalhes" class="view-section">
+                    <button class="detail-back-button" onclick="app.voltarDoPost()">
+                        <i class="material-icons">arrow_back</i> Voltar ao feed
+                    </button>
+                    <div id="post-detalhes-conteudo"></div>
+                </div>
 
-            <div id="view-eventos" class="view-section active">
-                <div class="page-header">
-                    <div>
-                        <span class="section-kicker">Viva mais fora da tela</span>
-                        <h1>Descubra seu próximo evento</h1>
+                <div id="view-eventos" class="view-section active">
+                    <div class="page-header">
+                        <div>
+                            <span class="section-kicker">Viva mais fora da tela</span>
+                            <h1>Descubra seu próximo evento</h1>
+                        </div>
+                        <button class="btn-primary" onclick="app.abrirModal('evento-modal')">Novo Evento</button>
                     </div>
-                    <button class="btn-primary"
-                        onclick="app.abrirModal('evento-modal')">Novo Evento</button>
-                </div>
-                <div id="evento-destaque" class="evento-destaque"></div>
-                <div class="eventos-tabs" role="tablist" aria-label="Eventos">
-                    <button class="eventos-tab active" id="eventos-tab-descobrir" onclick="app.mudarVisaoEventos('descobrir')">Descobrir</button>
-                    <button class="eventos-tab" id="eventos-tab-meus" onclick="app.mudarVisaoEventos('meus')">Meus eventos</button>
-                </div>
-                <div class="eventos-filtros">
-                    <input type="text" id="filtro-evento-texto" placeholder="Buscar por nome ou descrição..."
-                        oninput="app.buscarEventosComDebounce()">
+                    <div id="evento-destaque" class="evento-destaque"></div>
+                    <div class="eventos-tabs" role="tablist" aria-label="Eventos">
+                        <button class="eventos-tab active" id="eventos-tab-descobrir"
+                            onclick="app.mudarVisaoEventos('descobrir')">Descobrir</button>
+                        <button class="eventos-tab" id="eventos-tab-meus" onclick="app.mudarVisaoEventos('meus')">Meus
+                            eventos</button>
+                    </div>
+                    <div class="eventos-filtros">
+                        <input type="text" id="filtro-evento-texto" placeholder="Buscar por nome ou descrição..."
+                            oninput="app.buscarEventosComDebounce()">
 
-                    <select id="filtro-evento-periodo" onchange="app.filtrarEventos()">
+                        <select id="filtro-evento-periodo" onchange="app.filtrarEventos()">
 
-                        <option value="">Qualquer data</option>
-                        <option value="hoje">Hoje</option>
-                        <option value="semana">Esta semana</option>
-                        <option value="mes">Este mês</option>
-                        <option value="personalizado">Intervalo personalizado</option>
-                    </select>
+                            <option value="">Qualquer data</option>
+                            <option value="hoje">Hoje</option>
+                            <option value="semana">Esta semana</option>
+                            <option value="mes">Este mês</option>
+                            <option value="personalizado">Intervalo personalizado</option>
+                        </select>
 
-                    <select id="filtro-evento-comunidade" onchange="app.filtrarEventos()">
-                        <option value="">Todas as comunidades</option>
-                    </select>
+                        <select id="filtro-evento-comunidade" onchange="app.filtrarEventos()">
+                            <option value="">Todas as comunidades</option>
+                        </select>
 
-                    <select id="filtro-evento-status" onchange="app.filtrarEventos()">
-                        <option value="">Todos os status</option>
-                        <option value="AGENDADO">Agendados</option>
-                        <option value="CANCELADO">Cancelados</option>
-                    </select>
-                    <select id="filtro-evento-categoria" onchange="app.filtrarEventos()">
-                        <option value="">Todas as categorias</option>
-                        <option value="Tecnologia">Tecnologia</option>
-                        <option value="Arte">Arte</option>
-                        <option value="Música">Música</option>
-                        <option value="Esportes">Esportes</option>
-                        <option value="Educação">Educação</option>
-                        <option value="Networking">Networking</option>
-                        <option value="Cultura">Cultura</option>
-                    </select>
-                    <select id="filtro-evento-formato" onchange="app.filtrarEventos()">
-                        <option value="">Todos os formatos</option>
-                        <option value="presencial">Presenciais</option>
-                        <option value="online">Online</option>
-                    </select>
-                </div>
-                <div id="filtro-evento-intervalo" style="
+                        <select id="filtro-evento-status" onchange="app.filtrarEventos()">
+                            <option value="">Todos os status</option>
+                            <option value="AGENDADO">Agendados</option>
+                            <option value="CANCELADO">Cancelados</option>
+                        </select>
+                        <select id="filtro-evento-categoria" onchange="app.filtrarEventos()">
+                            <option value="">Todas as categorias</option>
+                            <option value="Tecnologia">Tecnologia</option>
+                            <option value="Arte">Arte</option>
+                            <option value="Música">Música</option>
+                            <option value="Esportes">Esportes</option>
+                            <option value="Educação">Educação</option>
+                            <option value="Networking">Networking</option>
+                            <option value="Cultura">Cultura</option>
+                        </select>
+                        <select id="filtro-evento-formato" onchange="app.filtrarEventos()">
+                            <option value="">Todos os formatos</option>
+                            <option value="presencial">Presenciais</option>
+                            <option value="online">Online</option>
+                        </select>
+                    </div>
+                    <div id="filtro-evento-intervalo" style="
         display:none;
         gap:10px;
         margin-bottom:16px;
     ">
 
-                    <input type="date" id="filtro-evento-data-inicio" onchange="app.filtrarEventos()">
+                        <input type="date" id="filtro-evento-data-inicio" onchange="app.filtrarEventos()">
 
-                    <input type="date" id="filtro-evento-data-fim" onchange="app.filtrarEventos()">
-                </div>
-                <div id="eventos-container" class="eventos-container">
-                    Carregando eventos...
-                </div>
-                <div id="eventos-paginacao" style="
+                        <input type="date" id="filtro-evento-data-fim" onchange="app.filtrarEventos()">
+                    </div>
+                    <div id="eventos-container" class="eventos-container">
+                        Carregando eventos...
+                    </div>
+                    <div id="eventos-paginacao" style="
         display:flex;
         justify-content:center;
         align-items:center;
@@ -194,100 +244,166 @@
         margin-top:20px;
      ">
 
-                    <button class="btn-secondary" id="btn-eventos-anterior" onclick="app.paginaAnteriorEventos()">
-                        Anterior
-                    </button>
+                        <button class="btn-secondary" id="btn-eventos-anterior" onclick="app.paginaAnteriorEventos()">
+                            Anterior
+                        </button>
 
-                    <span id="eventos-pagina-info">
-                        Página 1 de 1
-                    </span>
+                        <span id="eventos-pagina-info">
+                            Página 1 de 1
+                        </span>
 
-                    <button class="btn-secondary" id="btn-eventos-proxima" onclick="app.proximaPaginaEventos()">
-                        Próxima
-                    </button>
-                </div>
-            </div>
-
-            <div id="view-comunidades" class="view-section">
-                <div class="page-header">
-                    <div>
-                        <span class="section-kicker">Encontre sua turma</span>
-                        <h1>Comunidades</h1>
-                    </div>
-                    <button class="btn-primary" onclick="app.abrirModal('comunidade-modal')">Nova Comunidade</button>
-                </div>
-                <div class="comunidades-toolbar">
-                    <input class="search-bar" id="comunidades-search" type="search" placeholder="Buscar por nome ou interesse..." oninput="app.filtrarComunidades()">
-                    <select id="comunidades-ordenacao" onchange="app.filtrarComunidades()"><option value="relevantes">Mais relevantes</option><option value="membros">Mais membros</option><option value="recentes">Mais recentes</option></select>
-                </div>
-                <div id="comunidades-container" class="comunidades-grid">Carregando comunidades...</div>
-            </div>
-
-            <div id="view-busca" class="view-section">
-                <div class="page-header">
-                    <div><span class="section-kicker">Descubra quem faz acontecer</span><h1>Pessoas</h1></div>
-                </div>
-                <div class="pessoas-toolbar">
-                    <input type="search" class="search-bar" id="search-input" placeholder="Buscar por nome ou username..." oninput="app.filtrarUsuarios()">
-                    <select id="pessoas-filtro" onchange="app.filtrarUsuarios()"><option value="todas">Todas as pessoas</option><option value="organizadores">Organizadores de eventos</option><option value="comunidades">Membros de comunidades</option></select>
-                </div>
-                <div class="pessoas-sugestoes"><div><span class="section-kicker">Para conhecer</span><h2>Pessoas da comunidade</h2></div><p>Encontre organizadores, participantes e novas conversas.</p></div>
-                <div id="users-container" class="pessoas-grid">Carregando...</div>
-            </div>
-
-            <div id="view-subreddit" class="view-section">
-                <div class="page-header">
-                    <div>
-                        <button class="detail-back-button" onclick="app.mudarAba('comunidades')"><i class="material-icons">arrow_back</i> Voltar</button>
-                        <div class="comunidade-header-title"><div id="sub-community-visual" class="comunidade-mark">C</div><div><h1 id="sub-titulo">Nome da Comunidade</h1>
-                        <p id="sub-desc" style="color: var(--text-muted); margin: 4px 0 0 0;">Descrição</p>
-                        </div></div>
-                    </div>
-                    <div>
-                        <button class="btn-primary" id="btn-participar" style="margin-right:8px;"
-                            onclick="app.participarComunidade()">Entrar</button>
-                        <button class="btn-primary" onclick="app.abrirModalPost()">Postar Aqui</button>
+                        <button class="btn-secondary" id="btn-eventos-proxima" onclick="app.proximaPaginaEventos()">
+                            Próxima
+                        </button>
                     </div>
                 </div>
-                <div class="comunidade-tabs"><button class="comunidade-tab active" id="comunidade-tab-posts" onclick="app.mudarAbaComunidade('posts')">Posts</button><button class="comunidade-tab" id="comunidade-tab-eventos" onclick="app.mudarAbaComunidade('eventos')">Eventos</button><button class="comunidade-tab" id="comunidade-tab-membros" onclick="app.mudarAbaComunidade('membros')">Membros</button></div>
-                <div id="subreddit-feed-container"></div>
-            </div>
 
-            <div id="view-perfil" class="view-section">
+                <div id="view-comunidades" class="view-section">
+                    <div class="page-header">
+                        <div>
+                            <span class="section-kicker">Encontre sua turma</span>
+                            <h1>Comunidades</h1>
+                        </div>
+                        <button class="btn-primary" onclick="app.abrirModal('comunidade-modal')">Nova
+                            Comunidade</button>
+                    </div>
+                    <div class="comunidades-toolbar">
+                        <input class="search-bar" id="comunidades-search" type="search"
+                            placeholder="Buscar por nome ou interesse..." oninput="app.filtrarComunidades()">
+                        <select id="comunidades-ordenacao" onchange="app.filtrarComunidades()">
+                            <option value="relevantes">Mais relevantes</option>
+                            <option value="membros">Mais membros</option>
+                            <option value="recentes">Mais recentes</option>
+                        </select>
+                    </div>
+                    <div id="comunidades-container" class="comunidades-grid">Carregando comunidades...</div>
+                </div>
 
-                <button onclick="app.voltarDoPerfil()" style="
+                <div id="view-busca" class="view-section">
+                    <div class="page-header">
+                        <div><span class="section-kicker">Descubra quem faz acontecer</span>
+                            <h1>Pessoas</h1>
+                        </div>
+                    </div>
+                    <div class="pessoas-toolbar">
+                        <input type="search" class="search-bar" id="search-input"
+                            placeholder="Buscar por nome ou username..." oninput="app.filtrarUsuarios()">
+                        <select id="pessoas-filtro" onchange="app.filtrarUsuarios()">
+                            <option value="todas">Todas as pessoas</option>
+                            <option value="organizadores">Organizadores de eventos</option>
+                            <option value="comunidades">Membros de comunidades</option>
+                        </select>
+                    </div>
+                    <div class="pessoas-sugestoes">
+                        <div><span class="section-kicker">Para conhecer</span>
+                            <h2>Pessoas da comunidade</h2>
+                        </div>
+                        <p>Encontre organizadores, participantes e novas conversas.</p>
+                    </div>
+                    <div id="users-container" class="pessoas-grid">Carregando...</div>
+                </div>
+
+                <div id="view-subreddit" class="view-section">
+                    <div class="page-header">
+                        <div>
+                            <button class="detail-back-button" onclick="app.mudarAba('comunidades')"><i
+                                    class="material-icons">arrow_back</i> Voltar</button>
+                            <div class="comunidade-header-title">
+                                <div id="sub-community-visual" class="comunidade-mark">C</div>
+                                <div>
+                                    <h1 id="sub-titulo">Nome da Comunidade</h1>
+                                    <p id="sub-desc" style="color: var(--text-muted); margin: 4px 0 0 0;">Descrição</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <button class="btn-primary" id="btn-participar" style="margin-right:8px;"
+                                onclick="app.participarComunidade()">Entrar</button>
+                            <button class="btn-primary" onclick="app.abrirModalPost()">Postar Aqui</button>
+                        </div>
+                    </div>
+                    <div class="comunidade-tabs"><button class="comunidade-tab active" id="comunidade-tab-posts"
+                            onclick="app.mudarAbaComunidade('posts')">Posts</button><button class="comunidade-tab"
+                            id="comunidade-tab-eventos"
+                            onclick="app.mudarAbaComunidade('eventos')">Eventos</button><button class="comunidade-tab"
+                            id="comunidade-tab-membros" onclick="app.mudarAbaComunidade('membros')">Membros</button>
+                    </div>
+                    <div id="subreddit-feed-container"></div>
+                </div>
+
+                <div id="view-perfil" class="view-section">
+
+                    <button onclick="app.voltarDoPerfil()" style="
             background:none;
             border:none;
             cursor:pointer;
             color:var(--text-muted);
             margin-bottom:16px;
         ">
-                    ← Voltar
-                </button>
+                        ← Voltar
+                    </button>
 
-                <div id="perfil-conteudo"></div>
+                    <div id="perfil-conteudo"></div>
 
-            </div>
+                </div>
 
-            <div id="view-evento-detalhes" class="view-section">
+                <div id="view-evento-detalhes" class="view-section">
 
-                <button onclick="app.voltarParaEventos()" style="
+                    <button onclick="app.voltarParaEventos()" style="
             background:none;
             border:none;
             cursor:pointer;
             color:var(--text-muted);
             margin-bottom:16px;
         ">
-                    <i class="material-icons" style="font-size:16px; vertical-align:middle;">
-                        arrow_back
-                    </i>
-                    Voltar para eventos
-                </button>
+                        <i class="material-icons" style="font-size:16px; vertical-align:middle;">
+                            arrow_back
+                        </i>
+                        Voltar para eventos
+                    </button>
 
-                <div id="evento-detalhes-conteudo"></div>
+                    <div id="evento-detalhes-conteudo"></div>
 
-            </div>
-        </main>
+                </div>
+            </main>
+            <section id="chat-window" class="chat-window">
+
+                <div class="chat-window-header">
+                    <div class="chat-user-info">
+                        <div id="chat-user-avatar" class="chat-user-avatar">
+                            ?
+                        </div>
+
+                        <div>
+                            <strong id="chat-user-name">
+                                Conversa
+                            </strong>
+
+                            <span id="chat-user-username"></span>
+                        </div>
+                    </div>
+
+                    <button id="chat-close-btn" class="chat-close-btn" type="button" title="Fechar conversa">
+                        ×
+                    </button>
+                </div>
+
+                <div id="chat-messages" class="chat-messages">
+                </div>
+
+                <form id="chat-message-form" class="chat-message-form">
+
+                    <input id="chat-message-input" type="text" placeholder="Digite uma mensagem..." autocomplete="off"
+                        maxlength="2000">
+
+                    <button type="submit">
+                        Enviar
+                    </button>
+
+                </form>
+
+            </section>
+        </div>
     </div>
 
     <div class="modal-overlay" id="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title">
@@ -299,61 +415,80 @@
             </div>
 
             <div class="auth-tabs" role="tablist" aria-label="Autenticação">
-                <button type="button" class="auth-tab active" id="auth-tab-login" onclick="app.definirModoAuth(false)">Entrar</button>
-                <button type="button" class="auth-tab" id="auth-tab-register" onclick="app.definirModoAuth(true)">Criar conta</button>
+                <button type="button" class="auth-tab active" id="auth-tab-login"
+                    onclick="app.definirModoAuth(false)">Entrar</button>
+                <button type="button" class="auth-tab" id="auth-tab-register" onclick="app.definirModoAuth(true)">Criar
+                    conta</button>
             </div>
 
             <div id="auth-feedback" class="auth-feedback" role="alert" aria-live="polite"></div>
 
             <div class="auth-field auth-register-only">
                 <label for="auth-nome-completo">Nome completo</label>
-                <div class="auth-input-wrap"><i class="material-icons">person_outline</i><input type="text" id="auth-nome-completo" placeholder="Como podemos chamar você?"></div>
+                <div class="auth-input-wrap"><i class="material-icons">person_outline</i><input type="text"
+                        id="auth-nome-completo" placeholder="Como podemos chamar você?"></div>
             </div>
 
             <div class="auth-field auth-register-only">
                 <label for="auth-nome">Nome de exibição</label>
-                <div class="auth-input-wrap"><i class="material-icons">badge</i><input type="text" id="auth-nome" placeholder="Seu nome na comunidade"></div>
+                <div class="auth-input-wrap"><i class="material-icons">badge</i><input type="text" id="auth-nome"
+                        placeholder="Seu nome na comunidade"></div>
             </div>
 
             <div class="auth-field auth-register-only">
                 <label for="auth-username">Nome de usuário</label>
-                <div class="auth-input-wrap"><i class="material-icons">alternate_email</i><input type="text" id="auth-username" placeholder="seu_usuario"></div>
+                <div class="auth-input-wrap"><i class="material-icons">alternate_email</i><input type="text"
+                        id="auth-username" placeholder="seu_usuario"></div>
             </div>
 
             <div class="auth-field auth-register-only">
                 <label for="auth-data-nascimento">Data de nascimento</label>
-                <div class="auth-input-wrap"><i class="material-icons">cake</i><input type="date" id="auth-data-nascimento"></div>
+                <div class="auth-input-wrap"><i class="material-icons">cake</i><input type="date"
+                        id="auth-data-nascimento"></div>
             </div>
 
             <div class="auth-field">
                 <label for="auth-email">E-mail</label>
-                <div class="auth-input-wrap"><i class="material-icons">mail_outline</i><input type="email" id="auth-email" placeholder="voce@email.com" autocomplete="email"></div>
+                <div class="auth-input-wrap"><i class="material-icons">mail_outline</i><input type="email"
+                        id="auth-email" placeholder="voce@email.com" autocomplete="email"></div>
             </div>
 
             <div class="auth-field auth-register-only">
                 <label for="auth-telefone">Telefone <span>(opcional)</span></label>
-                <div class="auth-input-wrap"><i class="material-icons">phone</i><input type="tel" id="auth-telefone" placeholder="(00) 00000-0000"></div>
+                <div class="auth-input-wrap"><i class="material-icons">phone</i><input type="tel" id="auth-telefone"
+                        placeholder="(00) 00000-0000"></div>
             </div>
 
             <div class="auth-field">
                 <label for="auth-senha">Senha</label>
-                <div class="auth-input-wrap"><i class="material-icons">lock_outline</i><input type="password" id="auth-senha" placeholder="Sua senha" autocomplete="current-password" oninput="app.atualizarForcaSenha()"><button type="button" class="password-toggle" onclick="app.alternarVisibilidadeSenha('auth-senha', this)" aria-label="Mostrar senha"><i class="material-icons">visibility</i></button></div>
+                <div class="auth-input-wrap"><i class="material-icons">lock_outline</i><input type="password"
+                        id="auth-senha" placeholder="Sua senha" autocomplete="current-password"
+                        oninput="app.atualizarForcaSenha()"><button type="button" class="password-toggle"
+                        onclick="app.alternarVisibilidadeSenha('auth-senha', this)" aria-label="Mostrar senha"><i
+                            class="material-icons">visibility</i></button></div>
                 <div id="auth-password-strength" class="password-strength" aria-live="polite"></div>
             </div>
 
             <div class="auth-field auth-register-only">
                 <label for="auth-confirmar-senha">Confirmar senha</label>
-                <div class="auth-input-wrap"><i class="material-icons">lock_reset</i><input type="password" id="auth-confirmar-senha" placeholder="Repita sua senha" autocomplete="new-password"><button type="button" class="password-toggle" onclick="app.alternarVisibilidadeSenha('auth-confirmar-senha', this)" aria-label="Mostrar senha"><i class="material-icons">visibility</i></button></div>
+                <div class="auth-input-wrap"><i class="material-icons">lock_reset</i><input type="password"
+                        id="auth-confirmar-senha" placeholder="Repita sua senha" autocomplete="new-password"><button
+                        type="button" class="password-toggle"
+                        onclick="app.alternarVisibilidadeSenha('auth-confirmar-senha', this)"
+                        aria-label="Mostrar senha"><i class="material-icons">visibility</i></button></div>
             </div>
 
             <div class="auth-field auth-register-only">
                 <label>Interesses</label>
                 <div class="auth-interesses-intro">Escolha até 5 temas que mais combinam com você.</div>
-                <div id="auth-interesses-list" class="auth-interesses-list" aria-label="Selecionar interesses"></div>
+                <div id="auth-interesses-list" class="auth-interesses-list" aria-label="Selecionar interesses">
+                </div>
             </div>
 
-            <button type="button" class="btn-full auth-submit" id="auth-submit" onclick="app.processarAuth()">Entrar</button>
-            <button type="button" class="auth-forgot" id="auth-forgot" onclick="app.recuperarSenha()">Esqueci minha senha</button>
+            <button type="button" class="btn-full auth-submit" id="auth-submit"
+                onclick="app.processarAuth()">Entrar</button>
+            <button type="button" class="auth-forgot" id="auth-forgot" onclick="app.recuperarSenha()">Esqueci minha
+                senha</button>
             <button type="button" class="btn-cancel" onclick="app.fecharModal('auth-modal')">Cancelar</button>
             <p class="auth-legal">Ao continuar, você concorda em participar da comunidade SocialJoin.</p>
         </div>
@@ -377,7 +512,16 @@
             <h2>Criar Comunidade</h2>
             <input type="text" id="comunidade-nome" placeholder="Ex: Desenvolvedores Java">
             <textarea id="comunidade-desc" placeholder="Qual o foco do grupo?"></textarea>
-            <select id="comunidade-categoria"><option value="">Categoria</option><option>Tecnologia</option><option>Arte</option><option>Música</option><option>Esportes</option><option>Educação</option><option>Networking</option><option>Cultura</option></select>
+            <select id="comunidade-categoria">
+                <option value="">Categoria</option>
+                <option>Tecnologia</option>
+                <option>Arte</option>
+                <option>Música</option>
+                <option>Esportes</option>
+                <option>Educação</option>
+                <option>Networking</option>
+                <option>Cultura</option>
+            </select>
             <label for="comunidade-cor">Cor da comunidade</label>
             <input type="color" id="comunidade-cor" value="#EA3F74">
             <label for="comunidade-imagem">Imagem da comunidade (opcional)</label>
@@ -395,8 +539,13 @@
             <textarea id="evento-desc" placeholder="Descrição e detalhes do evento..."></textarea>
             <select id="evento-categoria">
                 <option value="">Categoria do evento</option>
-                <option>Tecnologia</option><option>Arte</option><option>Música</option>
-                <option>Esportes</option><option>Educação</option><option>Networking</option><option>Cultura</option>
+                <option>Tecnologia</option>
+                <option>Arte</option>
+                <option>Música</option>
+                <option>Esportes</option>
+                <option>Educação</option>
+                <option>Networking</option>
+                <option>Cultura</option>
             </select>
             <label class="file-field" for="evento-capa">Imagem de capa (opcional)</label>
             <input type="file" id="evento-capa" accept="image/*">
@@ -441,7 +590,16 @@
             <input type="text" id="editar-comunidade-nome" placeholder="Nome da comunidade">
 
             <textarea id="editar-comunidade-desc" placeholder="Descrição"></textarea>
-            <select id="editar-comunidade-categoria"><option value="">Categoria</option><option>Tecnologia</option><option>Arte</option><option>Música</option><option>Esportes</option><option>Educação</option><option>Networking</option><option>Cultura</option></select>
+            <select id="editar-comunidade-categoria">
+                <option value="">Categoria</option>
+                <option>Tecnologia</option>
+                <option>Arte</option>
+                <option>Música</option>
+                <option>Esportes</option>
+                <option>Educação</option>
+                <option>Networking</option>
+                <option>Cultura</option>
+            </select>
             <label for="editar-comunidade-cor">Cor da comunidade</label>
             <input type="color" id="editar-comunidade-cor" value="#EA3F74">
             <label for="editar-comunidade-imagem">Imagem da comunidade (opcional)</label>
@@ -546,8 +704,13 @@
             <textarea id="editar-evento-descricao" placeholder="Descrição"></textarea>
             <select id="editar-evento-categoria">
                 <option value="">Categoria do evento</option>
-                <option>Tecnologia</option><option>Arte</option><option>Música</option>
-                <option>Esportes</option><option>Educação</option><option>Networking</option><option>Cultura</option>
+                <option>Tecnologia</option>
+                <option>Arte</option>
+                <option>Música</option>
+                <option>Esportes</option>
+                <option>Educação</option>
+                <option>Networking</option>
+                <option>Cultura</option>
             </select>
 
             <input type="date" id="editar-evento-data">
@@ -588,7 +751,8 @@
                     Salvar alterações
                 </button>
 
-                <button class="btn-secondary" style="background:var(--secondary-pink); color:var(--text-main);" onclick="app.cancelarEvento()">
+                <button class="btn-secondary" style="background:var(--secondary-pink); color:var(--text-main);"
+                    onclick="app.cancelarEvento()">
                     Cancelar evento
                 </button>
 
