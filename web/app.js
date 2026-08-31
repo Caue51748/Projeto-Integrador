@@ -24,6 +24,7 @@ class AppController {
         this.totalPaginasEventos = 0;
         this.tamanhoPaginaEventos = 12;
         this.interessesSelecionados = [];
+        this.usuariosSeguidos = new Set();
         this.filtrosEventos = {
             texto: null,
             status: null,
@@ -634,6 +635,7 @@ class AppController {
             this.votos = votos;
             this.postsSalvos = salvos;
             this.posts = posts.reverse();
+            this.renderizarSugestoesPessoas();
 
             // Atualiza a view que estiver visível depois dos dados compartilhados carregarem.
             if (this.comunidadeAtivaId) this.renderizarSubreddit(this.comunidadeAtivaId);
@@ -660,6 +662,159 @@ class AppController {
         } catch (e) {
             container.innerHTML = "<div class='comunidade-empty'>Nenhuma comunidade pôde ser carregada.</div>";
         }
+    }
+
+    renderizarRecomendacoes() {
+        const container = document.getElementById('feed-recomendados');
+        if (!container) return;
+
+        const interesses = this.getInteressesSelecionados();
+        if (!interesses.length) {
+            container.innerHTML = '<p class="feed-sidebar-empty">Escolha seus interesses no cadastro para receber sugestões personalizadas.</p>';
+            return;
+        }
+
+        const recomendados = [];
+
+        this.listaComunidades.forEach(comunidade => {
+            const score = this.getInteresseScore(comunidade, interesses);
+            if (score > 0) {
+                recomendados.push({
+                    tipo: 'comunidade',
+                    titulo: comunidade.nome,
+                    subtitulo: comunidade.categoria || 'Comunidade',
+                    score,
+                    id: comunidade.idComunidade || comunidade.id,
+                    descricao: comunidade.descricao || 'Comunidade com afinidade ao seu perfil.'
+                });
+            }
+        });
+
+        this.listaEventos.forEach(evento => {
+            const score = this.getInteresseScore(evento, interesses);
+            if (score > 0) {
+                recomendados.push({
+                    tipo: 'evento',
+                    titulo: evento.titulo,
+                    subtitulo: evento.categoria || 'Evento',
+                    score,
+                    id: evento.id,
+                    descricao: evento.localEvento || 'Evento com perfil parecido com você.'
+                });
+            }
+        });
+
+        recomendados.sort((a, b) => b.score - a.score);
+
+        const itens = recomendados.slice(0, 4);
+
+        if (!itens.length) {
+            container.innerHTML = '<p class="feed-sidebar-empty">Ainda não temos sugestões estreitas para seus interesses.</p>';
+            return;
+        }
+
+        container.innerHTML = itens.map(item => `
+            <button class="feed-recomendado-item" onclick="${item.tipo === 'evento' ? `app.abrirDetalhesEvento(${item.id})` : `app.entrarSubreddit(${item.id})`}" type="button">
+                <span>${this.escaparHtmlDestaque(item.subtitulo)}</span>
+                <strong>${this.escaparHtmlDestaque(item.titulo)}</strong>
+                <small>${this.escaparHtmlDestaque(item.descricao)}</small>
+            </button>
+        `).join('');
+    }
+
+    alternarSeguirUsuario(idUsuario) {
+        const id = Number(idUsuario);
+        if (this.usuariosSeguidos.has(id)) {
+            this.usuariosSeguidos.delete(id);
+        } else {
+            this.usuariosSeguidos.add(id);
+        }
+
+        this.renderizarSugestoesPessoas();
+    }
+
+    renderizarSugestoesPessoas() {
+        const container = document.getElementById('feed-sugestoes-pessoas');
+        if (!container) return;
+
+        const usuarioLogado = ApiService.getUsuarioLogado();
+        const usuarioAtualId = usuarioLogado ? (usuarioLogado.idUsuario || usuarioLogado.id) : null;
+        const interesses = this.getInteressesSelecionados();
+
+        const candidatos = this.listaUsuariosCompleta
+            .filter(usuario => {
+                const id = usuario.idUsuario || usuario.id;
+                if (!id || id === usuarioAtualId) return false;
+
+                const comunidades = this.listaComunidades.filter(comunidade =>
+                    (comunidade.membros || []).some(membro => (membro.idUsuario || membro.id) == id)
+                );
+                const eventos = this.listaEventos.filter(evento => evento.criadorId == id);
+                const textoPerfil = [
+                    usuario.nome,
+                    usuario.username,
+                    usuario.bio,
+                    ...comunidades.map(comunidade => `${comunidade.nome} ${comunidade.categoria || ''}`),
+                    ...eventos.map(evento => `${evento.titulo} ${evento.categoria || ''}`),
+                ].join(' ').toLowerCase();
+
+                let score = 0;
+                if (interesses.length) {
+                    interesses.forEach(interesse => {
+                        if (textoPerfil.includes(interesse.toLowerCase())) score += 2;
+                    });
+                }
+
+                score += comunidades.length;
+                score += eventos.length;
+                return score > 0;
+            })
+            .map(usuario => {
+                const id = usuario.idUsuario || usuario.id;
+                const comunidades = this.listaComunidades.filter(comunidade =>
+                    (comunidade.membros || []).some(membro => (membro.idUsuario || membro.id) == id)
+                );
+                const eventos = this.listaEventos.filter(evento => evento.criadorId == id);
+                const categorias = [...new Set([
+                    ...comunidades.map(comunidade => comunidade.categoria || 'Geral'),
+                    ...eventos.map(evento => evento.categoria || 'Geral')
+                ])];
+                let score = 0;
+                if (interesses.length) {
+                    const textoPerfil = `${usuario.nome} ${usuario.bio || ''} ${usuario.username || ''} ${categorias.join(' ')}`.toLowerCase();
+                    interesses.forEach(interesse => {
+                        if (textoPerfil.includes(interesse.toLowerCase())) score += 2;
+                    });
+                }
+                score += comunidades.length * 2;
+                score += eventos.length * 2;
+                return { usuario, score };
+            })
+            .sort((a, b) => b.score - a.score)
+            .slice(0, 4);
+
+        if (!candidatos.length) {
+            container.innerHTML = '<p class="feed-sidebar-empty">Ainda não há perfis parecidos para sugerir no momento.</p>';
+            return;
+        }
+
+        container.innerHTML = candidatos.map(({ usuario }) => {
+            const id = usuario.idUsuario || usuario.id;
+            const seguindo = this.usuariosSeguidos.has(Number(id));
+            return `
+                <div class="feed-pessoa-item">
+                    <div class="feed-pessoa-item-top">
+                        <div class="avatar avatar-small">${this.escaparHtmlDestaque((usuario.nome || 'U').charAt(0).toUpperCase())}</div>
+                        <div>
+                            <strong>${this.escaparHtmlDestaque(usuario.nome || 'Usuário')}</strong>
+                            <span>@${this.escaparHtmlDestaque(usuario.username || 'usuario')}</span>
+                        </div>
+                    </div>
+                    <p>${this.escaparHtmlDestaque((usuario.bio || 'Interessado em viver experiências incríveis.').slice(0, 72))}</p>
+                    <button class="feed-pessoa-btn ${seguindo ? 'seguindo' : ''}" onclick="app.alternarSeguirUsuario(${id})" type="button">${seguindo ? 'Seguindo' : 'Seguir'}</button>
+                </div>
+            `;
+        }).join('');
     }
 
     renderizarComunidades(comunidades) {
@@ -950,8 +1105,8 @@ class AppController {
         const container = document.getElementById('feed-eventos-destaque');
         if (!container) return;
         try {
-            const resultado = await ApiService.buscarEventos({ status: 'AGENDADO', page: 0, size: 3 });
-            const eventos = resultado.content || [];
+            const resultado = await ApiService.buscarEventos({ status: 'AGENDADO', page: 0, size: 6 });
+            const eventos = this.ordenarPorInteresses(resultado.content || []).slice(0, 3);
             container.innerHTML = eventos.length ? eventos.map(evento => `<button class="feed-evento-item" onclick="app.abrirDetalhesEvento(${evento.id})"><span>${evento.dataEvento ? evento.dataEvento.split('-').reverse().join('/') : '--'}</span><strong>${this.escaparHtmlDestaque(evento.titulo)}</strong><small>${this.escaparHtmlDestaque(evento.localEvento || 'Local a confirmar')}</small></button>`).join('') : '<p class="feed-sidebar-empty">Nenhum evento agendado.</p>';
         } catch (erro) {
             container.innerHTML = '<p class="feed-sidebar-empty">Agenda indisponível no momento.</p>';
@@ -1250,6 +1405,8 @@ ${ApiService.getIdUsuarioLogado() ? `
             eventos = this.ordenarPorInteresses(eventos);
             this.listaEventos = eventos;
             this.totalPaginasEventos = resultado.totalPages;
+            this.renderizarRecomendacoes();
+            this.renderizarSugestoesPessoas();
 
             this.renderizarEventoDestaque(eventos[0]);
 

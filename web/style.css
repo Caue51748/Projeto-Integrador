@@ -868,6 +868,22 @@ main {
 .comments-empty, .comments-login-note { color: var(--text-muted); font-size: 13px; }
 .feed-sidebar { position: sticky; top: 24px; padding: 20px; border: 1px solid var(--border-color); border-radius: 14px; background: rgba(255, 255, 255, .8); box-shadow: var(--shadow-soft); }
 .feed-sidebar-heading h2 { margin: 0 0 15px; font-size: 20px; }
+.feed-recomendados { display: grid; gap: 10px; }
+.feed-recomendado-item { display: block; width: 100%; padding: 12px 10px; border: 1px solid rgba(234, 63, 116, 0.12); border-radius: 10px; background: linear-gradient(135deg, rgba(234,63,116,0.04), rgba(249,172,198,0.08)); color: var(--text-main); cursor: pointer; text-align: left; transition: transform 0.2s ease, border-color 0.2s ease; }
+.feed-recomendado-item:hover { transform: translateY(-1px); border-color: rgba(234, 63, 116, 0.3); }
+.feed-recomendado-item span, .feed-recomendado-item strong, .feed-recomendado-item small { display: block; }
+.feed-recomendado-item span { margin-bottom: 5px; color: var(--primary-blue); font-size: 10px; font-weight: 800; }
+.feed-recomendado-item strong { font-size: 13px; }
+.feed-recomendado-item small { margin-top: 4px; color: var(--text-muted); font-size: 11px; }
+.feed-sugestoes-pessoas { display: grid; gap: 10px; }
+.feed-pessoa-item { display: block; width: 100%; padding: 12px 10px; border: 1px solid var(--border-color); border-radius: 10px; background: var(--card-bg); text-align: left; }
+.feed-pessoa-item-top { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.feed-pessoa-item-top strong { display: block; font-size: 13px; }
+.feed-pessoa-item-top span { color: var(--text-muted); font-size: 11px; }
+.feed-pessoa-item p { margin: 0 0 10px; color: var(--text-muted); font-size: 11px; line-height: 1.45; }
+.feed-pessoa-btn { width: 100%; border: 0; border-radius: 8px; padding: 8px 10px; background: var(--bg-light); color: var(--primary-blue); font-weight: 800; cursor: pointer; }
+.feed-pessoa-btn.seguindo { background: rgba(234, 63, 116, 0.1); color: var(--primary-blue); }
+.avatar-small { width: 32px; height: 32px; font-size: 12px; }
 .feed-evento-item { display: block; width: 100%; padding: 13px 0; border: 0; border-top: 1px solid var(--border-color); color: var(--text-main); background: transparent; cursor: pointer; text-align: left; }
 .feed-evento-item span, .feed-evento-item strong, .feed-evento-item small { display: block; }
 .feed-evento-item span { margin-bottom: 5px; color: var(--primary-blue); font-size: 10px; font-weight: 800; }

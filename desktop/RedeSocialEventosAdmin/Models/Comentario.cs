@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace RedeSocialEventosAdmin.Models
 {
-    internal class Comentario
-    {
-    }
+  internal class Comentario
+  {
+  }
 }
