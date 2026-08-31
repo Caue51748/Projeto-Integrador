@@ -662,6 +662,64 @@ class AppController {
         }
     }
 
+    renderizarRecomendacoes() {
+        const container = document.getElementById('feed-recomendados');
+        if (!container) return;
+
+        const interesses = this.getInteressesSelecionados();
+        if (!interesses.length) {
+            container.innerHTML = '<p class="feed-sidebar-empty">Escolha seus interesses no cadastro para receber sugestões personalizadas.</p>';
+            return;
+        }
+
+        const recomendados = [];
+
+        this.listaComunidades.forEach(comunidade => {
+            const score = this.getInteresseScore(comunidade, interesses);
+            if (score > 0) {
+                recomendados.push({
+                    tipo: 'comunidade',
+                    titulo: comunidade.nome,
+                    subtitulo: comunidade.categoria || 'Comunidade',
+                    score,
+                    id: comunidade.idComunidade || comunidade.id,
+                    descricao: comunidade.descricao || 'Comunidade com afinidade ao seu perfil.'
+                });
+            }
+        });
+
+        this.listaEventos.forEach(evento => {
+            const score = this.getInteresseScore(evento, interesses);
+            if (score > 0) {
+                recomendados.push({
+                    tipo: 'evento',
+                    titulo: evento.titulo,
+                    subtitulo: evento.categoria || 'Evento',
+                    score,
+                    id: evento.id,
+                    descricao: evento.localEvento || 'Evento com perfil parecido com você.'
+                });
+            }
+        });
+
+        recomendados.sort((a, b) => b.score - a.score);
+
+        const itens = recomendados.slice(0, 4);
+
+        if (!itens.length) {
+            container.innerHTML = '<p class="feed-sidebar-empty">Ainda não temos sugestões estreitas para seus interesses.</p>';
+            return;
+        }
+
+        container.innerHTML = itens.map(item => `
+            <button class="feed-recomendado-item" onclick="${item.tipo === 'evento' ? `app.abrirDetalhesEvento(${item.id})` : `app.entrarSubreddit(${item.id})`}" type="button">
+                <span>${this.escaparHtmlDestaque(item.subtitulo)}</span>
+                <strong>${this.escaparHtmlDestaque(item.titulo)}</strong>
+                <small>${this.escaparHtmlDestaque(item.descricao)}</small>
+            </button>
+        `).join('');
+    }
+
     renderizarComunidades(comunidades) {
         const container = document.getElementById('comunidades-container');
         if (!container) return;
@@ -950,8 +1008,8 @@ class AppController {
         const container = document.getElementById('feed-eventos-destaque');
         if (!container) return;
         try {
-            const resultado = await ApiService.buscarEventos({ status: 'AGENDADO', page: 0, size: 3 });
-            const eventos = resultado.content || [];
+            const resultado = await ApiService.buscarEventos({ status: 'AGENDADO', page: 0, size: 6 });
+            const eventos = this.ordenarPorInteresses(resultado.content || []).slice(0, 3);
             container.innerHTML = eventos.length ? eventos.map(evento => `<button class="feed-evento-item" onclick="app.abrirDetalhesEvento(${evento.id})"><span>${evento.dataEvento ? evento.dataEvento.split('-').reverse().join('/') : '--'}</span><strong>${this.escaparHtmlDestaque(evento.titulo)}</strong><small>${this.escaparHtmlDestaque(evento.localEvento || 'Local a confirmar')}</small></button>`).join('') : '<p class="feed-sidebar-empty">Nenhum evento agendado.</p>';
         } catch (erro) {
             container.innerHTML = '<p class="feed-sidebar-empty">Agenda indisponível no momento.</p>';
@@ -1250,6 +1308,7 @@ ${ApiService.getIdUsuarioLogado() ? `
             eventos = this.ordenarPorInteresses(eventos);
             this.listaEventos = eventos;
             this.totalPaginasEventos = resultado.totalPages;
+            this.renderizarRecomendacoes();
 
             this.renderizarEventoDestaque(eventos[0]);
 
