@@ -2872,6 +2872,69 @@ button:disabled {
     display: flex;
     flex-direction: column;
     gap: 8px;
+
+    background: #ffffff;
+}
+
+
+.chat-message-row {
+    width: 100%;
+    display: flex;
+}
+
+.chat-message-row.sent {
+    justify-content: flex-end;
+}
+
+.chat-message-row.received {
+    justify-content: flex-start;
+}
+
+.chat-message-bubble {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    max-width: 72%;
+
+    padding: 10px 14px;
+
+    border-radius: 18px;
+
+    font-size: 14px;
+    line-height: 1.35;
+
+    overflow-wrap: anywhere;
+    word-break: break-word;
+
+    margin: 0;
+}
+
+.chat-message-row.sent .chat-message-bubble {
+    background: var(--primary-blue);
+    color: #ffffff;
+
+    border-bottom-right-radius: 5px;
+}
+
+.chat-message-row.received .chat-message-bubble {
+    background: #f1f2f4;
+    color: var(--text-main);
+
+    border-bottom-left-radius: 5px;
+}
+
+.chat-message-author {
+    display: block;
+
+    font-size: 11px;
+    font-weight: 700;
+
+    opacity: 0.75;
+}
+
+.chat-message-content {
+    display: block;
 }
 
 .chat-message-form {
@@ -2980,8 +3043,25 @@ button:disabled {
         font-size: 12px;
     }
 
-    .chat-message {
+    .chat-message-row {
+        width: 100%;
+        display: flex;
+        margin-bottom: 8px;
+    }
+
+    .chat-message-row.sent {
+        justify-content: flex-end;
+    }
+
+    .chat-message-row.received {
+        justify-content: flex-start;
+    }
+
+    .chat-message-bubble {
         max-width: 75%;
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
 
         padding: 9px 13px;
         border-radius: 16px;
@@ -2992,22 +3072,30 @@ button:disabled {
         overflow-wrap: anywhere;
     }
 
-    .chat-message.sent {
-        align-self: flex-end;
-
+    .chat-message-row.sent .chat-message-bubble {
         background: var(--primary-blue);
         color: white;
 
         border-bottom-right-radius: 5px;
     }
 
-    .chat-message.received {
-        align-self: flex-start;
-
+    .chat-message-row.received .chat-message-bubble {
         background: var(--bg-light);
         color: var(--text-main);
 
+        border: 1px solid var(--border-color);
+
         border-bottom-left-radius: 5px;
+    }
+
+    .chat-message-author {
+        font-size: 11px;
+        font-weight: 700;
+        opacity: 0.75;
+    }
+
+    .chat-message-content {
+        display: block;
     }
 
     .btn-message-profile {

@@ -11,6 +11,9 @@ import com.backendpi.backend.model.Usuario;
 import com.backendpi.backend.repository.ConversaRepository;
 import com.backendpi.backend.repository.MensagemRepository;
 import com.backendpi.backend.repository.UsuarioRepository;
+import com.backendpi.backend.websocket.ChatWebSocketHandler;
+
+import tools.jackson.databind.ObjectMapper;
 
 @Service
 public class MensagemService {
@@ -18,15 +21,21 @@ public class MensagemService {
     private final MensagemRepository mensagemRepository;
     private final ConversaRepository conversaRepository;
     private final UsuarioRepository usuarioRepository;
+    private final ChatWebSocketHandler chatWebSocketHandler;
+    private final ObjectMapper objectMapper;
 
     public MensagemService(
             MensagemRepository mensagemRepository,
             ConversaRepository conversaRepository,
-            UsuarioRepository usuarioRepository
+            UsuarioRepository usuarioRepository,
+            ChatWebSocketHandler chatWebSocketHandler,
+            ObjectMapper objectMapper
     ) {
         this.mensagemRepository = mensagemRepository;
         this.conversaRepository = conversaRepository;
         this.usuarioRepository = usuarioRepository;
+        this.chatWebSocketHandler = chatWebSocketHandler;
+        this.objectMapper = objectMapper;
     }
 
     public MensagemDTO enviarMensagem(
@@ -79,7 +88,45 @@ public class MensagemService {
 
         mensagem = mensagemRepository.save(mensagem);
 
-        return new MensagemDTO(mensagem);
+        MensagemDTO mensagemDTO
+                = new MensagemDTO(mensagem);
+
+        Long idDestinatario;
+
+        if (conversa.getUsuario1()
+                .getIdUsuario()
+                .equals(idRemetente)) {
+            idDestinatario
+                    = conversa.getUsuario2()
+                            .getIdUsuario();
+        } else {
+            idDestinatario
+                    = conversa.getUsuario1()
+                            .getIdUsuario();
+        }
+
+        try {
+
+            String mensagemJson
+                    = objectMapper.writeValueAsString(
+                            mensagemDTO
+                    );
+
+            chatWebSocketHandler.enviarParaUsuario(
+                    idDestinatario,
+                    mensagemJson
+            );
+
+        } catch (Exception erro) {
+
+            System.err.println(
+                    "Erro ao enviar mensagem pelo WebSocket: "
+                    + erro.getMessage()
+            );
+
+        }
+
+        return mensagemDTO;
     }
 
     public List<MensagemDTO> listarMensagens(

@@ -37,9 +37,9 @@ class AppController {
         this.viewAntesDoPerfil = 'feed';
         this.visaoEventos = 'descobrir';
         this.agendaIniciadaNaEntrada = false;
-
         this.listaConversas = [];
         this.conversaAtiva = null;
+        this.chatSocket = null;
     }
     async inicializar() {
 
@@ -93,6 +93,7 @@ class AppController {
 
             // PRIMEIRO mostra o sistema
             this.esconderTelaBoasVindas();
+            this.conectarWebSocketChat();
 
             // A agenda é a tela principal e não deve esperar o carregamento do feed.
             this.agendaIniciadaNaEntrada = true;
@@ -628,6 +629,7 @@ class AppController {
         this.atualizarMenuLateral();
         this.carregarDadosGlobais();
         this.carregarConversas();
+        this.conectarWebSocketChat();
     }
 
     fazerLogout() {
@@ -3745,33 +3747,66 @@ ${ApiService.getIdUsuarioLogado() ? `
             ApiService.getIdUsuarioLogado();
 
         if (mensagens.length === 0) {
-            container.innerHTML = `
-            <p class="chat-empty">
+            container.innerHTML =
+                `<p class="chat-empty">
                 Nenhuma mensagem ainda.
-            </p>
-        `;
+            </p>`;
+
             return;
         }
 
         container.innerHTML = '';
 
         mensagens.forEach(mensagem => {
-            const elemento =
-                document.createElement('div');
 
             const enviadaPorMim =
                 String(mensagem.idRemetente) ===
                 String(idUsuario);
 
-            elemento.className =
-                enviadaPorMim
-                    ? 'chat-message sent'
-                    : 'chat-message received';
+            const linha =
+                document.createElement('div');
 
-            elemento.textContent =
+            linha.className =
+                enviadaPorMim
+                    ? 'chat-message-row sent'
+                    : 'chat-message-row received';
+
+
+            const bolha =
+                document.createElement('div');
+
+            bolha.className =
+                'chat-message-bubble';
+
+
+            const autor =
+                document.createElement('span');
+
+            autor.className =
+                'chat-message-author';
+
+            autor.textContent =
+                enviadaPorMim
+                    ? 'Você'
+                    : mensagem.nomeRemetente || 'Usuário';
+
+
+            const conteudo =
+                document.createElement('span');
+
+            conteudo.className =
+                'chat-message-content';
+
+            conteudo.textContent =
                 mensagem.conteudo;
 
-            container.appendChild(elemento);
+
+            bolha.appendChild(autor);
+            bolha.appendChild(conteudo);
+
+            linha.appendChild(bolha);
+
+            container.appendChild(linha);
         });
 
         container.scrollTop =
@@ -3871,6 +3906,121 @@ ${ApiService.getIdUsuarioLogado() ? `
                 'Não foi possível iniciar a conversa.'
             );
         }
+    }
+
+    conectarWebSocketChat() {
+
+        const idUsuario =
+            ApiService.getIdUsuarioLogado();
+
+        if (!idUsuario) {
+            return;
+        }
+
+        if (
+            this.chatSocket &&
+            this.chatSocket.readyState === WebSocket.OPEN
+        ) {
+            return;
+        }
+
+        const url =
+            `ws://localhost:8080/ws/chat?usuarioId=${idUsuario}`;
+
+        this.chatSocket =
+            new WebSocket(url);
+
+
+        this.chatSocket.addEventListener(
+            'open',
+            () => {
+                console.log(
+                    'CHAT WS: conectado'
+                );
+            }
+        );
+
+        this.chatSocket.addEventListener(
+            'message',
+            (event) => {
+
+                try {
+
+                    const mensagem =
+                        JSON.parse(event.data);
+
+                    console.log(
+                        'CHAT WS: mensagem recebida',
+                        mensagem
+                    );
+
+                    this.receberMensagemWebSocket(
+                        mensagem
+                    );
+
+                } catch (erro) {
+
+                    console.error(
+                        'CHAT WS: erro ao processar mensagem',
+                        erro
+                    );
+
+                }
+
+            }
+        );
+
+
+        this.chatSocket.addEventListener(
+            'close',
+            () => {
+                console.log(
+                    'CHAT WS: desconectado'
+                );
+            }
+        );
+
+
+        this.chatSocket.addEventListener(
+            'error',
+            (erro) => {
+                console.error(
+                    'CHAT WS: erro',
+                    erro
+                );
+            }
+        );
+    }
+
+    async receberMensagemWebSocket(mensagem) {
+
+        if (!mensagem) {
+            return;
+        }
+
+        /*
+         * Atualiza a lista lateral.
+         * Por enquanto é simples e seguro.
+         */
+        await this.carregarConversas();
+
+
+        /*
+         * Se a conversa recebida estiver aberta,
+         * recarrega o histórico imediatamente.
+         */
+        if (
+            this.conversaAtiva &&
+            String(this.conversaAtiva.idConversa) ===
+            String(mensagem.idConversa)
+        ) {
+
+            await this.carregarMensagens(
+                mensagem.idConversa
+            );
+
+        }
+
     }
 }
 
