@@ -37,6 +37,10 @@ class AppController {
         this.viewAntesDoPerfil = 'feed';
         this.visaoEventos = 'descobrir';
         this.agendaIniciadaNaEntrada = false;
+        this.listaConversas = [];
+        this.conversaAtiva = null;
+        this.chatSocket = null;
+        this.chatSidebarAberto = true;
     }
     async inicializar() {
 
@@ -55,6 +59,46 @@ class AppController {
             }
         });
 
+        const chatForm =
+            document.getElementById('chat-message-form');
+
+        if (chatForm) {
+            chatForm.addEventListener(
+                'submit',
+                (event) => this.enviarMensagemChat(event)
+            );
+        }
+
+        const chatCloseBtn =
+            document.getElementById('chat-close-btn');
+
+        if (chatCloseBtn) {
+            chatCloseBtn.addEventListener(
+                'click',
+                () => this.fecharConversa()
+            );
+        }
+
+        const chatToggleBtn =
+            document.getElementById('chat-toggle-btn');
+
+        if (chatToggleBtn) {
+            chatToggleBtn.addEventListener(
+                'click',
+                () => this.alternarChatSidebar()
+            );
+        }
+
+        const chatSearchInput =
+            document.getElementById('chat-search-input');
+
+        if (chatSearchInput) {
+            chatSearchInput.addEventListener(
+                'input',
+                (event) => this.filtrarConversas(event.target.value)
+            );
+        }
+
         const usuarioLogado =
             ApiService.getUsuarioLogado();
 
@@ -69,6 +113,7 @@ class AppController {
 
             // PRIMEIRO mostra o sistema
             this.esconderTelaBoasVindas();
+            this.conectarWebSocketChat();
 
             // A agenda é a tela principal e não deve esperar o carregamento do feed.
             this.agendaIniciadaNaEntrada = true;
@@ -77,6 +122,7 @@ class AppController {
             // DEPOIS carrega os dados
             try {
                 await this.carregarDadosGlobais();
+                await this.carregarConversas();
             } catch (erro) {
                 console.error(
                     "Erro ao carregar dados iniciais:",
@@ -87,7 +133,50 @@ class AppController {
             return;
         }
 
+
         this.mostrarTelaBoasVindas();
+    }
+
+    fecharConversa() {
+        const janela =
+            document.getElementById('chat-window');
+
+        if (janela) {
+            janela.classList.remove('active');
+        }
+
+        this.conversaAtiva = null;
+    }
+
+    alternarChatSidebar() {
+        const sidebar = document.getElementById('chat-sidebar');
+        const toggleBtn = document.getElementById('chat-toggle-btn');
+
+        if (!sidebar || !toggleBtn) {
+            return;
+        }
+
+        this.chatSidebarAberto = !this.chatSidebarAberto;
+        sidebar.classList.toggle('collapsed', !this.chatSidebarAberto);
+        toggleBtn.textContent = this.chatSidebarAberto ? '‹' : '›';
+        toggleBtn.setAttribute('title', this.chatSidebarAberto ? 'Recolher mensagens' : 'Expandir mensagens');
+    }
+
+    filtrarConversas(termoBusca = '') {
+        const container = document.getElementById('chat-conversations');
+
+        if (!container) {
+            return;
+        }
+
+        const texto = termoBusca.trim().toLowerCase();
+        const conversasFiltradas = this.listaConversas.filter((conversa) => {
+            const nome = (conversa.nomeOutroUsuario || '').toLowerCase();
+            const username = (conversa.usernameOutroUsuario || '').toLowerCase();
+            return nome.includes(texto) || username.includes(texto);
+        });
+
+        this.renderizarConversas(conversasFiltradas, texto);
     }
 
     // --- MENU E NAVEGAÇÃO ---
@@ -210,6 +299,7 @@ class AppController {
     getInteressesSelecionados() {
         const usuarioLogado = ApiService.getUsuarioLogado();
         if (usuarioLogado && Array.isArray(usuarioLogado.interesses) && usuarioLogado.interesses.length) {
+            this.carregarConversas();
             return usuarioLogado.interesses;
         }
 
@@ -589,6 +679,8 @@ class AppController {
         this.esconderTelaBoasVindas();
         this.atualizarMenuLateral();
         this.carregarDadosGlobais();
+        this.carregarConversas();
+        this.conectarWebSocketChat();
     }
 
     fazerLogout() {
@@ -833,26 +925,26 @@ class AppController {
         }, {});
         container.innerHTML = '';
         comunidadesOrdenadas.forEach(c => {
-                const idCom = c.idComunidade || c.id;
-                const div = document.createElement('div');
-                div.className = 'comunidade-card';
+            const idCom = c.idComunidade || c.id;
+            const div = document.createElement('div');
+            div.className = 'comunidade-card';
 
-                const idUsuarioLogado = ApiService.getIdUsuarioLogado();
+            const idUsuarioLogado = ApiService.getIdUsuarioLogado();
 
-                const ehAdministrador =
-                    c.criador &&
-                    (c.criador.idUsuario || c.criador.id) == idUsuarioLogado;
+            const ehAdministrador =
+                c.criador &&
+                (c.criador.idUsuario || c.criador.id) == idUsuarioLogado;
 
-                div.style.setProperty('--community-color', c.cor || '#EA3F74');
-                const imagemComunidade = c.imagemComunidade ? `style="background-image:url('${this.urlCapaEvento(c.imagemComunidade)}')"` : '';
-                div.innerHTML = `<div class="comunidade-card-top"><div class="comunidade-mark ${c.imagemComunidade ? 'has-image' : ''}" ${imagemComunidade}>${!c.imagemComunidade ? this.escaparHtmlDestaque((c.nome || 'C').charAt(0).toUpperCase()) : ''}</div><span>${this.escaparHtmlDestaque(c.categoria || 'Comunidade')}</span></div><h2>${this.escaparHtmlDestaque(c.nome)}</h2><p>${this.escaparHtmlDestaque(c.descricao || 'Uma comunidade para trocar ideias e viver experiências.')}</p><div class="comunidade-stats"><span>👥 ${c.membros ? c.membros.length : 0} membros</span><span>🎟 ${eventosPorComunidade[idCom] || 0} eventos</span></div><div class="comunidade-card-footer"><span>Por ${this.escaparHtmlDestaque(c.criador?.nome || 'Administrador')}</span><button class="btn-primary" onclick="app.entrarSubreddit(${idCom})">Acessar</button>${ehAdministrador ? `<button class="btn-compact" onclick="app.gerenciarComunidade(${idCom})">Gerenciar</button>` : ''}</div>`;
+            div.style.setProperty('--community-color', c.cor || '#EA3F74');
+            const imagemComunidade = c.imagemComunidade ? `style="background-image:url('${this.urlCapaEvento(c.imagemComunidade)}')"` : '';
+            div.innerHTML = `<div class="comunidade-card-top"><div class="comunidade-mark ${c.imagemComunidade ? 'has-image' : ''}" ${imagemComunidade}>${!c.imagemComunidade ? this.escaparHtmlDestaque((c.nome || 'C').charAt(0).toUpperCase()) : ''}</div><span>${this.escaparHtmlDestaque(c.categoria || 'Comunidade')}</span></div><h2>${this.escaparHtmlDestaque(c.nome)}</h2><p>${this.escaparHtmlDestaque(c.descricao || 'Uma comunidade para trocar ideias e viver experiências.')}</p><div class="comunidade-stats"><span>👥 ${c.membros ? c.membros.length : 0} membros</span><span>🎟 ${eventosPorComunidade[idCom] || 0} eventos</span></div><div class="comunidade-card-footer"><span>Por ${this.escaparHtmlDestaque(c.criador?.nome || 'Administrador')}</span><button class="btn-primary" onclick="app.entrarSubreddit(${idCom})">Acessar</button>${ehAdministrador ? `<button class="btn-compact" onclick="app.gerenciarComunidade(${idCom})">Gerenciar</button>` : ''}</div>`;
 
-                div.addEventListener('click', evento => {
-                    if (!evento.target.closest('button')) this.entrarSubreddit(idCom);
-                });
-
-                container.appendChild(div);
+            div.addEventListener('click', evento => {
+                if (!evento.target.closest('button')) this.entrarSubreddit(idCom);
             });
+
+            container.appendChild(div);
+        });
     }
 
     filtrarComunidades() {
@@ -1437,59 +1529,59 @@ ${ApiService.getIdUsuarioLogado() ? `
 
                 for (const evento of eventosDoDia) {
 
-                const div = document.createElement('div');
-                div.className = 'evento-card';
+                    const div = document.createElement('div');
+                    div.className = 'evento-card';
 
-                const statusDetalhes =
-                    evento.situacaoTemporal ||
-                    evento.status ||
-                    'AGENDADO';
+                    const statusDetalhes =
+                        evento.situacaoTemporal ||
+                        evento.status ||
+                        'AGENDADO';
 
-                const statusDetalhesExibido =
-                    statusDetalhes === 'ACONTECENDO_AGORA'
-                        ? 'ACONTECENDO AGORA'
-                        : statusDetalhes;
-                const eventoCancelado = statusDetalhes === 'CANCELADO';
+                    const statusDetalhesExibido =
+                        statusDetalhes === 'ACONTECENDO_AGORA'
+                            ? 'ACONTECENDO AGORA'
+                            : statusDetalhes;
+                    const eventoCancelado = statusDetalhes === 'CANCELADO';
 
-                const statusExibido =
-                    statusDetalhes === 'ACONTECENDO_AGORA'
-                        ? 'ACONTECENDO AGORA'
-                        : statusDetalhes;
+                    const statusExibido =
+                        statusDetalhes === 'ACONTECENDO_AGORA'
+                            ? 'ACONTECENDO AGORA'
+                            : statusDetalhes;
 
-                const dataFormatada = evento.dataEvento
-                    ? evento.dataEvento.split('-').reverse().join('/')
-                    : '';
+                    const dataFormatada = evento.dataEvento
+                        ? evento.dataEvento.split('-').reverse().join('/')
+                        : '';
 
-                const horarioInicioFormatado = evento.horarioInicio
-                    ? evento.horarioInicio.substring(0, 5)
-                    : '';
+                    const horarioInicioFormatado = evento.horarioInicio
+                        ? evento.horarioInicio.substring(0, 5)
+                        : '';
 
-                const horarioFimFormatado = evento.horarioFim
-                    ? evento.horarioFim.substring(0, 5)
-                    : '';
+                    const horarioFimFormatado = evento.horarioFim
+                        ? evento.horarioFim.substring(0, 5)
+                        : '';
 
-                const nomeCriador =
-                    this.usuariosMap[evento.criadorId] || 'Desconhecido';
+                    const nomeCriador =
+                        this.usuariosMap[evento.criadorId] || 'Desconhecido';
 
-                const nomeComunidade = evento.comunidadeId
-                    ? this.comunidadesMap[evento.comunidadeId] || 'Desconhecida'
-                    : null;
+                    const nomeComunidade = evento.comunidadeId
+                        ? this.comunidadesMap[evento.comunidadeId] || 'Desconhecida'
+                        : null;
 
-                const vagas = evento.limiteParticipantes
-                    ? `${evento.limiteParticipantes} vagas`
-                    : 'Sem limite de vagas';
+                    const vagas = evento.limiteParticipantes
+                        ? `${evento.limiteParticipantes} vagas`
+                        : 'Sem limite de vagas';
 
-                const usaCheckin = evento.exigeCheckin
-                    ? 'Sim'
-                    : 'Não';
+                    const usaCheckin = evento.exigeCheckin
+                        ? 'Sim'
+                        : 'Não';
 
-                const quantidadeParticipantes =
-                    evento.quantidadeParticipantes || 0;
-                const eventoLotado = evento.limiteParticipantes && quantidadeParticipantes >= evento.limiteParticipantes;
-                const idUsuario = ApiService.getIdUsuarioLogado();
-                const ehCriador = idUsuario && idUsuario == evento.criadorId;
-                const acao = ehCriador ? 'Organizador' : eventoLotado ? 'Evento lotado' : idUsuario ? 'Ver detalhes' : 'Entrar para participar';
-                div.innerHTML = `
+                    const quantidadeParticipantes =
+                        evento.quantidadeParticipantes || 0;
+                    const eventoLotado = evento.limiteParticipantes && quantidadeParticipantes >= evento.limiteParticipantes;
+                    const idUsuario = ApiService.getIdUsuarioLogado();
+                    const ehCriador = idUsuario && idUsuario == evento.criadorId;
+                    const acao = ehCriador ? 'Organizador' : eventoLotado ? 'Evento lotado' : idUsuario ? 'Ver detalhes' : 'Entrar para participar';
+                    div.innerHTML = `
                     <div class="evento-card-capa ${evento.imagemCapa ? '' : 'evento-card-capa-vazia'}" ${evento.imagemCapa ? `style="background-image:url('${this.urlCapaEvento(evento.imagemCapa)}')"` : ''}>
                         ${!evento.imagemCapa ? '<i class="material-icons">event</i>' : ''}
                         <span>${evento.categoria || 'Comunidade'}</span>
@@ -1502,7 +1594,7 @@ ${ApiService.getIdUsuarioLogado() ? `
                         <button class="btn-primary evento-card-action" onclick="app.abrirDetalhesEvento(${evento.id})">${acao}</button>
                     </div>
                 `;
-                grade.appendChild(div);
+                    grade.appendChild(div);
                 }
             }
 
@@ -2932,17 +3024,19 @@ ${ApiService.getIdUsuarioLogado() ? `
 
         </div>
 
-        ${ehProprioPerfil
-                    ? `
-                    <button
-                        class="btn-primary"
-                        style="margin-top:20px;"
-                        onclick="app.abrirEdicaoPerfil()">
-                        Editar perfil
-                    </button>
-                `
-                    : ''
-                }
+       ${ehProprioPerfil ? `
+    <button onclick="app.abrirEdicaoPerfil()">
+        Editar perfil
+    </button>
+` : idLogado ? `
+    <button
+        type="button"
+        class="btn-message-profile"
+        onclick="app.iniciarConversa(${idUsuario})"
+    >
+        Mensagem
+    </button>
+` : ''}
 
     </div>
 
@@ -3543,6 +3637,459 @@ ${ApiService.getIdUsuarioLogado() ? `
 
     getViewSalva() {
         return localStorage.getItem('viewAtual') || 'feed';
+    }
+
+    async carregarConversas() {
+        const idUsuario = ApiService.getIdUsuarioLogado();
+
+        if (!idUsuario) {
+            this.listaConversas = [];
+            this.renderizarConversas();
+            return;
+        }
+
+        try {
+            this.listaConversas =
+                await ApiService.listarConversasDoUsuario(idUsuario);
+
+            this.renderizarConversas();
+
+        } catch (erro) {
+            console.error('Erro ao carregar conversas:', erro);
+        }
+    }
+
+    renderizarConversas(conversas = this.listaConversas, termoBusca = '') {
+        const container =
+            document.getElementById('chat-conversations');
+
+        if (!container) {
+            return;
+        }
+
+        if (conversas.length === 0) {
+            const mensagemVazia = termoBusca
+                ? 'Nenhuma conversa encontrada.'
+                : 'Nenhuma conversa ainda.';
+
+            container.innerHTML = `
+            <p class="chat-empty">
+                ${mensagemVazia}
+            </p>
+        `;
+            return;
+        }
+
+        container.innerHTML = '';
+
+        conversas.forEach(conversa => {
+            const item = document.createElement('div');
+
+            item.className = 'chat-conversation-item';
+
+            if (this.conversaAtiva && String(conversa.idConversa) === String(this.conversaAtiva.idConversa)) {
+                item.classList.add('active');
+            }
+
+            const nome =
+                conversa.nomeOutroUsuario || 'Usuário';
+
+            const username =
+                conversa.usernameOutroUsuario
+                    ? `@${conversa.usernameOutroUsuario}`
+                    : '';
+
+            const inicial =
+                nome.charAt(0).toUpperCase();
+
+            item.innerHTML = `
+            <div class="chat-conversation-avatar">
+                ${inicial}
+            </div>
+
+            <div class="chat-conversation-info">
+                <strong>${nome}</strong>
+                <span>${username}</span>
+            </div>
+        `;
+
+            item.addEventListener('click', () => {
+                this.abrirConversa(conversa);
+            });
+
+            container.appendChild(item);
+        });
+    }
+
+    async abrirConversa(conversa) {
+        this.conversaAtiva = conversa;
+
+        const janela =
+            document.getElementById('chat-window');
+
+        const nome =
+            document.getElementById('chat-user-name');
+
+        const username =
+            document.getElementById('chat-user-username');
+
+        const avatar =
+            document.getElementById('chat-user-avatar');
+
+        const status =
+            document.getElementById('chat-user-status');
+
+        if (!janela) {
+            return;
+        }
+
+        const nomeExibicao =
+            conversa.nomeOutroUsuario || 'Usuário';
+
+        nome.textContent = nomeExibicao;
+
+        username.textContent =
+            conversa.usernameOutroUsuario
+                ? `@${conversa.usernameOutroUsuario}`
+                : 'Usuário';
+
+        status.textContent = 'online';
+        status.classList.add('active');
+
+        avatar.textContent =
+            nomeExibicao
+                .charAt(0)
+                .toUpperCase();
+
+        janela.classList.add('active');
+
+        await this.carregarMensagens(
+            conversa.idConversa
+        );
+    }
+
+    async carregarMensagens(idConversa) {
+        const container =
+            document.getElementById('chat-messages');
+
+        if (!container) {
+            return;
+        }
+
+        container.innerHTML = `
+        <p class="chat-empty">
+            Carregando...
+        </p>
+    `;
+
+        try {
+            const mensagens =
+                await ApiService.listarMensagens(idConversa);
+
+            this.renderizarMensagens(mensagens);
+
+        } catch (erro) {
+            console.error(
+                'Erro ao carregar mensagens:',
+                erro
+            );
+
+            container.innerHTML = `
+            <p class="chat-empty">
+                Não foi possível carregar as mensagens.
+            </p>
+        `;
+        }
+    }
+
+    renderizarMensagens(mensagens) {
+        const container =
+            document.getElementById('chat-messages');
+
+        if (!container) {
+            return;
+        }
+
+        const idUsuario =
+            ApiService.getIdUsuarioLogado();
+
+        if (mensagens.length === 0) {
+            container.innerHTML =
+                `<p class="chat-empty">
+                Nenhuma mensagem ainda.
+            </p>`;
+
+            return;
+        }
+
+        container.innerHTML = '';
+
+        mensagens.forEach(mensagem => {
+
+            const enviadaPorMim =
+                String(mensagem.idRemetente) ===
+                String(idUsuario);
+
+            const linha =
+                document.createElement('div');
+
+            linha.className =
+                enviadaPorMim
+                    ? 'chat-message-row sent'
+                    : 'chat-message-row received';
+
+
+            const bolha =
+                document.createElement('div');
+
+            bolha.className =
+                'chat-message-bubble';
+
+
+            const autor =
+                document.createElement('span');
+
+            autor.className =
+                'chat-message-author';
+
+            autor.textContent =
+                enviadaPorMim
+                    ? 'Você'
+                    : mensagem.nomeRemetente || 'Usuário';
+
+
+            const conteudo =
+                document.createElement('span');
+
+            conteudo.className =
+                'chat-message-content';
+
+            conteudo.textContent =
+                mensagem.conteudo;
+
+
+            bolha.appendChild(autor);
+            bolha.appendChild(conteudo);
+
+            linha.appendChild(bolha);
+
+            container.appendChild(linha);
+        });
+
+        container.scrollTop =
+            container.scrollHeight;
+    }
+
+    async enviarMensagemChat(event) {
+        event.preventDefault();
+
+        if (!this.conversaAtiva) {
+            return;
+        }
+
+        const form = document.getElementById('chat-message-form');
+        const input = document.getElementById('chat-message-input');
+        const botaoEnviar = form?.querySelector('button[type="submit"]');
+
+        if (!input || !form) {
+            return;
+        }
+
+        const conteudo = input.value.trim();
+
+        if (!conteudo) {
+            return;
+        }
+
+        const idUsuario = ApiService.getIdUsuarioLogado();
+
+        form.classList.add('sending');
+        input.disabled = true;
+        botaoEnviar.disabled = true;
+        botaoEnviar.textContent = 'Enviando...';
+
+        try {
+            await ApiService.enviarMensagem(
+                this.conversaAtiva.idConversa,
+                idUsuario,
+                conteudo
+            );
+
+            input.value = '';
+            await this.carregarMensagens(this.conversaAtiva.idConversa);
+            input.focus();
+
+        } catch (erro) {
+            console.error(
+                'Erro ao enviar mensagem:',
+                erro
+            );
+
+            alert(
+                erro.message ||
+                'Não foi possível enviar a mensagem.'
+            );
+        } finally {
+            form.classList.remove('sending');
+            input.disabled = false;
+            botaoEnviar.disabled = false;
+            botaoEnviar.textContent = 'Enviar';
+            input.focus();
+        }
+    }
+
+    async iniciarConversa(idOutroUsuario) {
+        const idUsuario =
+            ApiService.getIdUsuarioLogado();
+
+        if (!idUsuario) {
+            alert('Você precisa estar logado para enviar mensagens.');
+            return;
+        }
+
+        if (String(idUsuario) === String(idOutroUsuario)) {
+            return;
+        }
+
+        try {
+            const conversa =
+                await ApiService.criarOuBuscarConversa(
+                    idUsuario,
+                    idOutroUsuario
+                );
+
+            // Atualiza a lista da lateral
+            await this.carregarConversas();
+
+            // Abre imediatamente a conversa criada/encontrada
+            await this.abrirConversa(conversa);
+
+        } catch (erro) {
+            console.error(
+                'Erro ao iniciar conversa:',
+                erro
+            );
+
+            alert(
+                erro.message ||
+                'Não foi possível iniciar a conversa.'
+            );
+        }
+    }
+
+    conectarWebSocketChat() {
+
+        const idUsuario =
+            ApiService.getIdUsuarioLogado();
+
+        if (!idUsuario) {
+            return;
+        }
+
+        if (
+            this.chatSocket &&
+            this.chatSocket.readyState === WebSocket.OPEN
+        ) {
+            return;
+        }
+
+        const url =
+            `ws://localhost:8080/ws/chat?usuarioId=${idUsuario}`;
+
+        this.chatSocket =
+            new WebSocket(url);
+
+
+        this.chatSocket.addEventListener(
+            'open',
+            () => {
+                console.log(
+                    'CHAT WS: conectado'
+                );
+            }
+        );
+
+        this.chatSocket.addEventListener(
+            'message',
+            (event) => {
+
+                try {
+
+                    const mensagem =
+                        JSON.parse(event.data);
+
+                    console.log(
+                        'CHAT WS: mensagem recebida',
+                        mensagem
+                    );
+
+                    this.receberMensagemWebSocket(
+                        mensagem
+                    );
+
+                } catch (erro) {
+
+                    console.error(
+                        'CHAT WS: erro ao processar mensagem',
+                        erro
+                    );
+
+                }
+
+            }
+        );
+
+
+        this.chatSocket.addEventListener(
+            'close',
+            () => {
+                console.log(
+                    'CHAT WS: desconectado'
+                );
+            }
+        );
+
+
+        this.chatSocket.addEventListener(
+            'error',
+            (erro) => {
+                console.error(
+                    'CHAT WS: erro',
+                    erro
+                );
+            }
+        );
+    }
+
+    async receberMensagemWebSocket(mensagem) {
+
+        if (!mensagem) {
+            return;
+        }
+
+        /*
+         * Atualiza a lista lateral.
+         * Por enquanto é simples e seguro.
+         */
+        await this.carregarConversas();
+
+
+        /*
+         * Se a conversa recebida estiver aberta,
+         * recarrega o histórico imediatamente.
+         */
+        if (
+            this.conversaAtiva &&
+            String(this.conversaAtiva.idConversa) ===
+            String(mensagem.idConversa)
+        ) {
+
+            await this.carregarMensagens(
+                mensagem.idConversa
+            );
+
+        }
+
     }
 }
 
