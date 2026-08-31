@@ -5,49 +5,51 @@ using RedeSocialEventosAdmin.Models;
 
 namespace RedeSocialEventosAdmin.Forms
 {
-    public partial class FrmDashboard : Form
+  public partial class FrmDashboard : Form
+  {
+    private readonly DashboardDAO _dashboardDAO;
+
+    public FrmDashboard()
     {
-        private readonly DashboardDAO _dashboardDAO;
-
-        public FrmDashboard()
-        {
-            InitializeComponent();
-            _dashboardDAO = new DashboardDAO();
-        }
-
-        private void FrmDashboard_Load(object sender, EventArgs e)
-        {
-            CarregarEstatisticasCards();
-            CarregarUltimosUsuariosGrid();
-        }
-
-        private void CarregarEstatisticasCards()
-        {
-            try
-            {
-                DashboardStats stats = _dashboardDAO.ObterEstatisticasGerais();
-
-                lblTotalUsuarios.Text = stats.TotalUsuarios.ToString("N0");
-                lblUsuariosHoje.Text = stats.UsuariosHoje.ToString("N0");
-                lblTotalPosts.Text = stats.TotalPosts.ToString("N0");
-                lblTotalComentarios.Text = stats.TotalComentarios.ToString("N0");
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Falha ao carregar cards métricos: {ex.Message}", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            }
-        }
-
-        private void CarregarUltimosUsuariosGrid()
-        {
-            try
-            {
-                dgvUltimosUsuarios.DataSource = _dashboardDAO.ObterUltimosUsuarios(7);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Falha ao carregar listagem recente: {ex.Message}", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            }
-        }
+      InitializeComponent();
+      _dashboardDAO = new DashboardDAO();
     }
+
+    private void FrmDashboard_Load(object sender, EventArgs e)
+    {
+      CarregarDashboard();
+    }
+
+    private void CarregarDashboard()
+    {
+      try
+      {
+        DashboardStats stats = _dashboardDAO.ObterEstatisticasGerais();
+
+        lblTotalUsuarios.Text = stats.TotalUsuarios.ToString("N0");
+        lblUsuariosSub.Text = $"+{stats.UsuariosHoje} hoje | {stats.TotalAdmins} admins";
+
+        lblTotalEventos.Text = stats.TotalEventos.ToString("N0");
+        lblEventosSub.Text = $"{stats.EventosAgendados} agendados | {stats.TotalInscricoesEventos} inscrições";
+
+        lblTotalComunidades.Text = stats.TotalComunidades.ToString("N0");
+        lblComunidadesSub.Text = "Grupos e canais ativos";
+
+        lblTotalPosts.Text = stats.TotalPosts.ToString("N0");
+        lblConteudoSub.Text = $"{stats.TotalComentarios} comentários";
+
+        dgvProximosEventos.DataSource = _dashboardDAO.ObterProximosEventos(7);
+        dgvUltimosUsuarios.DataSource = _dashboardDAO.ObterUltimosUsuarios(7);
+      }
+      catch (Exception ex)
+      {
+        MessageBox.Show($"Falha ao carregar métricas do dashboard: {ex.Message}", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+      }
+    }
+
+    private void btnRefresh_Click(object sender, EventArgs e)
+    {
+      CarregarDashboard();
+    }
+  }
 }

@@ -1,24 +1,36 @@
-using System;
+ï»¿using System;
 using System.Windows.Forms;
 using RedeSocialEventosAdmin.Forms;
+using RedeSocialEventosAdmin.Models;
 
 namespace RedeSocialEventosAdmin
 {
-    static class Program
+  public static class Program
+  {
+    /// <summary>
+    /// UsuÃ¡rio administrador autenticado na sessÃ£o do painel.
+    /// </summary>
+    public static Usuario? UsuarioLogado { get; set; }
+
+    public static string EmailUsuarioLogado
     {
-        /// <summary>
-        /// Guarda de forma global na memória RAM da aplicação a identidade do usuário autenticado no banco.
-        /// </summary>
-        public static string EmailUsuarioLogado { get; set; }
-
-        [STAThread]
-        static void Main()
-        {
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-
-            // Inicializa a esteira de execução chamando a janela moderna de login
-            Application.Run(new FrmLogin());
-        }
+      get => UsuarioLogado?.Email ?? string.Empty;
+      set
+      {
+        if (UsuarioLogado == null)
+          UsuarioLogado = new Usuario { Email = value };
+        else
+          UsuarioLogado.Email = value;
+      }
     }
+
+    [STAThread]
+    static void Main()
+    {
+      Application.EnableVisualStyles();
+      Application.SetCompatibleTextRenderingDefault(false);
+
+      Application.Run(new FrmLogin());
+    }
+  }
 }
