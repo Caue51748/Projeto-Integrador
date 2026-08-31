@@ -2,12 +2,18 @@
 package com.backendpi.backend.model;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
+import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Table;
 
 @Entity
@@ -40,6 +46,14 @@ public class Usuario {
 
     @Column(name = "foto_perfil")
     private String fotoPerfil;
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(
+        name = "usuario_interesses",
+        joinColumns = @JoinColumn(name = "usuario_id")
+    )
+    @Column(name = "interesse")
+    private List<String> interesses = new ArrayList<>();
 
     public Long getIdUsuario() {
         return idUsuario;
@@ -119,5 +133,13 @@ public class Usuario {
 
     public void setFotoPerfil(String fotoPerfil) {
         this.fotoPerfil = fotoPerfil;
+    }
+
+    public List<String> getInteresses() {
+        return interesses;
+    }
+
+    public void setInteresses(List<String> interesses) {
+        this.interesses = interesses == null ? new ArrayList<>() : interesses;
     }
 }

@@ -14,6 +14,8 @@ class Evento {
   final String? encerramentoInscricoes;
   final String? situacaoTemporal;
   final bool? publico;
+  final String? categoria;
+  final String? imagemCapa;
 
   Evento({
     required this.id,
@@ -31,25 +33,30 @@ class Evento {
     this.encerramentoInscricoes,
     this.situacaoTemporal,
     this.publico,
+    this.categoria,
+    this.imagemCapa,
   });
 
   factory Evento.fromJson(Map<String, dynamic> json) {
+    final parsedId = (json['id'] ?? json['idEvento'] ?? json['id_evento'] as num?)?.toInt() ?? 0;
     return Evento(
-      id: json['id'] ?? 0,
+      id: parsedId,
       titulo: json['titulo'] ?? '',
       descricao: json['descricao'],
       dataEvento: json['dataEvento'] ?? '',
       horarioInicio: json['horarioInicio'] ?? '',
       horarioFim: json['horarioFim'] ?? '',
       localEvento: json['localEvento'] ?? '',
-      comunidadeId: json['comunidadeId'],
-      criadorId: json['criadorId'],
-      limiteParticipantes: json['limiteParticipantes'],
+      comunidadeId: (json['comunidadeId'] ?? json['comunidade_id'] as num?)?.toInt(),
+      criadorId: (json['criadorId'] ?? json['criador_id'] as num?)?.toInt(),
+      limiteParticipantes: (json['limiteParticipantes'] as num?)?.toInt(),
       status: json['status'] ?? 'AGENDADO',
       exigeCheckin: json['exigeCheckin'] ?? false,
       encerramentoInscricoes: json['encerramentoInscricoes'],
       situacaoTemporal: json['situacaoTemporal'],
       publico: json['publico'] ?? json['ehPublico'] ?? (json['comunidadeId'] == null),
+      categoria: json['categoria'] ?? json['nomeCategoria'],
+      imagemCapa: json['imagemCapa'] ?? json['capa'],
     );
   }
 
@@ -67,6 +74,8 @@ class Evento {
       'status': status,
       'exigeCheckin': exigeCheckin,
       if (publico != null) 'publico': publico,
+      if (categoria != null) 'categoria': categoria,
+      if (imagemCapa != null) 'imagemCapa': imagemCapa,
     };
   }
 

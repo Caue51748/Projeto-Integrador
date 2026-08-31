@@ -19,11 +19,12 @@ export class ApiService {
         dataNascimento,
         email,
         telefone,
-        senha
+        senha,
+        interesses = []
     ) {
         return await fetch(`${this.API_URL}/usuarios`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ nomeCompleto, nome, username, dataNascimento, email: email || null, telefone: telefone || null, senha })
+            body: JSON.stringify({ nomeCompleto, nome, username, dataNascimento, email: email || null, telefone: telefone || null, senha, interesses: interesses || [] })
         });
     }
 

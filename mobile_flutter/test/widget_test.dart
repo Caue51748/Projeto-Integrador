@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:SocialJoin/models/usuario.dart';
-import 'package:SocialJoin/models/evento.dart';
-import 'package:SocialJoin/services/location_service.dart';
-import 'package:SocialJoin/screens/register_screen.dart';
-import 'package:SocialJoin/screens/home_screen.dart';
-import 'package:SocialJoin/screens/map_events_page.dart';
+import 'package:social_join/models/usuario.dart';
+import 'package:social_join/models/evento.dart';
+import 'package:social_join/services/location_service.dart';
+import 'package:social_join/screens/register_screen.dart';
+import 'package:social_join/screens/home_screen.dart';
+import 'package:social_join/screens/map_events_page.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
