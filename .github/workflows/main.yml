@@ -1,0 +1,17 @@
+name: Sincronizar Fork Automaticamente
+
+on:
+  schedule:
+    # Roda automaticamente a cada 6 horas
+    - cron: '0 */6 * * *'
+  workflow_dispatch: # Permite que você force a rodada manual se quiser
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sincronizar com o original
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh repo sync ${{ github.repository }} --branch main
