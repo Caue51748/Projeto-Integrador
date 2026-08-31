@@ -1,6 +1,8 @@
 // api_service.js
 export class ApiService {
-    static API_URL = 'http://localhost:8080';
+    //static API_URL = 'http://localhost:8080';
+    static API_URL = 'https://projeto-integrador-m4jn.onrender.com';
+    //static API_URL = 'http://143.106.241.xx:8080';
 
     static getUsuarioLogado() { return JSON.parse(localStorage.getItem('usuarioLogado')); }
     static salvarSessao(usuario) { localStorage.setItem('usuarioLogado', JSON.stringify(usuario)); }
