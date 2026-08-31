@@ -39,8 +39,9 @@ public class GoogleDriveService {
     private final String folderId =
             System.getenv("GOOGLE_DRIVE_FOLDER_ID");
 
-    private final String redirectUri =
-            "http://localhost:8080/google/drive/callback";
+    //private final String redirectUri = "http://localhost:8080/google/drive/callback";
+
+    private final String redirectUri = "https://projeto-integrador-m4jn.onrender.com/google/drive/callback";
 
 
     public GoogleDriveService() throws Exception {

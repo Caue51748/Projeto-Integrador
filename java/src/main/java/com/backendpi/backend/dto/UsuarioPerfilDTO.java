@@ -1,5 +1,6 @@
 package com.backendpi.backend.dto;
 
+import java.util.Collections;
 import java.util.List;
 
 public class UsuarioPerfilDTO {
@@ -11,6 +12,7 @@ public class UsuarioPerfilDTO {
     private String fotoPerfil;
     private List<String> interesses;
 
+    // Construtor completo
     public UsuarioPerfilDTO(
             Long idUsuario,
             String nome,
@@ -25,6 +27,25 @@ public class UsuarioPerfilDTO {
         this.bio = bio;
         this.fotoPerfil = fotoPerfil;
         this.interesses = interesses;
+    }
+
+    // Construtor antigo, com 5 parâmetros
+    // Mantém compatibilidade com o código que já existe
+    public UsuarioPerfilDTO(
+            Long idUsuario,
+            String nome,
+            String username,
+            String bio,
+            String fotoPerfil) {
+
+        this(
+                idUsuario,
+                nome,
+                username,
+                bio,
+                fotoPerfil,
+                Collections.emptyList()
+        );
     }
 
     public Long getIdUsuario() {
