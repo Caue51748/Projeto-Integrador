@@ -101,11 +101,11 @@ class _EventosPageState extends State<EventosPage> {
     final query = _buscaCtrl.text.trim().toLowerCase();
     setState(() {
       _eventosFiltrados = _eventos.where((ev) {
-        final sit = ev.situacaoCalculada;
+        final sit = ev.situacaoCalculada.toUpperCase();
         final matchStatus = _filtroStatus == 'TODOS' ||
-            (_filtroStatus == 'AGENDADO' && (sit == 'AGENDADO' || sit == 'ATIVO')) ||
-            (_filtroStatus == 'ACONTECENDO_AGORA' && sit == 'ACONTECENDO_AGORA') ||
-            (_filtroStatus == 'ENCERRADO' && sit == 'ENCERRADO') ||
+            (_filtroStatus == 'AGENDADO' && (sit == 'AGENDADO' || sit == 'ATIVO' || sit == 'DISPONIVEL' || sit == 'PUBLICADO' || sit == 'INDEFINIDO')) ||
+            (_filtroStatus == 'ACONTECENDO_AGORA' && (sit == 'ACONTECENDO_AGORA' || sit == 'EM_ANDAMENTO' || sit == 'AO VIVO')) ||
+            (_filtroStatus == 'ENCERRADO' && (sit == 'ENCERRADO' || sit == 'FINALIZADO')) ||
             (_filtroStatus == 'INSCRITO' && _eventosInscritos.contains(ev.id));
 
         final matchTexto = query.isEmpty ||
