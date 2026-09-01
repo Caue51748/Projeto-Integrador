@@ -1721,6 +1721,71 @@ ${ApiService.getIdUsuarioLogado() ? `
         });
     }
 
+    aplicarFiltrosEventosLocal(eventos) {
+        const textoFiltro = (this.filtrosEventos?.texto || '').trim().toLowerCase();
+        const statusFiltro = (this.filtrosEventos?.status || '').trim().toUpperCase();
+        const categoriaFiltro = (this.filtrosEventos?.categoria || '').trim().toLowerCase();
+        const comunidadeFiltro = this.filtrosEventos?.comunidadeId != null ? Number(this.filtrosEventos.comunidadeId) : null;
+        const dataInicioFiltro = this.filtrosEventos?.dataInicio || null;
+        const dataFimFiltro = this.filtrosEventos?.dataFim || null;
+        const formatoFiltro = document.getElementById('filtro-evento-formato')?.value || '';
+
+        return eventos.filter(evento => {
+            const textoEvento = [
+                evento.titulo,
+                evento.descricao,
+                evento.categoria,
+                evento.localEvento,
+                evento.status
+            ].filter(Boolean).join(' ').toLowerCase();
+
+            if (textoFiltro && !textoEvento.includes(textoFiltro)) {
+                return false;
+            }
+
+            if (statusFiltro) {
+                const statusEvento = (evento.status || 'AGENDADO').toUpperCase();
+                if (statusEvento !== statusFiltro) {
+                    return false;
+                }
+            }
+
+            if (categoriaFiltro) {
+                const categoriaEvento = (evento.categoria || '').trim().toLowerCase();
+                const categoriaEmTexto = `${evento.titulo || ''} ${evento.descricao || ''}`.toLowerCase();
+                const categoriaCoincide = categoriaEvento === categoriaFiltro || categoriaEmTexto.includes(categoriaFiltro);
+                if (!categoriaCoincide) {
+                    return false;
+                }
+            }
+
+            if (comunidadeFiltro != null) {
+                const comunidadeEvento = Number(evento.comunidadeId ?? 0);
+                if (comunidadeEvento !== comunidadeFiltro) {
+                    return false;
+                }
+            }
+
+            if (dataInicioFiltro && (!evento.dataEvento || evento.dataEvento < dataInicioFiltro)) {
+                return false;
+            }
+
+            if (dataFimFiltro && (!evento.dataEvento || evento.dataEvento > dataFimFiltro)) {
+                return false;
+            }
+
+            if (formatoFiltro) {
+                const online = /^(https?:\/\/|www\.)/i.test(evento.localEvento || '');
+                const formatoCoincide = formatoFiltro === 'online' ? online : !online;
+                if (!formatoCoincide) {
+                    return false;
+                }
+            }
+
+            return true;
+        });
+    }
+
     async carregarEventos() {
 
         const container = document.getElementById('eventos-container');
@@ -1736,6 +1801,7 @@ ${ApiService.getIdUsuarioLogado() ? `
             });
 
             let eventos = resultado.content || [];
+            eventos = this.aplicarFiltrosEventosLocal(eventos);
 
             const categoria = document.getElementById('filtro-evento-categoria')?.value;
             const formato = document.getElementById('filtro-evento-formato')?.value;
@@ -2723,6 +2789,10 @@ ${ApiService.getIdUsuarioLogado() ? `
             document.getElementById('filtro-evento-categoria')
                 .value;
 
+        const formato =
+            document.getElementById('filtro-evento-formato')
+                .value;
+
         const periodo =
             document.getElementById('filtro-evento-periodo')
                 .value;
@@ -2824,7 +2894,8 @@ ${ApiService.getIdUsuarioLogado() ? `
                 categoria || null,
 
             dataInicio,
-            dataFim
+            dataFim,
+            formato: formato || null
         };
 
         this.paginaEventos = 0;
