@@ -3,10 +3,53 @@ export class ApiService {
     static API_URL = 'http://localhost:8080';
     //static API_URL = 'https://projeto-integrador-m4jn.onrender.com';
     //static API_URL = 'http://143.106.241.xx:8080';
+    static STORAGE_KEY = 'usuarioLogado';
 
-    static getUsuarioLogado() { return JSON.parse(localStorage.getItem('usuarioLogado')); }
-    static salvarSessao(usuario) { localStorage.setItem('usuarioLogado', JSON.stringify(usuario)); }
-    static fazerLogout() { localStorage.removeItem('usuarioLogado'); }
+    static getStorage(tipo = 'session') {
+        if (typeof window === 'undefined') return null;
+        return tipo === 'session' ? window.sessionStorage : window.localStorage;
+    }
+
+    static getUsuarioLogado() {
+        const storage = this.getStorage('session');
+        const raw = storage ? storage.getItem(this.STORAGE_KEY) : null;
+
+        if (raw) {
+            try {
+                return JSON.parse(raw);
+            } catch (error) {
+                this.fazerLogout();
+                return null;
+            }
+        }
+
+        const legado = this.getStorage('local')?.getItem(this.STORAGE_KEY);
+        if (legado) {
+            try {
+                const usuario = JSON.parse(legado);
+                this.salvarSessao(usuario);
+                this.getStorage('local')?.removeItem(this.STORAGE_KEY);
+                return usuario;
+            } catch (error) {
+                this.getStorage('local')?.removeItem(this.STORAGE_KEY);
+                return null;
+            }
+        }
+
+        return null;
+    }
+
+    static salvarSessao(usuario) {
+        const storage = this.getStorage('session');
+        if (storage) storage.setItem(this.STORAGE_KEY, JSON.stringify(usuario));
+        this.getStorage('local')?.removeItem(this.STORAGE_KEY);
+    }
+
+    static fazerLogout() {
+        this.getStorage('session')?.removeItem(this.STORAGE_KEY);
+        this.getStorage('local')?.removeItem(this.STORAGE_KEY);
+    }
+
     static getIdUsuarioLogado() {
         const user = this.getUsuarioLogado();
         return user ? (user.idUsuario || user.id_usuario || user.id) : null;
@@ -453,19 +496,20 @@ export class ApiService {
         return await resposta.json();
     }
 
-    static async login(email, senha) {
+    static async login(credencial, senha) {
+        const valor = (credencial || '').trim();
+        const isEmail = valor.includes('@');
 
         return fetch(
             `${this.API_URL}/usuarios/login`,
             {
                 method: 'POST',
-
                 headers: {
                     'Content-Type': 'application/json'
                 },
-
                 body: JSON.stringify({
-                    email,
+                    email: isEmail ? valor : null,
+                    telefone: isEmail ? null : valor,
                     senha
                 })
             }
