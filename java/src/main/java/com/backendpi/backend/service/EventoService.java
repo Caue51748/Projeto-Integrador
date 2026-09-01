@@ -172,6 +172,10 @@ public class EventoService {
             status = null;
         }
 
+        if (categoria != null && categoria.trim().isEmpty()) {
+            categoria = null;
+        }
+
         Pageable pageable = PageRequest.of(
                 pagina,
                 tamanho,
@@ -180,7 +184,6 @@ public class EventoService {
                         .and(Sort.by("horarioInicio").ascending())
         );
 
-        // 1. Busca normalmente os eventos daquela página
         Page<Evento> paginaEventos
                 = eventoRepository.buscarComFiltros(
                         texto,
@@ -192,10 +195,17 @@ public class EventoService {
                         pageable
                 );
 
-        // 2. Pega somente os IDs dos eventos encontrados
+        List<Evento> eventosFiltrados = paginaEventos.getContent();
+
+        if (categoria != null && !categoria.trim().isEmpty()) {
+            String categoriaNormalizada = categoria.trim();
+            eventosFiltrados = eventosFiltrados.stream()
+                    .filter(evento -> eventoCorrespondeCategoria(evento, categoriaNormalizada))
+                    .collect(Collectors.toList());
+        }
+
         List<Long> idsEventos
-                = paginaEventos.getContent()
-                        .stream()
+                = eventosFiltrados.stream()
                         .map(Evento::getId)
                         .collect(Collectors.toList());
 
@@ -227,8 +237,7 @@ public class EventoService {
 
         // 5. Transforma cada Evento em EventoResumoDTO
         List<EventoResumoDTO> eventosDTO
-                = paginaEventos.getContent()
-                        .stream()
+                = eventosFiltrados.stream()
                         .map(evento
                                 -> new EventoResumoDTO(
                                 evento.getId(),
@@ -254,12 +263,25 @@ public class EventoService {
                         )
                         .collect(Collectors.toList());
 
-        // 6. Mantém a paginação original
         return new PageImpl<>(
                 eventosDTO,
                 pageable,
-                paginaEventos.getTotalElements()
+                eventosFiltrados.size()
         );
+    }
+
+    private boolean eventoCorrespondeCategoria(Evento evento, String categoria) {
+        if (evento == null || categoria == null || categoria.isBlank()) {
+            return true;
+        }
+
+        String categoriaNormalizada = categoria.trim();
+        String categoriaEvento = evento.getCategoria() == null ? "" : evento.getCategoria().trim();
+        String textoEvento = (evento.getTitulo() == null ? "" : evento.getTitulo()) + " "
+                + (evento.getDescricao() == null ? "" : evento.getDescricao());
+
+        return categoriaEvento.equalsIgnoreCase(categoriaNormalizada)
+                || textoEvento.toLowerCase().contains(categoriaNormalizada.toLowerCase());
     }
 
     private void validarDadosEvento(Evento evento, boolean validarDataPassada) {
