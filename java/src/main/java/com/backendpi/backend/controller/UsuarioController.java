@@ -142,10 +142,11 @@ public class UsuarioController {
             @RequestBody Map<String, String> dados) {
 
         String email = dados.get("email");
+        String telefone = dados.get("telefone");
         String senha = dados.get("senha");
 
         Usuario usuario
-                = usuarioService.login(email, senha);
+                = usuarioService.login(email, telefone, senha);
 
         if (usuario == null) {
             return ResponseEntity.status(401).build();

@@ -593,16 +593,25 @@ class AppController {
 
         this.mostrarAuthFeedback('');
 
-        if (!s || (!this.modoCadastro && !e)) {
+        if (!s || (!this.modoCadastro && !e && !telefone)) {
             return this.mostrarAuthFeedback(
                 this.modoCadastro
                     ? 'Informe uma senha para continuar.'
-                    : 'Informe seu e-mail e sua senha para continuar.'
+                    : 'Informe seu e-mail ou telefone e sua senha para continuar.'
             );
         }
 
-        if (!this.modoCadastro && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) {
-            return this.mostrarAuthFeedback('Informe um e-mail válido.');
+        if (!this.modoCadastro) {
+            const credencial = e || telefone;
+            if (!credencial) {
+                return this.mostrarAuthFeedback('Informe seu e-mail ou telefone para continuar.');
+            }
+            if (credencial.includes('@') && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(credencial)) {
+                return this.mostrarAuthFeedback('Informe um e-mail válido.');
+            }
+            if (!credencial.includes('@') && credencial.replace(/\D/g, '').length < 10) {
+                return this.mostrarAuthFeedback('Informe um telefone válido.');
+            }
         }
 
         try {
@@ -650,6 +659,7 @@ class AppController {
                 if (s !== confirmarSenha) {
                     return this.mostrarAuthFeedback('As senhas não coincidem.');
                 }
+
                 this.definirAuthLoading(true);
                 const res = await ApiService.criarUsuario(
                     nomeCompleto,
@@ -669,22 +679,17 @@ class AppController {
                     this.posLogin();
                 } else this.mostrarAuthFeedback('Não foi possível criar a conta. Verifique seus dados.');
             } else {
+                const credencial = (e || telefone || '').trim();
+
                 this.definirAuthLoading(true);
-                const res =
-                    await ApiService.login(e, s);
+                const res = await ApiService.login(credencial, s);
 
                 if (res.ok) {
-
-                    const user =
-                        await res.json();
-
+                    const user = await res.json();
                     ApiService.salvarSessao(user);
-
                     this.posLogin();
-
                 } else {
-
-                    this.mostrarAuthFeedback("E-mail ou senha incorretos.");
+                    this.mostrarAuthFeedback('E-mail/telefone ou senha incorretos.');
                 }
             }
         } catch (err) {

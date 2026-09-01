@@ -496,19 +496,20 @@ export class ApiService {
         return await resposta.json();
     }
 
-    static async login(email, senha) {
+    static async login(credencial, senha) {
+        const valor = (credencial || '').trim();
+        const isEmail = valor.includes('@');
 
         return fetch(
             `${this.API_URL}/usuarios/login`,
             {
                 method: 'POST',
-
                 headers: {
                     'Content-Type': 'application/json'
                 },
-
                 body: JSON.stringify({
-                    email,
+                    email: isEmail ? valor : null,
+                    telefone: isEmail ? null : valor,
                     senha
                 })
             }
