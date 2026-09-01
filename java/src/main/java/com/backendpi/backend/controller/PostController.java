@@ -2,6 +2,8 @@ package com.backendpi.backend.controller;
 
 import java.util.List;
 
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -9,6 +11,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.backendpi.backend.model.Post;
@@ -26,7 +29,24 @@ public class PostController {
     }
 
     @GetMapping
-    public List<Post> listar() {
+    public Object listar(
+            @RequestParam(required = false) Integer page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) Long idComunidade) {
+
+        if (page != null) {
+            PageRequest pageable = PageRequest.of(
+                    Math.max(0, page),
+                    Math.max(1, size),
+                    Sort.by(Sort.Direction.DESC, "idPost")
+            );
+
+            if (idComunidade != null) {
+                return service.listarPorComunidade(idComunidade, pageable);
+            }
+            return service.listarPaginado(pageable);
+        }
+
         return service.listar();
     }
 
@@ -49,9 +69,20 @@ public class PostController {
     }
 
     @GetMapping("/usuario/{idUsuario}")
-public List<Post> listarPorUsuario(
-        @PathVariable Long idUsuario) {
+    public Object listarPorUsuario(
+            @PathVariable Long idUsuario,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(defaultValue = "10") int size) {
 
-    return service.listarPorUsuario(idUsuario);
-}
+        if (page != null) {
+            PageRequest pageable = PageRequest.of(
+                    Math.max(0, page),
+                    Math.max(1, size),
+                    Sort.by(Sort.Direction.DESC, "idPost")
+            );
+            return service.listarPorUsuarioPaginado(idUsuario, pageable);
+        }
+
+        return service.listarPorUsuario(idUsuario);
+    }
 }

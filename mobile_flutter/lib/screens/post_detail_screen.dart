@@ -39,13 +39,21 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   Future<void> carregarComentarios() async {
     setState(() => carregando = true);
     try {
-      final lista = await comentarioService.listarComentarios();
-      setState(() {
-        comentarios = lista.where((c) => c.idPost == widget.post.idPost).toList();
-        carregando = false;
-      });
+      final idPost = widget.post.idPost;
+      final lista = idPost != null
+          ? await comentarioService.listarPorPost(idPost)
+          : await comentarioService.listarComentarios();
+
+      if (mounted) {
+        setState(() {
+          comentarios = lista;
+          carregando = false;
+        });
+      }
     } catch (e) {
-      setState(() => carregando = false);
+      if (mounted) {
+        setState(() => carregando = false);
+      }
     }
   }
 

@@ -1,14 +1,7 @@
-// UsuarioController.java
 package com.backendpi.backend.controller;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -26,6 +19,7 @@ import org.springframework.web.multipart.MultipartFile;
 import com.backendpi.backend.dto.UsuarioPerfilDTO;
 import com.backendpi.backend.model.Usuario;
 import com.backendpi.backend.repository.UsuarioRepository;
+import com.backendpi.backend.service.GoogleDriveService;
 import com.backendpi.backend.service.UsuarioService;
 
 @RestController
@@ -35,13 +29,16 @@ public class UsuarioController {
 
     private final UsuarioRepository usuarioRepository;
     private final UsuarioService usuarioService;
+    private final GoogleDriveService googleDriveService;
 
     public UsuarioController(
             UsuarioRepository usuarioRepository,
-            UsuarioService usuarioService) {
+            UsuarioService usuarioService,
+            GoogleDriveService googleDriveService) {
 
         this.usuarioRepository = usuarioRepository;
         this.usuarioService = usuarioService;
+        this.googleDriveService = googleDriveService;
     }
 
     @GetMapping
@@ -81,7 +78,8 @@ public class UsuarioController {
                                     usuario.getNome(),
                                     usuario.getUsername(),
                                     usuario.getBio(),
-                                    usuario.getFotoPerfil()
+                                    usuario.getFotoPerfil(),
+                                    usuario.getInteresses()
                             );
 
                     return ResponseEntity.ok(perfil);
@@ -130,7 +128,8 @@ public class UsuarioController {
                                     atualizado.getNome(),
                                     atualizado.getUsername(),
                                     atualizado.getBio(),
-                                    atualizado.getFotoPerfil()
+                                    atualizado.getFotoPerfil(),
+                                    atualizado.getInteresses()
                             );
 
                     return ResponseEntity.ok(perfil);
@@ -158,7 +157,8 @@ public class UsuarioController {
                         usuario.getNome(),
                         usuario.getUsername(),
                         usuario.getBio(),
-                        usuario.getFotoPerfil()
+                        usuario.getFotoPerfil(),
+                        usuario.getInteresses()
                 );
 
         return ResponseEntity.ok(perfil);
@@ -168,7 +168,7 @@ public class UsuarioController {
     public ResponseEntity<?> atualizarFotoPerfil(
             @PathVariable Long id,
             @RequestParam("foto") MultipartFile foto) {
-                    
+
         Usuario usuario = usuarioRepository.findById(id)
                 .orElse(null);
 
@@ -176,82 +176,62 @@ public class UsuarioController {
             return ResponseEntity.notFound().build();
         }
 
-         System.out.println("=== TROCA DE FOTO ===");
+        System.out.println("=== TROCA DE FOTO DE PERFIL (GOOGLE DRIVE) ===");
         System.out.println("Usuario: " + id);
         System.out.println("Arquivo: " + foto.getOriginalFilename());
-        System.out.println("Foto antiga: " + usuario.getFotoPerfil());
+        System.out.println("Tamanho: " + foto.getSize() + " bytes");
 
         if (foto.isEmpty()) {
             return ResponseEntity
                     .badRequest()
-                    .body("Selecione uma imagem.");
+                    .body(Map.of("success", false, "error", "Selecione uma imagem."));
         }
 
         String tipo = foto.getContentType();
-
         if (tipo == null || !tipo.startsWith("image/")) {
             return ResponseEntity
                     .badRequest()
-                    .body("O arquivo precisa ser uma imagem.");
+                    .body(Map.of("success", false, "error", "O arquivo precisa ser uma imagem."));
+        }
+
+        // Limite de 5 MB
+        if (foto.getSize() > 5 * 1024 * 1024) {
+            return ResponseEntity
+                    .badRequest()
+                    .body(Map.of("success", false, "error", "A foto deve ter no máximo 5 MB."));
         }
 
         try {
+            // Salva a foto no Google Drive usando a classe GoogleDriveService pronta
+            String usernameLimpo = (usuario.getUsername() != null && !usuario.getUsername().isBlank())
+                    ? usuario.getUsername().trim()
+                    : "usuario";
 
-            Path pasta
-                    = Paths.get("uploads", "perfis");
-
-            Files.createDirectories(pasta);
-
-            String nomeOriginal
-                    = foto.getOriginalFilename();
-
-            String extensao = "";
-
-            if (nomeOriginal != null
-                    && nomeOriginal.contains(".")) {
-
-                extensao = nomeOriginal.substring(
-                        nomeOriginal.lastIndexOf(".")
-                );
-            }
-
-            String nomeArquivo
-                    = UUID.randomUUID() + extensao;
-
-            Path destino
-                    = pasta.resolve(nomeArquivo);
-
-            Files.copy(
-                    foto.getInputStream(),
-                    destino,
-                    StandardCopyOption.REPLACE_EXISTING
+            String fileId = googleDriveService.salvarFotoPerfil(
+                    foto,
+                    usuario.getIdUsuario(),
+                    usernameLimpo
             );
 
-            String caminho
-                    = "uploads/perfis/" + nomeArquivo;
+            usuario.setFotoPerfil(fileId);
+            Usuario salvo = usuarioRepository.save(usuario);
 
-            usuario.setFotoPerfil(caminho);
-
-            usuarioRepository.save(usuario);
-
-            UsuarioPerfilDTO perfil
-                    = new UsuarioPerfilDTO(
-                            usuario.getIdUsuario(),
-                            usuario.getNome(),
-                            usuario.getUsername(),
-                            usuario.getBio(),
-                            usuario.getFotoPerfil()
-                    );
+            UsuarioPerfilDTO perfil = new UsuarioPerfilDTO(
+                    salvo.getIdUsuario(),
+                    salvo.getNome(),
+                    salvo.getUsername(),
+                    salvo.getBio(),
+                    salvo.getFotoPerfil(),
+                    salvo.getInteresses()
+            );
 
             return ResponseEntity.ok(perfil);
 
-        } catch (IOException erro) {
-
+        } catch (Exception erro) {
             erro.printStackTrace();
-
             return ResponseEntity
                     .internalServerError()
-                    .body("Erro ao salvar a imagem.");
+                    .body(Map.of("success", false, "error", "Erro ao salvar foto no Google Drive: " + erro.getMessage()));
         }
     }
 }

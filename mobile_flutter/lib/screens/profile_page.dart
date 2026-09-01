@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 import '../models/usuario.dart';
 import '../models/post.dart';
 import '../models/evento.dart';
@@ -9,6 +10,7 @@ import '../services/usuario_service.dart';
 import '../services/post_service.dart';
 import '../services/evento_service.dart';
 import '../services/comunidade_service.dart';
+import '../services/api_service.dart';
 
 /// Tela de Perfil Mobile — Fiel à Estilização Real da Tela WEB (.perfil-tabs, .perfil-tab.active::after, .avatar, .card, .btn-primary).
 /// Fonte da Verdade: web/style.css
@@ -32,6 +34,7 @@ class _ProfilePageState extends State<ProfilePage>
   List<Comunidade> _userComunidades = [];
 
   bool _carregando = true;
+  bool _enviandoFoto = false;
   String? _erro;
   late TabController _tabController;
 
@@ -106,6 +109,84 @@ class _ProfilePageState extends State<ProfilePage>
           _erro = 'Não foi possível carregar as informações do perfil.';
           _carregando = false;
         });
+      }
+    }
+  }
+
+  Future<void> _alterarFotoPerfil() async {
+    if (!AuthService.logado || AuthService.idUsuario == null) return;
+
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1200,
+        maxHeight: 1200,
+        imageQuality: 85,
+      );
+
+      if (picked == null) return;
+
+      final length = await picked.length();
+      if (length > 5 * 1024 * 1024) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('A imagem deve ter no máximo 5 MB.',
+                  style: GoogleFonts.manrope()),
+              backgroundColor: const Color(0xFFC93659),
+            ),
+          );
+        }
+        return;
+      }
+
+      setState(() => _enviandoFoto = true);
+
+      final bytes = await picked.readAsBytes();
+      final res = await _usuarioService.atualizarFotoPerfil(
+        idUsuario: AuthService.idUsuario!,
+        caminhoArquivo: picked.path,
+        bytes: bytes,
+        nomeArquivo: picked.name,
+      );
+
+      if (!mounted) return;
+      setState(() => _enviandoFoto = false);
+
+      if (res['sucesso'] == true && res['usuario'] != null) {
+        final Usuario userAtualizado = res['usuario'];
+        setState(() {
+          _usuario?.fotoPerfil = userAtualizado.fotoPerfil;
+        });
+        AuthService.fotoPerfil = userAtualizado.fotoPerfil;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Foto de perfil atualizada com sucesso!',
+                style: GoogleFonts.manrope()),
+            backgroundColor: const Color(0xFF10B981),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(res['erro'] ?? 'Erro ao alterar foto.',
+                style: GoogleFonts.manrope()),
+            backgroundColor: const Color(0xFFC93659),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _enviandoFoto = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao selecionar foto.',
+                style: GoogleFonts.manrope()),
+            backgroundColor: const Color(0xFFC93659),
+          ),
+        );
       }
     }
   }
@@ -342,18 +423,63 @@ class _ProfilePageState extends State<ProfilePage>
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        // Avatar (.avatar da Web 60px)
-                        CircleAvatar(
-                          radius: 30,
-                          backgroundColor: const Color(0xFFEA3F74),
-                          child: Text(
-                            inicial,
-                            style: GoogleFonts.manrope(
-                              color: Colors.white,
-                              fontSize: 24,
-                              fontWeight: FontWeight.w800,
+                        // Avatar com foto do Google Drive e botão de upload
+                        Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            GestureDetector(
+                              onTap: _enviandoFoto ? null : _alterarFotoPerfil,
+                              child: CircleAvatar(
+                                radius: 32,
+                                backgroundColor: const Color(0xFFEA3F74),
+                                backgroundImage: (ApiService.formatarUrlFotoPerfil(usuario.fotoPerfil) != null)
+                                    ? NetworkImage(ApiService.formatarUrlFotoPerfil(usuario.fotoPerfil)!)
+                                    : null,
+                                child: _enviandoFoto
+                                    ? const SizedBox(
+                                        width: 24,
+                                        height: 24,
+                                        child: CircularProgressIndicator(
+                                          color: Colors.white,
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : (ApiService.formatarUrlFotoPerfil(usuario.fotoPerfil) == null)
+                                        ? Text(
+                                            inicial,
+                                            style: GoogleFonts.manrope(
+                                              color: Colors.white,
+                                              fontSize: 24,
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                          )
+                                        : null,
+                              ),
                             ),
-                          ),
+                            Positioned(
+                              bottom: -2,
+                              right: -2,
+                              child: GestureDetector(
+                                onTap: _enviandoFoto ? null : _alterarFotoPerfil,
+                                child: Container(
+                                  padding: const EdgeInsets.all(5),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFEA3F74),
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: Colors.white,
+                                      width: 2,
+                                    ),
+                                  ),
+                                  child: const Icon(
+                                    Icons.camera_alt_rounded,
+                                    size: 13,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                         const SizedBox(width: 16),
                         Expanded(
