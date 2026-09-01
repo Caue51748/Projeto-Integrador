@@ -360,6 +360,8 @@
                             arrow_back
                         </i>
                         Voltar para eventos
+                    <button class="detail-back-button" onclick="app.voltarParaEventos()">
+                        <i class="material-icons">arrow_back</i> Voltar para eventos
                     </button>
 
                     <div id="evento-detalhes-conteudo"></div>
@@ -411,6 +413,9 @@
 
     <div class="modal-overlay" id="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title">
         <div class="modal auth-modal">
+            <button type="button" class="modal-close-btn" aria-label="Fechar" onclick="app.fecharModal('auth-modal')">
+                <i class="material-icons">close</i>
+            </button>
             <div class="auth-intro">
                 <span class="auth-kicker">SocialJoin</span>
                 <h2 id="auth-title">Acesso ao Painel</h2>
@@ -451,7 +456,7 @@
             </div>
 
             <div class="auth-field">
-                <label for="auth-email">E-mail ou telefone</label>
+                <label for="auth-email" id="auth-email-label">E-mail ou telefone</label>
                 <div class="auth-input-wrap"><i class="material-icons">mail_outline</i><input type="text"
                         id="auth-email" placeholder="seu@email.com ou (00) 00000-0000" autocomplete="off"></div>
             </div>
@@ -535,54 +540,180 @@
         </div>
     </div>
 
-    <div class="modal-overlay" id="evento-modal">
-        <div class="modal">
-            <h2>Organizar Novo Evento</h2>
-            <input type="text" id="evento-titulo" placeholder="Título do Evento (Ex: Workshop de Java)">
-            <textarea id="evento-desc" placeholder="Descrição e detalhes do evento..."></textarea>
-            <select id="evento-categoria">
-                <option value="">Categoria do evento</option>
-                <option>Tecnologia</option>
-                <option>Arte</option>
-                <option>Música</option>
-                <option>Esportes</option>
-                <option>Educação</option>
-                <option>Networking</option>
-                <option>Cultura</option>
-            </select>
-            <label class="file-field" for="evento-capa">Imagem de capa (opcional)</label>
-            <input type="file" id="evento-capa" accept="image/*">
+    <div class="modal-overlay" id="evento-modal" role="dialog" aria-modal="true" aria-labelledby="evento-modal-title">
+        <div class="modal evento-modal">
+            <button type="button" class="modal-close-btn" onclick="app.fecharModal('evento-modal')" aria-label="Fechar modal">
+                <i class="material-icons">close</i>
+            </button>
 
-            <div style="display: flex; gap: 10px; margin-bottom: 12px;">
-                <input type="date" id="evento-data" style="width: 50%;">
-                <input type="time" id="evento-horario-inicio" style="width:50%;">
-
-                <input type="time" id="evento-horario-fim" style="width:50%;">
+            <div class="modal-header-intro">
+                <span class="modal-kicker"><i class="material-icons">event</i> Agenda & Encontros</span>
+                <h2 id="evento-modal-title">Organizar Novo Evento</h2>
+                <p>Preencha as informações para divulgar seu evento na comunidade.</p>
             </div>
 
-            <input type="text" id="evento-local" placeholder="Local (Ex: Auditório Bloco A ou Link do Meet)">
+            <div id="evento-feedback" class="form-feedback" role="alert" aria-live="polite"></div>
 
-            <input type="number" id="evento-comunidade-id" placeholder="ID da Comunidade vinculada (opcional)">
+            <form id="form-criar-evento" onsubmit="event.preventDefault(); app.criarEvento();">
+                <!-- Seção 1: Informações Básicas -->
+                <div class="form-section">
+                    <div class="form-section-title">
+                        <i class="material-icons">info</i> Sobre o Evento
+                    </div>
 
-            <input type="number" id="evento-limite" placeholder="Limite de participantes (opcional)" min="1">
+                    <div class="form-group">
+                        <label for="evento-titulo">Título do evento <span class="required">*</span></label>
+                        <div class="form-input-wrap">
+                            <i class="material-icons">title</i>
+                            <input type="text" id="evento-titulo" placeholder="Ex: Workshop de Java ou Encontro da Comunidade" required autocomplete="off">
+                        </div>
+                    </div>
 
-            <label style="display:flex; align-items:center; gap:8px; margin-bottom:16px;">
-                <input type="checkbox" id="evento-checkin">
-                Exigir check-in dos participantes
-            </label>
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label for="evento-categoria">Categoria <span class="required">*</span></label>
+                            <div class="form-input-wrap">
+                                <i class="material-icons">category</i>
+                                <select id="evento-categoria" required>
+                                    <option value="">Selecione uma categoria</option>
+                                    <option value="Tecnologia">Tecnologia</option>
+                                    <option value="Arte">Arte</option>
+                                    <option value="Música">Música</option>
+                                    <option value="Esportes">Esportes</option>
+                                    <option value="Educação">Educação</option>
+                                    <option value="Networking">Networking</option>
+                                    <option value="Cultura">Cultura</option>
+                                    <option value="Games">Games</option>
+                                    <option value="Gastronomia">Gastronomia</option>
+                                    <option value="Saúde">Saúde</option>
+                                    <option value="Social">Social</option>
+                                </select>
+                            </div>
+                        </div>
 
-            <small style="color:var(--text-muted); display:block; margin-bottom:16px;">
-                O ingresso e a validação de entrada serão realizados pelo aplicativo mobile.
-            </small>
+                        <div class="form-group">
+                            <label for="evento-comunidade-id">Comunidade vinculada <span class="optional">(opcional)</span></label>
+                            <div class="form-input-wrap">
+                                <i class="material-icons">groups</i>
+                                <select id="evento-comunidade-id">
+                                    <option value="">Nenhuma (Evento aberto / Global)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
 
-            <label for="evento-encerramento-inscricoes">
-                Encerramento das inscrições
-            </label>
+                    <div class="form-group">
+                        <label for="evento-desc">Descrição e detalhes <span class="optional">(opcional)</span></label>
+                        <textarea id="evento-desc" rows="3" placeholder="Explique a proposta do evento, programação, requisitos ou recados importantes..."></textarea>
+                    </div>
+                </div>
 
-            <input type="datetime-local" id="evento-encerramento-inscricoes">
+                <!-- Seção 2: Data e Horários -->
+                <div class="form-section">
+                    <div class="form-section-title">
+                        <i class="material-icons">schedule</i> Data e Horários
+                    </div>
 
-            <button class="btn-full" onclick="app.criarEvento()">Agendar Evento</button>
-            <button class="btn-cancel" onclick="app.fecharModal('evento-modal')">Cancelar</button>
+                    <div class="form-grid-3">
+                        <div class="form-group">
+                            <label for="evento-data">Data <span class="required">*</span></label>
+                            <div class="form-input-wrap">
+                                <i class="material-icons">calendar_today</i>
+                                <input type="date" id="evento-data" required>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="evento-horario-inicio">Início <span class="required">*</span></label>
+                            <div class="form-input-wrap">
+                                <i class="material-icons">schedule</i>
+                                <input type="time" id="evento-horario-inicio" required>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="evento-horario-fim">Término <span class="required">*</span></label>
+                            <div class="form-input-wrap">
+                                <i class="material-icons">schedule</i>
+                                <input type="time" id="evento-horario-fim" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="evento-encerramento-inscricoes">Encerramento das inscrições <span class="optional">(opcional)</span></label>
+                        <div class="form-input-wrap">
+                            <i class="material-icons">event_busy</i>
+                            <input type="datetime-local" id="evento-encerramento-inscricoes">
+                        </div>
+                        <small class="form-hint">Deixe em branco para permitir inscrições até o início do evento.</small>
+                    </div>
+                </div>
+
+                <!-- Seção 3: Local e Vagas -->
+                <div class="form-section">
+                    <div class="form-section-title">
+                        <i class="material-icons">place</i> Local e Capacidade
+                    </div>
+
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label for="evento-local">Localização / Link <span class="required">*</span></label>
+                            <div class="form-input-wrap">
+                                <i class="material-icons">place</i>
+                                <input type="text" id="evento-local" placeholder="Ex: Auditório Bloco A ou Link do Meet" required autocomplete="off">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="evento-limite">Limite de participantes <span class="optional">(opcional)</span></label>
+                            <div class="form-input-wrap">
+                                <i class="material-icons">people</i>
+                                <input type="number" id="evento-limite" min="1" placeholder="Vazio = Sem limite">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Seção 4: Capa e Configurações -->
+                <div class="form-section">
+                    <div class="form-section-title">
+                        <i class="material-icons">photo_camera</i> Capa e Configurações
+                    </div>
+
+                    <div class="form-group">
+                        <label for="evento-capa">Imagem de capa <span class="optional">(opcional)</span></label>
+                        <div class="custom-file-upload">
+                            <input type="file" id="evento-capa" accept="image/*" onchange="app.atualizarPreviewCapaEvento(this)">
+                            <div class="file-upload-visual" id="evento-capa-preview-box">
+                                <i class="material-icons">cloud_upload</i>
+                                <span id="evento-capa-nome">Clique para selecionar uma imagem</span>
+                                <small>Formatos aceitos: JPG, PNG, WEBP</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="checkbox-card">
+                        <label class="checkbox-container">
+                            <input type="checkbox" id="evento-checkin">
+                            <span class="checkbox-custom"></span>
+                            <div class="checkbox-text">
+                                <strong>Exigir check-in dos participantes</strong>
+                                <span>A entrada e validação de ingressos serão realizadas pelo aplicativo mobile via QR Code.</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn-full btn-primary auth-submit" id="btn-criar-evento">
+                        Agendar Evento
+                    </button>
+                    <button type="button" class="btn-cancel" onclick="app.fecharModal('evento-modal')">
+                        Cancelar
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -704,8 +835,18 @@
     <div class="modal-overlay" id="gerenciar-evento-modal">
         <div class="modal">
             <h2>Gerenciar Evento</h2>
+    <div class="modal-overlay" id="gerenciar-evento-modal" role="dialog" aria-modal="true" aria-labelledby="gerenciar-evento-title">
+        <div class="modal evento-modal">
+            <button type="button" class="modal-close-btn" onclick="app.fecharModal('gerenciar-evento-modal')" aria-label="Fechar modal">
+                <i class="material-icons">close</i>
+            </button>
 
             <input type="text" id="editar-evento-titulo" placeholder="Título do evento">
+            <div class="modal-header-intro">
+                <span class="modal-kicker"><i class="material-icons">edit_calendar</i> Painel do Organizador</span>
+                <h2 id="gerenciar-evento-title">Gerenciar Evento</h2>
+                <p>Edite os detalhes, acompanhe inscrições ou altere o status do evento.</p>
+            </div>
 
             <textarea id="editar-evento-descricao" placeholder="Descrição"></textarea>
             <select id="editar-evento-categoria">
@@ -718,31 +859,109 @@
                 <option>Networking</option>
                 <option>Cultura</option>
             </select>
+            <div id="editar-evento-feedback" class="form-feedback" role="alert" aria-live="polite"></div>
 
             <input type="date" id="editar-evento-data">
+            <form id="form-editar-evento" onsubmit="event.preventDefault(); app.salvarEdicaoEvento();">
+                <!-- Seção 1: Informações Básicas -->
+                <div class="form-section">
+                    <div class="form-section-title">
+                        <i class="material-icons">info</i> Sobre o Evento
+                    </div>
 
             <div style="display:flex; gap:10px;">
                 <input type="time" id="editar-evento-horario-inicio">
+                    <div class="form-group">
+                        <label for="editar-evento-titulo">Título do evento <span class="required">*</span></label>
+                        <div class="form-input-wrap">
+                            <i class="material-icons">title</i>
+                            <input type="text" id="editar-evento-titulo" placeholder="Título do evento" required autocomplete="off">
+                        </div>
+                    </div>
 
                 <input type="time" id="editar-evento-horario-fim">
             </div>
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label for="editar-evento-categoria">Categoria <span class="required">*</span></label>
+                            <div class="form-input-wrap">
+                                <i class="material-icons">category</i>
+                                <select id="editar-evento-categoria" required>
+                                    <option value="">Selecione uma categoria</option>
+                                    <option value="Tecnologia">Tecnologia</option>
+                                    <option value="Arte">Arte</option>
+                                    <option value="Música">Música</option>
+                                    <option value="Esportes">Esportes</option>
+                                    <option value="Educação">Educação</option>
+                                    <option value="Networking">Networking</option>
+                                    <option value="Cultura">Cultura</option>
+                                    <option value="Games">Games</option>
+                                    <option value="Gastronomia">Gastronomia</option>
+                                    <option value="Saúde">Saúde</option>
+                                    <option value="Social">Social</option>
+                                </select>
+                            </div>
+                        </div>
 
             <label for="editar-evento-encerramento-inscricoes">
                 Encerramento das inscrições
             </label>
+                        <div class="form-group">
+                            <label for="editar-evento-comunidade">Comunidade vinculada <span class="optional">(opcional)</span></label>
+                            <div class="form-input-wrap">
+                                <i class="material-icons">groups</i>
+                                <select id="editar-evento-comunidade">
+                                    <option value="">Nenhuma (Evento aberto / Global)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
 
             <input type="datetime-local" id="editar-evento-encerramento-inscricoes">
+                    <div class="form-group">
+                        <label for="editar-evento-descricao">Descrição e detalhes</label>
+                        <textarea id="editar-evento-descricao" rows="3" placeholder="Descrição do evento..."></textarea>
+                    </div>
+                </div>
 
             <input type="text" id="editar-evento-local" placeholder="Local">
+                <!-- Seção 2: Data e Horários -->
+                <div class="form-section">
+                    <div class="form-section-title">
+                        <i class="material-icons">schedule</i> Data e Horários
+                    </div>
 
             <input type="number" id="editar-evento-comunidade" placeholder="ID da comunidade (opcional)">
+                    <div class="form-grid-3">
+                        <div class="form-group">
+                            <label for="editar-evento-data">Data <span class="required">*</span></label>
+                            <div class="form-input-wrap">
+                                <i class="material-icons">calendar_today</i>
+                                <input type="date" id="editar-evento-data" required>
+                            </div>
+                        </div>
 
             <input type="number" id="editar-evento-limite" placeholder="Limite de participantes (opcional)" min="1">
+                        <div class="form-group">
+                            <label for="editar-evento-horario-inicio">Início <span class="required">*</span></label>
+                            <div class="form-input-wrap">
+                                <i class="material-icons">schedule</i>
+                                <input type="time" id="editar-evento-horario-inicio" required>
+                            </div>
+                        </div>
 
             <label style="display:flex; align-items:center; gap:8px; margin-bottom:16px;">
                 <input type="checkbox" id="editar-evento-checkin">
                 Exigir check-in dos participantes
             </label>
+                        <div class="form-group">
+                            <label for="editar-evento-horario-fim">Término <span class="required">*</span></label>
+                            <div class="form-input-wrap">
+                                <i class="material-icons">schedule</i>
+                                <input type="time" id="editar-evento-horario-fim" required>
+                            </div>
+                        </div>
+                    </div>
 
             <small style="
     color:var(--text-muted);
@@ -751,37 +970,122 @@
 ">
                 O ingresso e a validação de entrada serão realizados pelo aplicativo mobile.
             </small>
+                    <div class="form-group">
+                        <label for="editar-evento-encerramento-inscricoes">Encerramento das inscrições <span class="optional">(opcional)</span></label>
+                        <div class="form-input-wrap">
+                            <i class="material-icons">event_busy</i>
+                            <input type="datetime-local" id="editar-evento-encerramento-inscricoes">
+                        </div>
+                        <small class="form-hint">Deixe em branco para permitir inscrições até o início do evento.</small>
+                    </div>
+                </div>
 
             <div style="display:flex; gap:10px; flex-wrap:wrap;">
                 <button class="btn-primary" onclick="app.salvarEdicaoEvento()">
                     Salvar alterações
                 </button>
+                <!-- Seção 3: Local e Vagas -->
+                <div class="form-section">
+                    <div class="form-section-title">
+                        <i class="material-icons">place</i> Local e Capacidade
+                    </div>
 
                 <button class="btn-secondary" style="background:var(--secondary-pink); color:var(--text-main);"
                     onclick="app.cancelarEvento()">
                     Cancelar evento
                 </button>
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label for="editar-evento-local">Localização / Link <span class="required">*</span></label>
+                            <div class="form-input-wrap">
+                                <i class="material-icons">place</i>
+                                <input type="text" id="editar-evento-local" placeholder="Ex: Auditório Bloco A ou Link do Meet" required autocomplete="off">
+                            </div>
+                        </div>
 
                 <button class="btn-danger" onclick="app.excluirEvento()">
                     Excluir evento
                 </button>
+                        <div class="form-group">
+                            <label for="editar-evento-limite">Limite de participantes <span class="optional">(opcional)</span></label>
+                            <div class="form-input-wrap">
+                                <i class="material-icons">people</i>
+                                <input type="number" id="editar-evento-limite" min="1" placeholder="Vazio = Sem limite">
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
                 <button class="btn-primary" onclick="app.abrirParticipantesEvento()">
                     Participantes
                 </button>
+                <!-- Seção 4: Configurações -->
+                <div class="form-section">
+                    <div class="form-section-title">
+                        <i class="material-icons">settings</i> Configurações
+                    </div>
 
                 <button class="btn-secondary" onclick="app.fecharModal('gerenciar-evento-modal')">
                     Cancelar
                 </button>
             </div>
+                    <div class="checkbox-card">
+                        <label class="checkbox-container">
+                            <input type="checkbox" id="editar-evento-checkin">
+                            <span class="checkbox-custom"></span>
+                            <div class="checkbox-text">
+                                <strong>Exigir check-in dos participantes</strong>
+                                <span>A entrada e validação de ingressos serão realizadas pelo aplicativo mobile via QR Code.</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Ações do Gerenciador -->
+                <div class="evento-gerenciar-actions">
+                    <button type="submit" class="btn-primary btn-full" id="btn-salvar-edicao-evento">
+                        <i class="material-icons" style="font-size:18px; vertical-align:middle; margin-right:4px;">save</i> Salvar alterações
+                    </button>
+
+                    <div class="evento-gerenciar-grid-btns">
+                        <button type="button" class="btn-secondary btn-icon-action" onclick="app.abrirParticipantesEvento()">
+                            <i class="material-icons">people</i> Participantes
+                        </button>
+
+                        <button type="button" class="btn-warning-soft btn-icon-action" onclick="app.cancelarEvento()">
+                            <i class="material-icons">block</i> Cancelar evento
+                        </button>
+
+                        <button type="button" class="btn-danger-soft btn-icon-action" onclick="app.excluirEvento()">
+                            <i class="material-icons">delete</i> Excluir evento
+                        </button>
+                    </div>
+
+                    <button type="button" class="btn-cancel" onclick="app.fecharModal('gerenciar-evento-modal')">
+                        Fechar sem salvar
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 
     <div class="modal-overlay" id="participantes-evento-modal">
         <div class="modal">
             <h2>Participantes do Evento</h2>
+    <div class="modal-overlay" id="participantes-evento-modal" role="dialog" aria-modal="true" aria-labelledby="participantes-modal-title">
+        <div class="modal evento-modal" style="max-width: 520px;">
+            <button type="button" class="modal-close-btn" onclick="app.fecharModal('participantes-evento-modal')" aria-label="Fechar modal">
+                <i class="material-icons">close</i>
+            </button>
 
             <div id="lista-participantes-evento">
+            <div class="modal-header-intro">
+                <span class="modal-kicker"><i class="material-icons">people</i> Lista de Presença</span>
+                <h2 id="participantes-modal-title">Participantes do Evento</h2>
+                <p id="participantes-modal-sub">Inscritos e status de check-in.</p>
+            </div>
+
+            <div id="lista-participantes-evento" class="participantes-lista-container">
                 Carregando...
             </div>
 
@@ -790,6 +1094,11 @@
             <button class="btn-secondary" onclick="app.fecharModal('participantes-evento-modal')">
                 Fechar
             </button>
+            <div style="margin-top: 20px;">
+                <button type="button" class="btn-full btn-secondary" onclick="app.fecharModal('participantes-evento-modal')">
+                    Fechar
+                </button>
+            </div>
         </div>
     </div>
 
