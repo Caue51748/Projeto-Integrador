@@ -429,19 +429,19 @@
             <div class="auth-field auth-register-only">
                 <label for="auth-nome-completo">Nome completo</label>
                 <div class="auth-input-wrap"><i class="material-icons">person_outline</i><input type="text"
-                        id="auth-nome-completo" placeholder="Como podemos chamar você?"></div>
+                        id="auth-nome-completo" placeholder="Como podemos chamar você?" autocomplete="off"></div>
             </div>
 
             <div class="auth-field auth-register-only">
                 <label for="auth-nome">Nome de exibição</label>
                 <div class="auth-input-wrap"><i class="material-icons">badge</i><input type="text" id="auth-nome"
-                        placeholder="Seu nome na comunidade"></div>
+                        placeholder="Seu nome na comunidade" autocomplete="off"></div>
             </div>
 
             <div class="auth-field auth-register-only">
                 <label for="auth-username">Nome de usuário</label>
                 <div class="auth-input-wrap"><i class="material-icons">alternate_email</i><input type="text"
-                        id="auth-username" placeholder="seu_usuario"></div>
+                        id="auth-username" placeholder="seu_usuario" autocomplete="off"></div>
             </div>
 
             <div class="auth-field auth-register-only">
@@ -453,19 +453,19 @@
             <div class="auth-field">
                 <label for="auth-email">E-mail</label>
                 <div class="auth-input-wrap"><i class="material-icons">mail_outline</i><input type="email"
-                        id="auth-email" placeholder="voce@email.com" autocomplete="email"></div>
+                        id="auth-email" placeholder="voce@email.com" autocomplete="off"></div>
             </div>
 
             <div class="auth-field auth-register-only">
                 <label for="auth-telefone">Telefone <span>(opcional)</span></label>
                 <div class="auth-input-wrap"><i class="material-icons">phone</i><input type="tel" id="auth-telefone"
-                        placeholder="(00) 00000-0000"></div>
+                        placeholder="(00) 00000-0000" autocomplete="off"></div>
             </div>
 
             <div class="auth-field">
                 <label for="auth-senha">Senha</label>
                 <div class="auth-input-wrap"><i class="material-icons">lock_outline</i><input type="password"
-                        id="auth-senha" placeholder="Sua senha" autocomplete="current-password"
+                        id="auth-senha" placeholder="Sua senha" autocomplete="new-password"
                         oninput="app.atualizarForcaSenha()"><button type="button" class="password-toggle"
                         onclick="app.alternarVisibilidadeSenha('auth-senha', this)" aria-label="Mostrar senha"><i
                             class="material-icons">visibility</i></button></div>

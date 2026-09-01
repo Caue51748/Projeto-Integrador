@@ -1070,7 +1070,7 @@ class AppController {
     entrarSubreddit(id, nome, desc) {
         this.salvarViewAtual('subreddit');
 
-        localStorage.setItem(
+        sessionStorage.setItem(
             'comunidadeAtivaId',
             id
         );
@@ -2754,7 +2754,7 @@ ${ApiService.getIdUsuarioLogado() ? `
 
         this.salvarViewAtual('evento-detalhes');
 
-        localStorage.setItem(
+        sessionStorage.setItem(
             'eventoDetalhesId',
             idEvento
         );
@@ -3027,7 +3027,7 @@ ${ApiService.getIdUsuarioLogado() ? `
     async abrirPerfil(idUsuario) {
 
         this.salvarViewAtual('perfil');
-        localStorage.setItem(
+        sessionStorage.setItem(
             'perfilUsuarioId',
             idUsuario
         );
@@ -3766,11 +3766,11 @@ ${ApiService.getIdUsuarioLogado() ? `
     }
 
     salvarViewAtual(view) {
-        localStorage.setItem('viewAtual', view);
+        sessionStorage.setItem('viewAtual', view);
     }
 
     getViewSalva() {
-        return localStorage.getItem('viewAtual') || 'feed';
+        return sessionStorage.getItem('viewAtual') || 'feed';
     }
 
     async carregarConversas() {
