@@ -211,6 +211,28 @@ class AppController {
         this.telaBoasVindasVisivel = false;
     }
 
+    selecionarEventoEmDestaque(eventos = []) {
+        if (!Array.isArray(eventos) || !eventos.length) return null;
+
+        return [...eventos].sort((a, b) => {
+            const participantesA = Number(a.quantidadeParticipantes || 0);
+            const participantesB = Number(b.quantidadeParticipantes || 0);
+
+            if (participantesB !== participantesA) {
+                return participantesB - participantesA;
+            }
+
+            const dataA = a.dataEvento
+                ? new Date(`${a.dataEvento}T${a.horarioInicio || '00:00:00'}`).getTime()
+                : 0;
+            const dataB = b.dataEvento
+                ? new Date(`${b.dataEvento}T${b.horarioInicio || '00:00:00'}`).getTime()
+                : 0;
+
+            return dataA - dataB;
+        })[0];
+    }
+
     async carregarEventosDestaque() {
         const container = document.getElementById('preview-events');
         const dataContainer = document.getElementById('preview-date');
@@ -223,7 +245,24 @@ class AppController {
                 page: 0,
                 size: 3
             });
-            const eventos = (resultado.content || []).slice(0, 3);
+
+            const eventos = [...(resultado.content || [])].sort((a, b) => {
+                const participantesA = Number(a.quantidadeParticipantes || 0);
+                const participantesB = Number(b.quantidadeParticipantes || 0);
+
+                if (participantesB !== participantesA) {
+                    return participantesB - participantesA;
+                }
+
+                const dataA = a.dataEvento
+                    ? new Date(`${a.dataEvento}T${a.horarioInicio || '00:00:00'}`).getTime()
+                    : 0;
+                const dataB = b.dataEvento
+                    ? new Date(`${b.dataEvento}T${b.horarioInicio || '00:00:00'}`).getTime()
+                    : 0;
+
+                return dataA - dataB;
+            }).slice(0, 3);
 
             if (!eventos.length) {
                 container.innerHTML = '<div class="preview-empty">Nenhum evento agendado por enquanto.</div>';
@@ -231,8 +270,8 @@ class AppController {
                 return;
             }
 
-            const primeiroEvento = eventos[0];
-            const data = this.formatarDataDestaque(primeiroEvento.dataEvento);
+            const eventoDestaque = this.selecionarEventoEmDestaque(eventos);
+            const data = this.formatarDataDestaque(eventoDestaque.dataEvento);
             dataContainer.innerHTML = `
                 <strong>${data.dia}</strong>
                 <span>${data.mes}<br><b>${data.semana}</b></span>
@@ -249,7 +288,7 @@ class AppController {
                     : '';
 
                 return `
-                    <div class="preview-event ${index === 0 ? 'preview-event-highlight' : ''}">
+                    <div class="preview-event ${evento.id === eventoDestaque.id ? 'preview-event-highlight' : ''}">
                         <div class="preview-event-time">${horario}</div>
                         <div><strong>${this.escaparHtmlDestaque(evento.titulo || 'Evento')}</strong><span>${this.escaparHtmlDestaque(local)}${limite}</span></div>
                         <i class="material-icons">chevron_right</i>
@@ -1721,6 +1760,71 @@ ${ApiService.getIdUsuarioLogado() ? `
         });
     }
 
+    aplicarFiltrosEventosLocal(eventos) {
+        const textoFiltro = (this.filtrosEventos?.texto || '').trim().toLowerCase();
+        const statusFiltro = (this.filtrosEventos?.status || '').trim().toUpperCase();
+        const categoriaFiltro = (this.filtrosEventos?.categoria || '').trim().toLowerCase();
+        const comunidadeFiltro = this.filtrosEventos?.comunidadeId != null ? Number(this.filtrosEventos.comunidadeId) : null;
+        const dataInicioFiltro = this.filtrosEventos?.dataInicio || null;
+        const dataFimFiltro = this.filtrosEventos?.dataFim || null;
+        const formatoFiltro = document.getElementById('filtro-evento-formato')?.value || '';
+
+        return eventos.filter(evento => {
+            const textoEvento = [
+                evento.titulo,
+                evento.descricao,
+                evento.categoria,
+                evento.localEvento,
+                evento.status
+            ].filter(Boolean).join(' ').toLowerCase();
+
+            if (textoFiltro && !textoEvento.includes(textoFiltro)) {
+                return false;
+            }
+
+            if (statusFiltro) {
+                const statusEvento = (evento.status || 'AGENDADO').toUpperCase();
+                if (statusEvento !== statusFiltro) {
+                    return false;
+                }
+            }
+
+            if (categoriaFiltro) {
+                const categoriaEvento = (evento.categoria || '').trim().toLowerCase();
+                const categoriaEmTexto = `${evento.titulo || ''} ${evento.descricao || ''}`.toLowerCase();
+                const categoriaCoincide = categoriaEvento === categoriaFiltro || categoriaEmTexto.includes(categoriaFiltro);
+                if (!categoriaCoincide) {
+                    return false;
+                }
+            }
+
+            if (comunidadeFiltro != null) {
+                const comunidadeEvento = Number(evento.comunidadeId ?? 0);
+                if (comunidadeEvento !== comunidadeFiltro) {
+                    return false;
+                }
+            }
+
+            if (dataInicioFiltro && (!evento.dataEvento || evento.dataEvento < dataInicioFiltro)) {
+                return false;
+            }
+
+            if (dataFimFiltro && (!evento.dataEvento || evento.dataEvento > dataFimFiltro)) {
+                return false;
+            }
+
+            if (formatoFiltro) {
+                const online = /^(https?:\/\/|www\.)/i.test(evento.localEvento || '');
+                const formatoCoincide = formatoFiltro === 'online' ? online : !online;
+                if (!formatoCoincide) {
+                    return false;
+                }
+            }
+
+            return true;
+        });
+    }
+
     async carregarEventos() {
 
         const container = document.getElementById('eventos-container');
@@ -1736,6 +1840,7 @@ ${ApiService.getIdUsuarioLogado() ? `
             });
 
             let eventos = resultado.content || [];
+            eventos = this.aplicarFiltrosEventosLocal(eventos);
 
             const categoria = document.getElementById('filtro-evento-categoria')?.value;
             const formato = document.getElementById('filtro-evento-formato')?.value;
@@ -1753,7 +1858,22 @@ ${ApiService.getIdUsuarioLogado() ? `
             this.renderizarRecomendacoes();
             this.renderizarSugestoesPessoas();
 
-            this.renderizarEventoDestaque(eventos[0]);
+            // Buscar eventos sem filtros para selecionar o destaque
+            try {
+                const resultadoTodosEventos = await ApiService.buscarEventos({
+                    status: 'AGENDADO',
+                    page: 0,
+                    size: 1000
+                });
+                const todosEventos = resultadoTodosEventos.content || [];
+                const eventoDestaque = this.selecionarEventoEmDestaque(todosEventos);
+                this.renderizarEventoDestaque(eventoDestaque);
+            } catch (erro) {
+                // Se falhar, usar o destaque dos filtrados como fallback
+                console.warn('Não foi possível carregar destaque independente', erro);
+                const eventoDestaque = this.selecionarEventoEmDestaque(eventos);
+                this.renderizarEventoDestaque(eventoDestaque);
+            }
 
             container.innerHTML = '';
 
@@ -1888,12 +2008,57 @@ ${ApiService.getIdUsuarioLogado() ? `
         const container = document.getElementById('evento-destaque');
         if (!container) return;
         if (!evento) {
-            container.innerHTML = '<div class="evento-destaque-vazio">Nenhum evento encontrado com esses filtros.</div>';
+            container.innerHTML = '<div class="evento-destaque-vazio">Nenhum evento em destaque no momento.</div>';
             return;
         }
         const data = evento.dataEvento ? new Date(`${evento.dataEvento}T00:00:00`).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '') : '--';
+        const participantes = evento.quantidadeParticipantes || 0;
+        const limite = evento.limiteParticipantes ? ` / ${evento.limiteParticipantes}` : '';
+        const nomeComunidade = evento.comunidadeId ? (this.comunidadesMap[evento.comunidadeId] || 'Comunidade') : 'Evento Geral';
+        const horarioFormatado = evento.horarioInicio?.substring(0, 5) || '--:--';
+        
         container.innerHTML = `
-            <div class="evento-destaque-copy"><span class="section-kicker">${evento.categoria || 'Em destaque'}</span><h2>${evento.titulo}</h2><p>${evento.descricao || 'Uma nova experiência está esperando por você.'}</p><div class="evento-destaque-details"><span>📅 ${data} · ${evento.horarioInicio?.substring(0, 5) || '--:--'}</span><span>📍 ${evento.localEvento || 'Local a confirmar'}</span></div><button class="btn-primary" onclick="app.abrirDetalhesEvento(${evento.id})">Ver detalhes <i class="material-icons">arrow_forward</i></button></div><div class="evento-destaque-art" ${evento.imagemCapa ? `style="background-image:linear-gradient(135deg,rgba(43,23,32,.2),rgba(234,63,116,.5)),url('${this.urlCapaEvento(evento.imagemCapa)}');background-size:cover;background-position:center;"` : ''}><i class="material-icons">celebration</i></div>
+            <div class="evento-destaque-container">
+                <div class="evento-destaque-art" ${evento.imagemCapa ? `style="background-image:linear-gradient(135deg,rgba(43,23,32,.3),rgba(234,63,116,.6)),url('${this.urlCapaEvento(evento.imagemCapa)}');background-size:cover;background-position:center;"` : ''}>
+                    ${!evento.imagemCapa ? '<i class="material-icons">event</i>' : ''}
+                </div>
+                <div class="evento-destaque-copy">
+                    <div class="evento-destaque-badge">${evento.categoria || 'Em destaque'}</div>
+                    <h2 class="evento-destaque-titulo">${this.escaparHtmlDestaque(evento.titulo)}</h2>
+                    <p class="evento-destaque-descricao">${this.escaparHtmlDestaque(evento.descricao || 'Uma nova experiência está esperando por você.')}</p>
+                    <div class="evento-destaque-info">
+                        <div class="evento-destaque-item">
+                            <i class="material-icons">schedule</i>
+                            <div>
+                                <span class="label">Data e Hora</span>
+                                <span class="valor">${data} às ${horarioFormatado}</span>
+                            </div>
+                        </div>
+                        <div class="evento-destaque-item">
+                            <i class="material-icons">location_on</i>
+                            <div>
+                                <span class="label">Local</span>
+                                <span class="valor">${this.escaparHtmlDestaque(evento.localEvento || 'Local a confirmar')}</span>
+                            </div>
+                        </div>
+                        <div class="evento-destaque-item">
+                            <i class="material-icons">people</i>
+                            <div>
+                                <span class="label">Participantes</span>
+                                <span class="valor">${participantes}${limite}</span>
+                            </div>
+                        </div>
+                        <div class="evento-destaque-item">
+                            <i class="material-icons">groups</i>
+                            <div>
+                                <span class="label">Comunidade</span>
+                                <span class="valor">${this.escaparHtmlDestaque(nomeComunidade)}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn-destaque" onclick="app.abrirDetalhesEvento(${evento.id})">Explorar evento <i class="material-icons">arrow_forward</i></button>
+                </div>
+            </div>
         `;
     }
 
@@ -2723,6 +2888,10 @@ ${ApiService.getIdUsuarioLogado() ? `
             document.getElementById('filtro-evento-categoria')
                 .value;
 
+        const formato =
+            document.getElementById('filtro-evento-formato')
+                .value;
+
         const periodo =
             document.getElementById('filtro-evento-periodo')
                 .value;
@@ -2824,7 +2993,8 @@ ${ApiService.getIdUsuarioLogado() ? `
                 categoria || null,
 
             dataInicio,
-            dataFim
+            dataFim,
+            formato: formato || null
         };
 
         this.paginaEventos = 0;
@@ -3065,8 +3235,8 @@ ${ApiService.getIdUsuarioLogado() ? `
                     </div>
 
                     ${ehProprioPerfil
-                        ? `<button onclick="app.abrirEdicaoPerfil()">Editar perfil</button>`
-                        : (idLogado ? `<button type="button" class="btn-message-profile" onclick="app.iniciarConversa(${idUsuario})">Mensagem</button>` : '')}
+                        ? `<button class="btn-editar-perfil" onclick="app.abrirEdicaoPerfil()"><i class="material-icons">edit</i> Editar perfil</button>`
+                        : (idLogado ? `<button type="button" class="btn-message-profile" onclick="app.iniciarConversa(${idUsuario})"><i class="material-icons">mail</i> Mandar mensagem</button>` : '')}
                 </div>
 
                 <div class="perfil-tabs">

@@ -349,17 +349,6 @@
 
                 <div id="view-evento-detalhes" class="view-section">
 
-                    <button onclick="app.voltarParaEventos()" style="
-            background:none;
-            border:none;
-            cursor:pointer;
-            color:var(--text-muted);
-            margin-bottom:16px;
-        ">
-                        <i class="material-icons" style="font-size:16px; vertical-align:middle;">
-                            arrow_back
-                        </i>
-                        Voltar para eventos
                     <button class="detail-back-button" onclick="app.voltarParaEventos()">
                         <i class="material-icons">arrow_back</i> Voltar para eventos
                     </button>
@@ -832,55 +821,34 @@
         </div>
     </div>
 
-    <div class="modal-overlay" id="gerenciar-evento-modal">
-        <div class="modal">
-            <h2>Gerenciar Evento</h2>
     <div class="modal-overlay" id="gerenciar-evento-modal" role="dialog" aria-modal="true" aria-labelledby="gerenciar-evento-title">
         <div class="modal evento-modal">
             <button type="button" class="modal-close-btn" onclick="app.fecharModal('gerenciar-evento-modal')" aria-label="Fechar modal">
                 <i class="material-icons">close</i>
             </button>
 
-            <input type="text" id="editar-evento-titulo" placeholder="Título do evento">
             <div class="modal-header-intro">
                 <span class="modal-kicker"><i class="material-icons">edit_calendar</i> Painel do Organizador</span>
                 <h2 id="gerenciar-evento-title">Gerenciar Evento</h2>
-                <p>Edite os detalhes, acompanhe inscrições ou altere o status do evento.</p>
+                <p>Atualize os detalhes do evento, as inscrições e as configurações de acesso.</p>
             </div>
 
-            <textarea id="editar-evento-descricao" placeholder="Descrição"></textarea>
-            <select id="editar-evento-categoria">
-                <option value="">Categoria do evento</option>
-                <option>Tecnologia</option>
-                <option>Arte</option>
-                <option>Música</option>
-                <option>Esportes</option>
-                <option>Educação</option>
-                <option>Networking</option>
-                <option>Cultura</option>
-            </select>
             <div id="editar-evento-feedback" class="form-feedback" role="alert" aria-live="polite"></div>
 
-            <input type="date" id="editar-evento-data">
             <form id="form-editar-evento" onsubmit="event.preventDefault(); app.salvarEdicaoEvento();">
-                <!-- Seção 1: Informações Básicas -->
                 <div class="form-section">
                     <div class="form-section-title">
                         <i class="material-icons">info</i> Sobre o Evento
                     </div>
 
-            <div style="display:flex; gap:10px;">
-                <input type="time" id="editar-evento-horario-inicio">
                     <div class="form-group">
                         <label for="editar-evento-titulo">Título do evento <span class="required">*</span></label>
                         <div class="form-input-wrap">
                             <i class="material-icons">title</i>
-                            <input type="text" id="editar-evento-titulo" placeholder="Título do evento" required autocomplete="off">
+                            <input type="text" id="editar-evento-titulo" placeholder="Ex: Workshop de Java ou Encontro da Comunidade" required autocomplete="off">
                         </div>
                     </div>
 
-                <input type="time" id="editar-evento-horario-fim">
-            </div>
                     <div class="form-grid-2">
                         <div class="form-group">
                             <label for="editar-evento-categoria">Categoria <span class="required">*</span></label>
@@ -903,9 +871,6 @@
                             </div>
                         </div>
 
-            <label for="editar-evento-encerramento-inscricoes">
-                Encerramento das inscrições
-            </label>
                         <div class="form-group">
                             <label for="editar-evento-comunidade">Comunidade vinculada <span class="optional">(opcional)</span></label>
                             <div class="form-input-wrap">
@@ -917,21 +882,17 @@
                         </div>
                     </div>
 
-            <input type="datetime-local" id="editar-evento-encerramento-inscricoes">
                     <div class="form-group">
-                        <label for="editar-evento-descricao">Descrição e detalhes</label>
-                        <textarea id="editar-evento-descricao" rows="3" placeholder="Descrição do evento..."></textarea>
+                        <label for="editar-evento-descricao">Descrição e detalhes <span class="optional">(opcional)</span></label>
+                        <textarea id="editar-evento-descricao" rows="3" placeholder="Explique a proposta do evento, programação, requisitos ou recados importantes..."></textarea>
                     </div>
                 </div>
 
-            <input type="text" id="editar-evento-local" placeholder="Local">
-                <!-- Seção 2: Data e Horários -->
                 <div class="form-section">
                     <div class="form-section-title">
                         <i class="material-icons">schedule</i> Data e Horários
                     </div>
 
-            <input type="number" id="editar-evento-comunidade" placeholder="ID da comunidade (opcional)">
                     <div class="form-grid-3">
                         <div class="form-group">
                             <label for="editar-evento-data">Data <span class="required">*</span></label>
@@ -941,7 +902,6 @@
                             </div>
                         </div>
 
-            <input type="number" id="editar-evento-limite" placeholder="Limite de participantes (opcional)" min="1">
                         <div class="form-group">
                             <label for="editar-evento-horario-inicio">Início <span class="required">*</span></label>
                             <div class="form-input-wrap">
@@ -950,10 +910,6 @@
                             </div>
                         </div>
 
-            <label style="display:flex; align-items:center; gap:8px; margin-bottom:16px;">
-                <input type="checkbox" id="editar-evento-checkin">
-                Exigir check-in dos participantes
-            </label>
                         <div class="form-group">
                             <label for="editar-evento-horario-fim">Término <span class="required">*</span></label>
                             <div class="form-input-wrap">
@@ -963,13 +919,6 @@
                         </div>
                     </div>
 
-            <small style="
-    color:var(--text-muted);
-    display:block;
-    margin-bottom:16px;
-">
-                O ingresso e a validação de entrada serão realizados pelo aplicativo mobile.
-            </small>
                     <div class="form-group">
                         <label for="editar-evento-encerramento-inscricoes">Encerramento das inscrições <span class="optional">(opcional)</span></label>
                         <div class="form-input-wrap">
@@ -980,20 +929,11 @@
                     </div>
                 </div>
 
-            <div style="display:flex; gap:10px; flex-wrap:wrap;">
-                <button class="btn-primary" onclick="app.salvarEdicaoEvento()">
-                    Salvar alterações
-                </button>
-                <!-- Seção 3: Local e Vagas -->
                 <div class="form-section">
                     <div class="form-section-title">
                         <i class="material-icons">place</i> Local e Capacidade
                     </div>
 
-                <button class="btn-secondary" style="background:var(--secondary-pink); color:var(--text-main);"
-                    onclick="app.cancelarEvento()">
-                    Cancelar evento
-                </button>
                     <div class="form-grid-2">
                         <div class="form-group">
                             <label for="editar-evento-local">Localização / Link <span class="required">*</span></label>
@@ -1003,9 +943,6 @@
                             </div>
                         </div>
 
-                <button class="btn-danger" onclick="app.excluirEvento()">
-                    Excluir evento
-                </button>
                         <div class="form-group">
                             <label for="editar-evento-limite">Limite de participantes <span class="optional">(opcional)</span></label>
                             <div class="form-input-wrap">
@@ -1016,19 +953,11 @@
                     </div>
                 </div>
 
-                <button class="btn-primary" onclick="app.abrirParticipantesEvento()">
-                    Participantes
-                </button>
-                <!-- Seção 4: Configurações -->
                 <div class="form-section">
                     <div class="form-section-title">
                         <i class="material-icons">settings</i> Configurações
                     </div>
 
-                <button class="btn-secondary" onclick="app.fecharModal('gerenciar-evento-modal')">
-                    Cancelar
-                </button>
-            </div>
                     <div class="checkbox-card">
                         <label class="checkbox-container">
                             <input type="checkbox" id="editar-evento-checkin">
@@ -1041,7 +970,6 @@
                     </div>
                 </div>
 
-                <!-- Ações do Gerenciador -->
                 <div class="evento-gerenciar-actions">
                     <button type="submit" class="btn-primary btn-full" id="btn-salvar-edicao-evento">
                         <i class="material-icons" style="font-size:18px; vertical-align:middle; margin-right:4px;">save</i> Salvar alterações
@@ -1069,16 +997,12 @@
         </div>
     </div>
 
-    <div class="modal-overlay" id="participantes-evento-modal">
-        <div class="modal">
-            <h2>Participantes do Evento</h2>
     <div class="modal-overlay" id="participantes-evento-modal" role="dialog" aria-modal="true" aria-labelledby="participantes-modal-title">
         <div class="modal evento-modal" style="max-width: 520px;">
             <button type="button" class="modal-close-btn" onclick="app.fecharModal('participantes-evento-modal')" aria-label="Fechar modal">
                 <i class="material-icons">close</i>
             </button>
 
-            <div id="lista-participantes-evento">
             <div class="modal-header-intro">
                 <span class="modal-kicker"><i class="material-icons">people</i> Lista de Presença</span>
                 <h2 id="participantes-modal-title">Participantes do Evento</h2>
@@ -1089,11 +1013,6 @@
                 Carregando...
             </div>
 
-            <br>
-
-            <button class="btn-secondary" onclick="app.fecharModal('participantes-evento-modal')">
-                Fechar
-            </button>
             <div style="margin-top: 20px;">
                 <button type="button" class="btn-full btn-secondary" onclick="app.fecharModal('participantes-evento-modal')">
                     Fechar
