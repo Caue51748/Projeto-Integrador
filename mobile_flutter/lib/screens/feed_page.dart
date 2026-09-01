@@ -6,6 +6,7 @@ import '../services/auth_service.dart';
 import '../services/post_service.dart';
 import '../services/usuario_service.dart';
 import '../services/comentario_service.dart';
+import '../services/api_service.dart';
 import 'login_screen.dart';
 import 'create_post_page.dart';
 import 'post_detail_screen.dart';
@@ -23,28 +24,57 @@ class _FeedPageState extends State<FeedPage> {
   final PostService postService = PostService();
   final UsuarioService usuarioService = UsuarioService();
   final ComentarioService comentarioService = ComentarioService();
+  final ScrollController _scrollController = ScrollController();
 
   List<Post> posts = [];
   Map<int, String> nomesUsuarios = {};
+  Map<int, String?> fotosUsuarios = {};
   Map<int, List<Comentario>> comentariosPorPost = {};
   Set<int> postsCurtidos = {};
   bool carregando = true;
+  bool carregandoMais = false;
+  bool temMaisPosts = true;
+  int paginaAtual = 0;
+  final int pageSize = 10;
 
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     carregarDados();
   }
 
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 250) {
+      _carregarMaisPosts();
+    }
+  }
+
   Future<void> carregarDados() async {
-    setState(() => carregando = true);
+    setState(() {
+      carregando = true;
+      paginaAtual = 0;
+      temMaisPosts = true;
+    });
     try {
       final listaUsuarios = await usuarioService.listarUsuarios();
-      Map<int, String> mapaUsuarios = {
-        for (var u in listaUsuarios)
-          if (u.idUsuario != null) u.idUsuario!: u.nome
-      };
-      final listaPosts = await postService.listarPosts();
+      Map<int, String> mapaUsuarios = {};
+      Map<int, String?> mapaFotos = {};
+      for (var u in listaUsuarios) {
+        if (u.idUsuario != null) {
+          mapaUsuarios[u.idUsuario!] = u.nome;
+          mapaFotos[u.idUsuario!] = u.fotoPerfil;
+        }
+      }
+
+      final listaPosts = await postService.listarPosts(page: 0, size: pageSize);
       final listaComentarios = await comentarioService.listarComentarios();
 
       Map<int, List<Comentario>> mapaComentarios = {};
@@ -55,14 +85,46 @@ class _FeedPageState extends State<FeedPage> {
       if (mounted) {
         setState(() {
           nomesUsuarios = mapaUsuarios;
+          fotosUsuarios = mapaFotos;
           comentariosPorPost = mapaComentarios;
-          posts = listaPosts.reversed.toList();
+          posts = listaPosts;
+          paginaAtual = 1;
+          temMaisPosts = listaPosts.length >= pageSize;
           carregando = false;
         });
       }
     } catch (e) {
       if (mounted) {
         setState(() => carregando = false);
+      }
+    }
+  }
+
+  Future<void> _carregarMaisPosts() async {
+    if (carregandoMais || !temMaisPosts || carregando) return;
+
+    setState(() => carregandoMais = true);
+    try {
+      final novosPosts =
+          await postService.listarPosts(page: paginaAtual, size: pageSize);
+
+      if (mounted) {
+        setState(() {
+          if (novosPosts.length < pageSize) {
+            temMaisPosts = false;
+          }
+          final idsExistentes = posts.map((p) => p.idPost).toSet();
+          final postsFiltrados =
+              novosPosts.where((p) => !idsExistentes.contains(p.idPost)).toList();
+
+          posts.addAll(postsFiltrados);
+          paginaAtual++;
+          carregandoMais = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => carregandoMais = false);
       }
     }
   }
@@ -128,16 +190,34 @@ class _FeedPageState extends State<FeedPage> {
               onRefresh: carregarDados,
               color: const Color(0xFFEA3F74),
               child: ListView.builder(
+                controller: _scrollController,
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 90),
-                itemCount: posts.length + 1,
+                itemCount: posts.length + 1 + (carregandoMais ? 1 : 0),
                 itemBuilder: (context, index) {
                   if (index == 0) {
                     return _buildInlineCreatePostCard();
                   }
 
+                  if (index > posts.length) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 20),
+                      child: Center(
+                        child: SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            color: Color(0xFFEA3F74),
+                            strokeWidth: 2,
+                          ),
+                        ),
+                      ),
+                    );
+                  }
+
                   final post = posts[index - 1];
                   final nomeAutor =
                       nomesUsuarios[post.idUsuario] ?? 'Desconhecido';
+                  final fotoAutor = fotosUsuarios[post.idUsuario];
                   final qtdComentarios =
                       comentariosPorPost[post.idPost]?.length ?? 0;
                   final inicial =
@@ -148,6 +228,7 @@ class _FeedPageState extends State<FeedPage> {
                   return _buildWebStylePostCard(
                     post: post,
                     nomeAutor: nomeAutor,
+                    fotoAutor: fotoAutor,
                     inicial: inicial,
                     qtdComentarios: qtdComentarios,
                     curtiu: curtiu,
@@ -164,6 +245,7 @@ class _FeedPageState extends State<FeedPage> {
         ? (AuthService.nomeUsuario ?? 'Usuário')
         : 'Visitante';
     final inicial = nomeUsuario.isNotEmpty ? nomeUsuario[0].toUpperCase() : 'U';
+    final fotoUrl = ApiService.formatarUrlFotoPerfil(AuthService.fotoPerfil);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -186,14 +268,17 @@ class _FeedPageState extends State<FeedPage> {
           CircleAvatar(
             radius: 20,
             backgroundColor: const Color(0xFFEA3F74),
-            child: Text(
-              inicial,
-              style: GoogleFonts.manrope(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
-            ),
+            backgroundImage: (fotoUrl != null) ? NetworkImage(fotoUrl) : null,
+            child: (fotoUrl == null)
+                ? Text(
+                    inicial,
+                    style: GoogleFonts.manrope(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  )
+                : null,
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -240,10 +325,13 @@ class _FeedPageState extends State<FeedPage> {
   Widget _buildWebStylePostCard({
     required Post post,
     required String nomeAutor,
+    String? fotoAutor,
     required String inicial,
     required int qtdComentarios,
     required bool curtiu,
   }) {
+    final fotoUrl = ApiService.formatarUrlFotoPerfil(fotoAutor);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
@@ -275,14 +363,18 @@ class _FeedPageState extends State<FeedPage> {
                     CircleAvatar(
                       radius: 20,
                       backgroundColor: const Color(0xFFEA3F74),
-                      child: Text(
-                        inicial,
-                        style: GoogleFonts.manrope(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
+                      backgroundImage:
+                          (fotoUrl != null) ? NetworkImage(fotoUrl) : null,
+                      child: (fotoUrl == null)
+                          ? Text(
+                              inicial,
+                              style: GoogleFonts.manrope(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            )
+                          : null,
                     ),
                     const SizedBox(width: 12),
                     Expanded(

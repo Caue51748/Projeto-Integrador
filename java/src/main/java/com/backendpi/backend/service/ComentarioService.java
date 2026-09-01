@@ -19,6 +19,10 @@ public class ComentarioService {
         return repository.findAll();
     }
 
+    public List<Comentario> listarPorPost(Long idPost) {
+        return repository.findByIdPost(idPost);
+    }
+
     public Comentario criar(Comentario comentario) {
         return repository.save(comentario);
     }

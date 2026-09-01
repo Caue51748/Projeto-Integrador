@@ -74,7 +74,7 @@ class _EventosPageState extends State<EventosPage> {
     final Map<int, int> mapaContagem = Map.from(_totalParticipantesPorEvento);
     final Set<int> inscritos = Set.from(_eventosInscritos);
 
-    for (var ev in lista) {
+    await Future.wait(lista.map((ev) async {
       try {
         final total = await _service.contarParticipantes(ev.id);
         mapaContagem[ev.id] = total;
@@ -86,7 +86,7 @@ class _EventosPageState extends State<EventosPage> {
           }
         }
       } catch (_) {}
-    }
+    }));
 
     if (mounted) {
       setState(() {

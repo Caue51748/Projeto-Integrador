@@ -5,6 +5,7 @@ class AuthService {
   static String? emailUsuario;
   static String? username;
   static String? bio;
+  static String? fotoPerfil;
 
   static void fazerLogin({
     required int idUsuario,
@@ -12,6 +13,7 @@ class AuthService {
     required String email,
     String? username,
     String? bio,
+    String? fotoPerfil,
   }) {
     AuthService.logado = true;
     AuthService.idUsuario = idUsuario;
@@ -19,6 +21,7 @@ class AuthService {
     AuthService.emailUsuario = email;
     AuthService.username = username;
     AuthService.bio = bio;
+    AuthService.fotoPerfil = fotoPerfil;
   }
 
   static void fazerLogout() {
@@ -28,5 +31,6 @@ class AuthService {
     emailUsuario = null;
     username = null;
     bio = null;
+    fotoPerfil = null;
   }
 }
