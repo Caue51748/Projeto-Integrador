@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
-/// Tela de boas-vindas ultra-moderna para a versão mobile.
-/// Combina a identidade estétrica refinada da Web com a experiência nativa de onboarding de apps sociais.
+/// Tela de Boas-Vindas Mobile — Fiel à Estilização Real da Tela WEB (welcome-screen, eyebrow, copy h1, preview-window, welcome-btn).
+/// Fonte da Verdade: web/style.css
 class MobileWelcomeView extends StatelessWidget {
   final VoidCallback onLogin;
   final VoidCallback onRegister;
@@ -20,110 +21,149 @@ class MobileWelcomeView extends StatelessWidget {
       backgroundColor: Colors.white,
       body: SafeArea(
         child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+          child: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFFFFF9FB), Color(0xFFFFF1F6)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 12),
 
-                // Eyebrow Tag estilo Web (Manrope uppercase 12px)
+                // Brand Mark no Topo (.welcome-brand-mark da Web)
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Container(width: 24, height: 2, color: const Color(0xFFEA3F74)),
-                    const SizedBox(width: 8),
-                    const Text(
-                      'A SUA REDE SOCIAL DE EVENTOS',
-                      style: TextStyle(
-                        color: Color(0xFFEA3F74),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1.2,
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEA3F74),
+                        borderRadius: BorderRadius.circular(11),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color.fromRGBO(234, 63, 116, 0.25),
+                            blurRadius: 18,
+                            offset: Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.hub_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    RichText(
+                      text: TextSpan(
+                        style: GoogleFonts.manrope(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF202124),
+                        ),
+                        children: const [
+                          TextSpan(text: 'Social'),
+                          TextSpan(
+                            text: 'Join',
+                            style: TextStyle(color: Color(0xFFEA3F74)),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Spacer(),
+                    TextButton(
+                      onPressed: onLogin,
+                      child: Text(
+                        'Entrar',
+                        style: GoogleFonts.manrope(
+                          color: const Color(0xFFEA3F74),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                     ),
                   ],
                 ),
 
-                const SizedBox(height: 24),
+                const SizedBox(height: 36),
 
-                // Icone e Marca SocialJoin com Sombra Elevada em Gradiente
-                Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFF9ACC6), Color(0xFFEA3F74)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+                // Eyebrow Tag estilo Web (.welcome-eyebrow)
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 28,
+                      height: 2,
+                      color: const Color(0xFFEA3F74),
                     ),
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFFEA3F74).withValues(alpha: 0.35),
-                        blurRadius: 28,
-                        offset: const Offset(0, 10),
+                    const SizedBox(width: 9),
+                    Text(
+                      'A SUA REDE SOCIAL DE EVENTOS',
+                      style: GoogleFonts.manrope(
+                        color: const Color(0xFFEA3F74),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.1,
                       ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.hub_rounded,
-                    color: Colors.white,
-                    size: 42,
-                  ),
+                    ),
+                  ],
                 ),
 
-                const SizedBox(height: 18),
+                const SizedBox(height: 16),
 
+                // Copy Headline H1 estilo Web (.welcome-copy h1)
                 RichText(
-                  textAlign: TextAlign.center,
-                  text: const TextSpan(
-                    style: TextStyle(
-                      fontFamily: 'Roboto',
-                      fontSize: 32,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: -1.2,
-                      color: Color(0xFF0F172A),
+                  text: TextSpan(
+                    style: GoogleFonts.manrope(
+                      fontSize: 38,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -1.5,
+                      color: const Color(0xFF202124),
+                      height: 1.05,
                     ),
-                    children: [
-                      TextSpan(text: 'Social'),
+                    children: const [
+                      TextSpan(text: 'Conecte-se.\nParticipe. '),
                       TextSpan(
-                        text: 'Join',
+                        text: 'Viva.',
                         style: TextStyle(
                           color: Color(0xFFEA3F74),
+                          fontStyle: FontStyle.italic,
                         ),
                       ),
                     ],
                   ),
                 ),
 
-                const SizedBox(height: 8),
+                const SizedBox(height: 14),
 
-                const Text(
-                  'Conecte-se com pessoas, participe de eventos e viva experiências inesquecíveis.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF64748B),
-                    height: 1.45,
-                    fontWeight: FontWeight.w500,
+                Text(
+                  'Conecte-se com pessoas reais, descubra encontros marcantes e viva experiências inesquecíveis.',
+                  style: GoogleFonts.manrope(
+                    fontSize: 15,
+                    color: const Color(0xFF6B7280),
+                    height: 1.55,
                   ),
                 ),
 
                 const SizedBox(height: 28),
 
-                // Card Flutuante de Exemplo de Evento / Atividade (Preview Window da Web)
+                // Preview Window Fiel à WEB (.preview-window da Web)
                 Container(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
+                    color: Colors.white.withValues(alpha: 0.92),
+                    borderRadius: BorderRadius.circular(18),
                     border: Border.all(color: const Color(0xFFEA3F74).withValues(alpha: 0.15)),
-                    boxShadow: [
+                    boxShadow: const [
                       BoxShadow(
-                        color: const Color(0xFFEA3F74).withValues(alpha: 0.1),
-                        blurRadius: 24,
-                        offset: const Offset(0, 8),
+                        color: Color.fromRGBO(120, 34, 66, 0.16),
+                        blurRadius: 40,
+                        offset: Offset(0, 18),
                       ),
                     ],
                   ),
@@ -131,14 +171,14 @@ class MobileWelcomeView extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.local_fire_department_rounded, color: Color(0xFFEA3F74), size: 20),
-                          const SizedBox(width: 8),
-                          const Text(
+                          const Icon(Icons.local_fire_department_rounded, color: Color(0xFFEA3F74), size: 18),
+                          const SizedBox(width: 6),
+                          Text(
                             'ACONTECENDO AGORA',
-                            style: TextStyle(
+                            style: GoogleFonts.manrope(
                               fontSize: 11,
                               fontWeight: FontWeight.w800,
-                              color: Color(0xFFEA3F74),
+                              color: const Color(0xFFEA3F74),
                               letterSpacing: 0.5,
                             ),
                           ),
@@ -147,34 +187,32 @@ class MobileWelcomeView extends StatelessWidget {
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
                               color: const Color(0xFFECFDF5),
-                              borderRadius: BorderRadius.circular(10),
+                              borderRadius: BorderRadius.circular(8),
                             ),
-                            child: const Text(
+                            child: Text(
                               '+2.4k ativos',
-                              style: TextStyle(
-                                color: Color(0xFF10B981),
+                              style: GoogleFonts.manrope(
+                                color: const Color(0xFF10B981),
                                 fontSize: 10,
-                                fontWeight: FontWeight.bold,
+                                fontWeight: FontWeight.w800,
                               ),
                             ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 12),
-                      const Divider(color: Color(0xFFF1F5F9), height: 1),
+                      const Divider(color: Color(0xFFE5E7EB), height: 1),
                       const SizedBox(height: 12),
 
-                      // Item 1: Encontro de Tecnologia
-                      _buildPreviewItem(
+                      _buildPreviewEventRow(
                         time: '19:30',
                         title: 'Tech Meetup & Networking',
                         location: 'Paulista, São Paulo',
                         avatars: ['M', 'S', 'A'],
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 8),
 
-                      // Item 2: Comunidade de Música
-                      _buildPreviewItem(
+                      _buildPreviewEventRow(
                         time: '21:00',
                         title: 'Festival de Música & Arte',
                         location: 'Parque Ibirapuera',
@@ -186,97 +224,75 @@ class MobileWelcomeView extends StatelessWidget {
 
                 const SizedBox(height: 32),
 
-                // Botão Primário Estilo Pill (Rosa Gradiente)
-                Container(
-                  width: double.infinity,
-                  height: 52,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFF9ACC6), Color(0xFFEA3F74)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(26),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFFEA3F74).withValues(alpha: 0.3),
-                        blurRadius: 18,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
-                  ),
-                  child: ElevatedButton(
-                    onPressed: onRegister,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.transparent,
-                      shadowColor: Colors.transparent,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(26),
-                      ),
-                    ),
-                    child: const Text(
-                      'Criar nova conta',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -0.2,
-                      ),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 10),
-
-                // Botão Secundário Contornado
-                SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: OutlinedButton(
-                    onPressed: onLogin,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF0F172A),
-                      side: const BorderSide(color: Color(0xFFCBD5E1), width: 1.5),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(26),
-                      ),
-                    ),
-                    child: const Text(
-                      'Entrar com e-mail',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -0.2,
-                      ),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-
-                // Link para explorar como visitante
-                TextButton(
-                  onPressed: onExplorar,
-                  style: TextButton.styleFrom(
-                    foregroundColor: const Color(0xFF64748B),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'Explorar como visitante',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
+                // Welcome Actions (.welcome-actions e .welcome-btn)
+                Column(
+                  children: [
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton(
+                        onPressed: onRegister,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFEA3F74),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        child: Text(
+                          'Criar nova conta',
+                          style: GoogleFonts.manrope(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
-                      SizedBox(width: 4),
-                      Icon(Icons.arrow_forward_rounded, size: 15),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: OutlinedButton(
+                        onPressed: onLogin,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFFEA3F74),
+                          side: const BorderSide(color: Color(0xFFF9ACC6), width: 1),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        child: Text(
+                          'Entrar com e-mail',
+                          style: GoogleFonts.manrope(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    TextButton(
+                      onPressed: onExplorar,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Explorar como visitante',
+                            style: GoogleFonts.manrope(
+                              color: const Color(0xFF6B7280),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          const Icon(Icons.arrow_forward_rounded, size: 16, color: Color(0xFF6B7280)),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
               ],
             ),
           ),
@@ -285,7 +301,7 @@ class MobileWelcomeView extends StatelessWidget {
     );
   }
 
-  Widget _buildPreviewItem({
+  Widget _buildPreviewEventRow({
     required String time,
     required String title,
     required String location,
@@ -295,10 +311,10 @@ class MobileWelcomeView extends StatelessWidget {
       children: [
         Text(
           time,
-          style: const TextStyle(
-            color: Color(0xFFEA3F74),
+          style: GoogleFonts.manrope(
+            color: const Color(0xFFEA3F74),
             fontSize: 12,
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.w800,
           ),
         ),
         const SizedBox(width: 12),
@@ -308,18 +324,18 @@ class MobileWelcomeView extends StatelessWidget {
             children: [
               Text(
                 title,
-                style: const TextStyle(
+                style: GoogleFonts.manrope(
                   fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF0F172A),
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF202124),
                 ),
                 overflow: TextOverflow.ellipsis,
               ),
               Text(
                 location,
-                style: const TextStyle(
+                style: GoogleFonts.manrope(
                   fontSize: 11,
-                  color: Color(0xFF64748B),
+                  color: const Color(0xFF6B7280),
                 ),
                 overflow: TextOverflow.ellipsis,
               ),
@@ -328,7 +344,7 @@ class MobileWelcomeView extends StatelessWidget {
         ),
         const SizedBox(width: 8),
 
-        // Avatares sobrepostos
+        // Avatares (.preview-avatars da Web CSS)
         SizedBox(
           width: avatars.length * 16.0 + 8.0,
           height: 24,
@@ -341,16 +357,16 @@ class MobileWelcomeView extends StatelessWidget {
                 child: CircleAvatar(
                   radius: 11,
                   backgroundColor: idx == 0
-                      ? const Color(0xFFF9ACC6)
+                      ? const Color(0xFFE47D9D)
                       : idx == 1
                           ? const Color(0xFFEA3F74)
-                          : const Color(0xFF0F172A),
+                          : const Color(0xFF202124),
                   child: Text(
                     letter,
-                    style: const TextStyle(
+                    style: GoogleFonts.manrope(
                       color: Colors.white,
                       fontSize: 9,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                 ),
