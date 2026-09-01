@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../services/auth_service.dart';
 import '../services/notification_service.dart';
 import 'feed_page.dart';
@@ -85,9 +86,9 @@ class _HomeScreenState extends State<HomeScreen> {
       paginaAtual = 0;
     });
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Você saiu da sua conta.'),
-        duration: Duration(seconds: 2),
+      SnackBar(
+        content: Text('Você saiu da sua conta.', style: GoogleFonts.manrope()),
+        duration: const Duration(seconds: 2),
       ),
     );
   }
@@ -136,22 +137,29 @@ class _HomeScreenState extends State<HomeScreen> {
     final bool isDesktop = size.width > 920;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF7F8FA),
       appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(60),
+        preferredSize: const Size.fromHeight(64),
         child: Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             color: Colors.white,
-            border: Border(
-              bottom: BorderSide(color: Color(0xFFF1F5F9), width: 1.0),
+            border: const Border(
+              bottom: BorderSide(color: Color(0xFFE5E7EB), width: 1.0),
             ),
+            boxShadow: [
+              BoxShadow(
+                color: const Color.fromRGBO(120, 34, 66, 0.06),
+                blurRadius: 24,
+                offset: const Offset(0, 8),
+              ),
+            ],
           ),
           child: SafeArea(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Row(
                 children: [
-                  // Logotipo SocialJoin
+                  // Logotipo SocialJoin (Web brand mark style)
                   Flexible(
                     child: _buildBrandLogo(),
                   ),
@@ -180,46 +188,48 @@ class _HomeScreenState extends State<HomeScreen> {
                     const Spacer(),
                   ],
 
-                  // Ações Rápidas do Topo (Busca rápida, Mapa e Perfil/Menu)
+                  // Ações Rápidas do Topo (Web style header icons)
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      IconButton(
-                        constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                        padding: EdgeInsets.zero,
-                        icon: Icon(
-                          paginaAtual == 1 ? Icons.search_rounded : Icons.search_outlined,
-                          color: paginaAtual == 1 ? const Color(0xFFEA3F74) : const Color(0xFF0F172A),
-                          size: 22,
-                        ),
-                        onPressed: () => _selecionarPagina(1),
+                      _buildHeaderIconButton(
+                        icon: Icons.search_rounded,
+                        isActive: paginaAtual == 1,
+                        onTap: () => _selecionarPagina(1),
                         tooltip: 'Pesquisar Eventos',
                       ),
-                      IconButton(
-                        constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                        padding: EdgeInsets.zero,
-                        icon: Icon(
-                          paginaAtual == 5 ? Icons.map_rounded : Icons.map_outlined,
-                          color: paginaAtual == 5 ? const Color(0xFFEA3F74) : const Color(0xFF0F172A),
-                          size: 22,
-                        ),
-                        onPressed: () => _selecionarPagina(5),
+                      _buildHeaderIconButton(
+                        icon: paginaAtual == 5 ? Icons.map_rounded : Icons.map_outlined,
+                        isActive: paginaAtual == 5,
+                        onTap: () => _selecionarPagina(5),
                         tooltip: 'Mapa de Eventos',
                       ),
-                      const SizedBox(width: 2),
+                      const SizedBox(width: 6),
 
+                      // Account Trigger (.account-trigger from Web CSS)
                       if (AuthService.logado)
                         GestureDetector(
                           onTap: () => _selecionarPagina(4),
-                          child: CircleAvatar(
-                            backgroundColor: const Color(0xFFEA3F74),
-                            radius: 14,
-                            child: Text(
-                              (AuthService.nomeUsuario ?? 'U')[0].toUpperCase(),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
+                          child: Container(
+                            padding: const EdgeInsets.all(3),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(999),
+                              border: Border.all(
+                                color: paginaAtual == 4 ? const Color(0xFFEA3F74) : const Color(0xFFE5E7EB),
+                                width: 1.5,
+                              ),
+                            ),
+                            child: CircleAvatar(
+                              backgroundColor: const Color(0xFFEA3F74),
+                              radius: 14,
+                              child: Text(
+                                (AuthService.nomeUsuario ?? 'U')[0].toUpperCase(),
+                                style: GoogleFonts.manrope(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 12,
+                                ),
                               ),
                             ),
                           ),
@@ -227,32 +237,31 @@ class _HomeScreenState extends State<HomeScreen> {
                       else
                         InkWell(
                           onTap: _abrirLogin,
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(10),
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFFDF0F4),
-                              borderRadius: BorderRadius.circular(16),
+                              color: const Color(0xFFEA3F74),
+                              borderRadius: BorderRadius.circular(10),
                             ),
-                            child: const Text(
+                            child: Text(
                               'Entrar',
-                              style: TextStyle(
-                                color: Color(0xFFEA3F74),
-                                fontSize: 12,
+                              style: GoogleFonts.manrope(
+                                color: Colors.white,
+                                fontSize: 13,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
                           ),
                         ),
 
-                      const SizedBox(width: 2),
+                      const SizedBox(width: 4),
 
                       Builder(
-                        builder: (scaffoldContext) => IconButton(
-                          constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                          padding: EdgeInsets.zero,
-                          icon: const Icon(Icons.menu_rounded, color: Color(0xFF0F172A), size: 24),
-                          onPressed: () => Scaffold.of(scaffoldContext).openEndDrawer(),
+                        builder: (scaffoldContext) => _buildHeaderIconButton(
+                          icon: Icons.menu_rounded,
+                          isActive: false,
+                          onTap: () => Scaffold.of(scaffoldContext).openEndDrawer(),
                           tooltip: 'Menu',
                         ),
                       ),
@@ -267,67 +276,101 @@ class _HomeScreenState extends State<HomeScreen> {
       endDrawer: _buildDrawer(isDesktop),
       body: _buildBody(),
 
-      // Barra de Navegação Inferior (Bottom Navigation Bar) inspirada em Instagram/Twitter/Reddit
-      bottomNavigationBar: isDesktop
-          ? null
-          : Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.04),
-                    blurRadius: 12,
-                    offset: const Offset(0, -3),
-                  ),
-                ],
-                border: const Border(
-                  top: BorderSide(color: Color(0xFFF1F5F9), width: 1),
-                ),
-              ),
-              child: SafeArea(
-                child: BottomNavigationBar(
-                  currentIndex: _mapPaginaParaBottomNav(paginaAtual),
-                  onTap: (navIndex) {
-                    final pageIndex = _mapBottomNavParaPagina(navIndex);
-                    _selecionarPagina(pageIndex);
-                  },
-                  backgroundColor: Colors.white,
-                  selectedItemColor: const Color(0xFFEA3F74),
-                  unselectedItemColor: const Color(0xFF94A3B8),
-                  selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 11),
-                  unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 11),
-                  type: BottomNavigationBarType.fixed,
-                  elevation: 0,
-                  items: [
-                    const BottomNavigationBarItem(
-                      icon: Icon(Icons.dynamic_feed_outlined),
-                      activeIcon: Icon(Icons.dynamic_feed_rounded),
-                      label: 'Feed',
-                    ),
-                    const BottomNavigationBarItem(
-                      icon: Icon(Icons.search_rounded),
-                      activeIcon: Icon(Icons.search_rounded),
-                      label: 'Pesquisar',
-                    ),
-                    const BottomNavigationBarItem(
-                      icon: Icon(Icons.calendar_month_outlined),
-                      activeIcon: Icon(Icons.calendar_month_rounded),
-                      label: 'Eventos',
-                    ),
-                    const BottomNavigationBarItem(
-                      icon: Icon(Icons.groups_outlined),
-                      activeIcon: Icon(Icons.groups_rounded),
-                      label: 'Grupos',
-                    ),
-                    BottomNavigationBarItem(
-                      icon: const Icon(Icons.person_outline_rounded),
-                      activeIcon: const Icon(Icons.person_rounded),
-                      label: AuthService.logado ? 'Perfil' : 'Conta',
-                    ),
-                  ],
-                ),
+      // Navigation bar estilo Web mobile (.nav-menu da Web CSS)
+      bottomNavigationBar: isDesktop ? null : _buildWebStyleBottomNav(),
+    );
+  }
+
+  Widget _buildHeaderIconButton({
+    required IconData icon,
+    required bool isActive,
+    required VoidCallback onTap,
+    String? tooltip,
+  }) {
+    return IconButton(
+      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+      padding: EdgeInsets.zero,
+      icon: Icon(
+        icon,
+        color: isActive ? const Color(0xFFEA3F74) : const Color(0xFF202124),
+        size: 22,
+      ),
+      onPressed: onTap,
+      tooltip: tooltip,
+    );
+  }
+
+  /// Navigation Bar Fiel ao `.nav-menu` e `.nav-btn` da versão Web em telas mobile
+  Widget _buildWebStyleBottomNav() {
+    final int navIndex = _mapPaginaParaBottomNav(paginaAtual);
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          top: BorderSide(color: Color(0xFFE5E7EB), width: 1.0),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Color.fromRGBO(120, 34, 66, 0.06),
+            blurRadius: 16,
+            offset: Offset(0, -4),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        child: Row(
+          children: [
+            _buildNavTabItem(0, Icons.dynamic_feed_rounded, "Feed", navIndex == 0),
+            _buildNavTabItem(1, Icons.search_rounded, "Buscar", navIndex == 1),
+            _buildNavTabItem(2, Icons.event_rounded, "Eventos", navIndex == 2),
+            _buildNavTabItem(3, Icons.groups_rounded, "Grupos", navIndex == 3),
+            _buildNavTabItem(4, Icons.person_rounded, AuthService.logado ? "Perfil" : "Conta", navIndex == 4),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavTabItem(int index, IconData icon, String label, bool isActive) {
+    return Expanded(
+      child: InkWell(
+        onTap: () {
+          final pageIndex = _mapBottomNavParaPagina(index);
+          _selecionarPagina(pageIndex);
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            border: Border(
+              top: BorderSide(
+                color: isActive ? const Color(0xFFEA3F74) : Colors.transparent,
+                width: 3.0,
               ),
             ),
+            color: isActive ? const Color(0xFFF7F8FA) : Colors.white,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                color: isActive ? const Color(0xFFEA3F74) : const Color(0xFF6B7280),
+                size: 22,
+              ),
+              const SizedBox(height: 3),
+              Text(
+                label,
+                style: GoogleFonts.manrope(
+                  fontSize: 11,
+                  fontWeight: isActive ? FontWeight.w800 : FontWeight.w600,
+                  color: isActive ? const Color(0xFFEA3F74) : const Color(0xFF6B7280),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -365,30 +408,27 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  /// Logo Fiel ao `.welcome-brand-mark` e `.brand` da Web
   Widget _buildBrandLogo() {
     return InkWell(
       onTap: () => _selecionarPagina(0),
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(11),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 32,
-              height: 32,
+              width: 34,
+              height: 34,
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFFF9ACC6), Color(0xFFEA3F74)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(10),
-                boxShadow: [
+                color: const Color(0xFFEA3F74),
+                borderRadius: BorderRadius.circular(11),
+                boxShadow: const [
                   BoxShadow(
-                    color: const Color(0xFFEA3F74).withValues(alpha: 0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
+                    color: Color.fromRGBO(234, 63, 116, 0.25),
+                    blurRadius: 14,
+                    offset: Offset(0, 6),
                   ),
                 ],
               ),
@@ -398,20 +438,19 @@ class _HomeScreenState extends State<HomeScreen> {
                 size: 18,
               ),
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 8),
             Flexible(
               child: FittedBox(
                 fit: BoxFit.scaleDown,
                 child: RichText(
-                  text: const TextSpan(
-                    style: TextStyle(
-                      fontFamily: 'Roboto',
-                      fontSize: 18,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: -0.8,
-                      color: Color(0xFF0F172A),
+                  text: TextSpan(
+                    style: GoogleFonts.manrope(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.5,
+                      color: const Color(0xFF202124),
                     ),
-                    children: [
+                    children: const [
                       TextSpan(text: 'Social'),
                       TextSpan(
                         text: 'Join',
@@ -438,19 +477,18 @@ class _HomeScreenState extends State<HomeScreen> {
       child: TextButton(
         onPressed: () => _selecionarPagina(index),
         style: TextButton.styleFrom(
-          backgroundColor: isSelected ? const Color(0xFFFDF0F4) : Colors.transparent,
-          foregroundColor: isSelected ? const Color(0xFFEA3F74) : const Color(0xFF475569),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          backgroundColor: isSelected ? const Color(0xFFF7F8FA) : Colors.transparent,
+          foregroundColor: isSelected ? const Color(0xFFEA3F74) : const Color(0xFF6B7280),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(10),
           ),
         ),
         child: Text(
           label,
-          style: TextStyle(
+          style: GoogleFonts.manrope(
             fontSize: 14,
-            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-            letterSpacing: -0.2,
+            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
           ),
         ),
       ),
@@ -469,32 +507,37 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Row(
                 children: [
                   Container(
-                    width: 40,
-                    height: 40,
+                    width: 38,
+                    height: 38,
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFF9ACC6), Color(0xFFEA3F74)],
-                      ),
-                      borderRadius: BorderRadius.circular(12),
+                      color: const Color(0xFFEA3F74),
+                      borderRadius: BorderRadius.circular(11),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color.fromRGBO(234, 63, 116, 0.25),
+                          blurRadius: 12,
+                          offset: Offset(0, 4),
+                        ),
+                      ],
                     ),
-                    child: const Icon(Icons.hub_rounded, color: Colors.white, size: 22),
+                    child: const Icon(Icons.hub_rounded, color: Colors.white, size: 20),
                   ),
                   const SizedBox(width: 12),
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           'SocialJoin',
-                          style: TextStyle(
-                            color: Color(0xFF0F172A),
+                          style: GoogleFonts.manrope(
+                            color: const Color(0xFF202124),
                             fontSize: 18,
-                            fontWeight: FontWeight.w900,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
                         Text(
                           'Sua rede social de eventos',
-                          style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
+                          style: GoogleFonts.manrope(color: const Color(0xFF6B7280), fontSize: 12),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ],
@@ -504,7 +547,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
-          const Divider(color: Color(0xFFF1F5F9), height: 1),
+          const Divider(color: Color(0xFFE5E7EB), height: 1),
           const SizedBox(height: 8),
 
           Expanded(
@@ -524,7 +567,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-          const Divider(color: Color(0xFFF1F5F9), height: 1),
+          const Divider(color: Color(0xFFE5E7EB), height: 1),
 
           Padding(
             padding: const EdgeInsets.all(16),
@@ -532,9 +575,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 ? Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFDF0F4),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFFF9ACC6).withValues(alpha: 0.5)),
+                      color: const Color(0xFFF7F8FA),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFE5E7EB)),
                     ),
                     child: Row(
                       children: [
@@ -543,7 +586,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           radius: 18,
                           child: Text(
                             (AuthService.nomeUsuario ?? 'U')[0].toUpperCase(),
-                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                            style: GoogleFonts.manrope(color: Colors.white, fontWeight: FontWeight.bold),
                           ),
                         ),
                         const SizedBox(width: 10),
@@ -553,22 +596,22 @@ class _HomeScreenState extends State<HomeScreen> {
                             children: [
                               Text(
                                 AuthService.nomeUsuario ?? 'Usuário',
-                                style: const TextStyle(
-                                  color: Color(0xFF0F172A),
-                                  fontWeight: FontWeight.bold,
+                                style: GoogleFonts.manrope(
+                                  color: const Color(0xFF202124),
+                                  fontWeight: FontWeight.w700,
                                   fontSize: 13,
                                 ),
                                 overflow: TextOverflow.ellipsis,
                               ),
                               Text(
                                 AuthService.username != null ? '@${AuthService.username}' : 'Conectado',
-                                style: const TextStyle(color: Color(0xFF10B981), fontSize: 11),
+                                style: GoogleFonts.manrope(color: const Color(0xFFEA3F74), fontSize: 11, fontWeight: FontWeight.w600),
                               ),
                             ],
                           ),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.logout_rounded, color: Color(0xFFEA3F74), size: 20),
+                          icon: const Icon(Icons.logout_rounded, color: Color(0xFFC93659), size: 20),
                           onPressed: () {
                             Navigator.pop(context);
                             _fazerLogout();
@@ -588,13 +631,13 @@ class _HomeScreenState extends State<HomeScreen> {
                             backgroundColor: const Color(0xFFEA3F74),
                             foregroundColor: Colors.white,
                             elevation: 0,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                           ),
                           onPressed: () {
                             Navigator.pop(context);
                             _abrirLogin();
                           },
-                          child: const Text("Fazer Login", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                          child: Text("Fazer Login", style: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w700)),
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -603,15 +646,15 @@ class _HomeScreenState extends State<HomeScreen> {
                         height: 44,
                         child: OutlinedButton(
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFF0F172A),
-                            side: const BorderSide(color: Color(0xFFE2E8F0)),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            foregroundColor: const Color(0xFF202124),
+                            side: const BorderSide(color: Color(0xFFE5E7EB)),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                           ),
                           onPressed: () {
                             Navigator.pop(context);
                             _abrirCadastro();
                           },
-                          child: const Text("Criar Conta", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                          child: Text("Criar Conta", style: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w700)),
                         ),
                       ),
                     ],
@@ -628,8 +671,8 @@ class _HomeScreenState extends State<HomeScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: ListTile(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        tileColor: isSelected ? const Color(0xFFFDF0F4) : Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        tileColor: isSelected ? const Color(0xFFF7F8FA) : Colors.transparent,
         dense: true,
         onTap: () {
           _selecionarPagina(index);
@@ -637,15 +680,15 @@ class _HomeScreenState extends State<HomeScreen> {
         },
         leading: Icon(
           isSelected ? activeIcon : icon,
-          color: isSelected ? const Color(0xFFEA3F74) : const Color(0xFF64748B),
-          size: 22,
+          color: isSelected ? const Color(0xFFEA3F74) : const Color(0xFF6B7280),
+          size: 20,
         ),
         title: Text(
           title,
-          style: TextStyle(
-            color: isSelected ? const Color(0xFFEA3F74) : const Color(0xFF334155),
+          style: GoogleFonts.manrope(
+            color: isSelected ? const Color(0xFFEA3F74) : const Color(0xFF202124),
             fontSize: 14,
-            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
           ),
         ),
       ),

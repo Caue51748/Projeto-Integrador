@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../models/usuario.dart';
 import '../models/post.dart';
 import '../models/evento.dart';
@@ -9,6 +10,8 @@ import '../services/post_service.dart';
 import '../services/evento_service.dart';
 import '../services/comunidade_service.dart';
 
+/// Tela de Perfil Mobile — Fiel à Estilização Real da Tela WEB (.perfil-tabs, .perfil-tab.active::after, .avatar, .card, .btn-primary).
+/// Fonte da Verdade: web/style.css
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
 
@@ -82,7 +85,6 @@ class _ProfilePageState extends State<ProfilePage>
           _carregando = false;
 
           if (_usuario == null) {
-            // Se backend retornar vazio, usa os dados em memória do AuthService
             _usuario = Usuario(
               idUsuario: AuthService.idUsuario,
               nome: AuthService.nomeUsuario ?? 'Usuário',
@@ -92,7 +94,6 @@ class _ProfilePageState extends State<ProfilePage>
               bio: AuthService.bio,
             );
           } else {
-            // Atualiza sessão local
             if (_usuario!.nome.isNotEmpty) AuthService.nomeUsuario = _usuario!.nome;
             if (_usuario!.username != null) AuthService.username = _usuario!.username;
             if (_usuario!.bio != null) AuthService.bio = _usuario!.bio;
@@ -123,141 +124,131 @@ class _ProfilePageState extends State<ProfilePage>
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setModal) => Container(
           padding: EdgeInsets.only(
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
             left: 20,
             right: 20,
             top: 20,
           ),
           decoration: const BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Handle
               Center(
                 child: Container(
-                  width: 40,
+                  width: 36,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
+                    color: const Color(0xFFE5E7EB),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
               ),
               const SizedBox(height: 20),
 
-              const Row(
-                children: [
-                  Icon(Icons.edit_rounded, color: Color(0xFFEA3F74), size: 22),
-                  SizedBox(width: 10),
-                  Text(
-                    'Editar Perfil',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF0F172A),
-                    ),
-                  ),
-                ],
+              Text(
+                'Editar Perfil',
+                style: GoogleFonts.manrope(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF202124),
+                ),
               ),
               const SizedBox(height: 20),
 
-              // Campo Nome
               TextField(
                 controller: nomeCtrl,
-                decoration: _inputDecoration(
-                    'Nome Completo', Icons.person_outline_rounded),
+                style: GoogleFonts.manrope(fontSize: 14, color: const Color(0xFF202124)),
+                decoration: _inputDecoration('Nome Completo', Icons.person_outline_rounded),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 12),
 
-              // Campo Bio
               TextField(
                 controller: bioCtrl,
                 maxLines: 3,
                 maxLength: 300,
-                decoration: _inputDecoration(
-                    'Biografia (opcional)', Icons.info_outline_rounded),
+                style: GoogleFonts.manrope(fontSize: 14, color: const Color(0xFF202124)),
+                decoration: _inputDecoration('Biografia (opcional)', Icons.info_outline_rounded),
               ),
               const SizedBox(height: 6),
 
               Text(
                 'Seu username @${_usuario!.username ?? ''} não pode ser alterado.',
-                style: TextStyle(color: Colors.grey.shade400, fontSize: 12),
+                style: GoogleFonts.manrope(color: const Color(0xFF6B7280), fontSize: 12),
               ),
               const SizedBox(height: 20),
 
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFEA3F74),
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14)),
+              SizedBox(
+                height: 46,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFEA3F74),
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: salvando
+                      ? null
+                      : () async {
+                          if (nomeCtrl.text.trim().isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('O nome não pode ser vazio.', style: GoogleFonts.manrope()),
+                                backgroundColor: const Color(0xFFC93659),
+                              ),
+                            );
+                            return;
+                          }
+
+                          setModal(() => salvando = true);
+
+                          final messenger = ScaffoldMessenger.of(context);
+                          final nav = Navigator.of(ctx);
+
+                          final ok = await _usuarioService.atualizarPerfil(
+                            AuthService.idUsuario!,
+                            nomeCtrl.text.trim(),
+                            bioCtrl.text.trim(),
+                          );
+
+                          if (!mounted) return;
+                          nav.pop();
+
+                          if (ok) {
+                            AuthService.nomeUsuario = nomeCtrl.text.trim();
+                            AuthService.bio = bioCtrl.text.trim();
+
+                            messenger.showSnackBar(
+                              SnackBar(
+                                content: Text('Perfil atualizado com sucesso!', style: GoogleFonts.manrope()),
+                                backgroundColor: const Color(0xFF10B981),
+                              ),
+                            );
+
+                            _carregarDadosCompletos();
+                          } else {
+                            messenger.showSnackBar(
+                              SnackBar(
+                                content: Text('Erro ao salvar. Tente novamente.', style: GoogleFonts.manrope()),
+                                backgroundColor: const Color(0xFFC93659),
+                              ),
+                            );
+                          }
+                        },
+                  child: salvando
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        )
+                      : Text(
+                          'Salvar Alterações',
+                          style: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w700),
+                        ),
                 ),
-                onPressed: salvando
-                    ? null
-                    : () async {
-                        if (nomeCtrl.text.trim().isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('O nome não pode ser vazio.'),
-                              backgroundColor: Color(0xFFEF4444),
-                            ),
-                          );
-                          return;
-                        }
-
-                        setModal(() => salvando = true);
-
-                        final messenger = ScaffoldMessenger.of(context);
-                        final nav = Navigator.of(ctx);
-
-                        final ok = await _usuarioService.atualizarPerfil(
-                          AuthService.idUsuario!,
-                          nomeCtrl.text.trim(),
-                          bioCtrl.text.trim(),
-                        );
-
-                        if (!mounted) return;
-                        nav.pop();
-
-                        if (ok) {
-                          AuthService.nomeUsuario = nomeCtrl.text.trim();
-                          AuthService.bio = bioCtrl.text.trim();
-
-                          messenger.showSnackBar(
-                            const SnackBar(
-                              content: Text('Perfil atualizado com sucesso!'),
-                              backgroundColor: Color(0xFF10B981),
-                            ),
-                          );
-
-                          _carregarDadosCompletos();
-                        } else {
-                          messenger.showSnackBar(
-                            const SnackBar(
-                              content: Text('Erro ao salvar. Tente novamente.'),
-                              backgroundColor: Color(0xFFEF4444),
-                            ),
-                          );
-                        }
-                      },
-                child: salvando
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                            color: Colors.white, strokeWidth: 2.5),
-                      )
-                    : const Text(
-                        'Salvar Alterações',
-                        style: TextStyle(
-                            fontSize: 15, fontWeight: FontWeight.w700),
-                      ),
               ),
               const SizedBox(height: 8),
             ],
@@ -270,31 +261,23 @@ class _ProfilePageState extends State<ProfilePage>
   InputDecoration _inputDecoration(String label, IconData icon) {
     return InputDecoration(
       labelText: label,
-      prefixIcon: Icon(icon, size: 18),
+      prefixIcon: Icon(icon, size: 18, color: const Color(0xFFEA3F74)),
       filled: true,
-      fillColor: const Color(0xFFF8FAFC),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: Colors.grey.shade200),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFFEA3F74), width: 1.5),
-      ),
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-      labelStyle: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+      fillColor: Colors.white,
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE5E7EB))),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE5E7EB))),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFEA3F74), width: 1.5)),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      labelStyle: GoogleFonts.manrope(color: const Color(0xFF6B7280), fontSize: 13),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: const Color(0xFFF7F8FA),
       body: _carregando
-          ? const Center(
-              child: CircularProgressIndicator(color: Color(0xFFEA3F74)))
+          ? const Center(child: CircularProgressIndicator(color: Color(0xFFEA3F74)))
           : _erro != null
               ? _buildErro()
               : _buildPerfil(),
@@ -308,29 +291,18 @@ class _ProfilePageState extends State<ProfilePage>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.person_off_rounded,
-                size: 60, color: Color(0xFFCBD5E1)),
+            const Icon(Icons.person_off_rounded, size: 52, color: Color(0xFF6B7280)),
             const SizedBox(height: 16),
             Text(
               _erro!,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                  color: Color(0xFF64748B),
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500),
+              style: GoogleFonts.manrope(color: const Color(0xFF6B7280), fontSize: 14),
             ),
             const SizedBox(height: 20),
             if (AuthService.logado)
-              ElevatedButton.icon(
+              ElevatedButton(
                 onPressed: _carregarDadosCompletos,
-                icon: const Icon(Icons.refresh_rounded, size: 18),
-                label: const Text('Tentar novamente'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFEA3F74),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                ),
+                child: const Text('Tentar novamente'),
               ),
           ],
         ),
@@ -340,162 +312,130 @@ class _ProfilePageState extends State<ProfilePage>
 
   Widget _buildPerfil() {
     final usuario = _usuario!;
-    final inicial = usuario.nome.isNotEmpty
-        ? usuario.nome[0].toUpperCase()
-        : 'U';
+    final inicial = usuario.nome.isNotEmpty ? usuario.nome[0].toUpperCase() : 'U';
 
     return RefreshIndicator(
       onRefresh: _carregarDadosCompletos,
       color: const Color(0xFFEA3F74),
       child: NestedScrollView(
         headerSliverBuilder: (context, innerBoxIsScrolled) => [
-          // Header Hero com gradiente
+          // Header Card Fiel à Web
           SliverToBoxAdapter(
-            child: Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFFEA3F74), Color(0xFFFF6B9D)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFE5E7EB)),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color.fromRGBO(17, 24, 39, 0.07),
+                      blurRadius: 30,
+                      offset: Offset(0, 12),
+                    ),
+                  ],
                 ),
-              ),
-              child: SafeArea(
-                bottom: false,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-                  child: Column(
-                    children: [
-                      // Avatar e botão editar
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Avatar
-                          Container(
-                            width: 68,
-                            height: 68,
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.25),
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                  color: Colors.white, width: 2.5),
+                child: Column(
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        // Avatar (.avatar da Web 60px)
+                        CircleAvatar(
+                          radius: 30,
+                          backgroundColor: const Color(0xFFEA3F74),
+                          child: Text(
+                            inicial,
+                            style: GoogleFonts.manrope(
+                              color: Colors.white,
+                              fontSize: 24,
+                              fontWeight: FontWeight.w800,
                             ),
-                            child: Center(
-                              child: Text(
-                                inicial,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                usuario.nome,
+                                style: GoogleFonts.manrope(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w700,
+                                  color: const Color(0xFF202124),
                                 ),
                               ),
-                            ),
-                          ),
-
-                          // Botão editar
-                          GestureDetector(
-                            onTap: _abrirEditar,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 14, vertical: 8),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                    color: Colors.white.withValues(alpha: 0.5)),
-                              ),
-                              child: const Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.edit_rounded,
-                                      color: Colors.white, size: 14),
-                                  SizedBox(width: 6),
-                                  Text(
-                                    'Editar',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                    ),
+                              if (usuario.username != null && usuario.username!.isNotEmpty) ...[
+                                Text(
+                                  '@${usuario.username}',
+                                  style: GoogleFonts.manrope(
+                                    color: const Color(0xFF6B7280),
+                                    fontSize: 13,
                                   ),
-                                ],
-                              ),
-                            ),
+                                ),
+                              ],
+                            ],
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
+                        ),
+                        OutlinedButton(
+                          onPressed: _abrirEditar,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFFEA3F74),
+                            side: const BorderSide(color: Color(0xFFF9ACC6)),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          child: Text('Editar', style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w700)),
+                        ),
+                      ],
+                    ),
 
-                      // Nome, username e bio
+                    if (usuario.bio != null && usuario.bio!.isNotEmpty) ...[
+                      const SizedBox(height: 14),
                       Align(
                         alignment: Alignment.centerLeft,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              usuario.nome,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 20,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: -0.5,
-                              ),
-                            ),
-                            if (usuario.username != null &&
-                                usuario.username!.isNotEmpty) ...[
-                              const SizedBox(height: 2),
-                              Text(
-                                '@${usuario.username}',
-                                style: const TextStyle(
-                                    color: Colors.white70, fontSize: 13),
-                              ),
-                            ],
-                            if (usuario.bio != null &&
-                                usuario.bio!.isNotEmpty) ...[
-                              const SizedBox(height: 8),
-                              Text(
-                                usuario.bio!,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 13,
-                                  height: 1.3,
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-
-                      // Contador de Estatísticas (Posts, Eventos, Comunidades)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            vertical: 12, horizontal: 16),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceAround,
-                          children: [
-                            _buildStatItem('Posts', _userPosts.length.toString()),
-                            _buildVerticalDivider(),
-                            _buildStatItem(
-                                'Eventos', _userEventos.length.toString()),
-                            _buildVerticalDivider(),
-                            _buildStatItem('Grupos',
-                                _userComunidades.length.toString()),
-                          ],
+                        child: Text(
+                          usuario.bio!,
+                          style: GoogleFonts.manrope(
+                            color: const Color(0xFF6B7280),
+                            fontSize: 13,
+                            height: 1.5,
+                          ),
                         ),
                       ),
                     ],
-                  ),
+
+                    const SizedBox(height: 16),
+
+                    // Estatísticas em linha estilo Web
+                    Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: const BoxDecoration(
+                        border: Border(
+                          top: BorderSide(color: Color(0xFFE5E7EB), width: 1.0),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: [
+                          _buildStatItem('Publicações', _userPosts.length.toString()),
+                          _buildVerticalDivider(),
+                          _buildStatItem('Eventos', _userEventos.length.toString()),
+                          _buildVerticalDivider(),
+                          _buildStatItem('Comunidades', _userComunidades.length.toString()),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
           ),
 
-          // TabBar fixa
+          // TabBar Fiel ao `.perfil-tabs` da Web CSS
           SliverPersistentHeader(
             pinned: true,
             delegate: _SliverAppBarDelegate(
@@ -504,9 +444,9 @@ class _ProfilePageState extends State<ProfilePage>
                 indicatorColor: const Color(0xFFEA3F74),
                 indicatorWeight: 3,
                 labelColor: const Color(0xFFEA3F74),
-                unselectedLabelColor: const Color(0xFF64748B),
-                labelStyle:
-                    const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                unselectedLabelColor: const Color(0xFF6B7280),
+                labelStyle: GoogleFonts.manrope(fontWeight: FontWeight.w800, fontSize: 13),
+                unselectedLabelStyle: GoogleFonts.manrope(fontWeight: FontWeight.w600, fontSize: 13),
                 tabs: const [
                   Tab(text: 'Sobre'),
                   Tab(text: 'Posts'),
@@ -535,19 +475,18 @@ class _ProfilePageState extends State<ProfilePage>
       children: [
         Text(
           value,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 18,
+          style: GoogleFonts.manrope(
+            color: const Color(0xFF202124),
+            fontSize: 16,
             fontWeight: FontWeight.w800,
           ),
         ),
-        const SizedBox(height: 2),
         Text(
           label,
-          style: const TextStyle(
-            color: Colors.white70,
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
+          style: GoogleFonts.manrope(
+            color: const Color(0xFF6B7280),
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
           ),
         ),
       ],
@@ -556,9 +495,9 @@ class _ProfilePageState extends State<ProfilePage>
 
   Widget _buildVerticalDivider() {
     return Container(
-      height: 24,
+      height: 20,
       width: 1,
-      color: Colors.white.withValues(alpha: 0.3),
+      color: const Color(0xFFE5E7EB),
     );
   }
 
@@ -568,83 +507,61 @@ class _ProfilePageState extends State<ProfilePage>
         : (AuthService.emailUsuario ?? 'Não informado');
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 90),
       child: Column(
         children: [
           Container(
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: const Color(0xFFEEF2F7)),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFFE5E7EB)),
             ),
             child: Column(
               children: [
-                _infoItem(
-                  Icons.person_outline_rounded,
-                  'Nome Completo',
-                  usuario.nome,
-                ),
+                _infoItem(Icons.person_outline_rounded, 'Nome Completo', usuario.nome),
                 _divider(),
-                _infoItem(
-                  Icons.alternate_email_rounded,
-                  'Nome de Usuário',
-                  usuario.username != null
-                      ? '@${usuario.username}'
-                      : 'Não definido',
-                ),
+                _infoItem(Icons.alternate_email_rounded, 'Nome de Usuário', usuario.username != null ? '@${usuario.username}' : 'Não definido'),
                 _divider(),
-                _infoItem(
-                  Icons.email_outlined,
-                  'E-mail',
-                  emailExibicao,
-                ),
+                _infoItem(Icons.email_outlined, 'E-mail', emailExibicao),
                 if (usuario.bio != null && usuario.bio!.isNotEmpty) ...[
                   _divider(),
-                  _infoItem(
-                    Icons.info_outline_rounded,
-                    'Biografia',
-                    usuario.bio!,
-                  ),
+                  _infoItem(Icons.info_outline_rounded, 'Biografia', usuario.bio!),
                 ],
               ],
             ),
           ),
           const SizedBox(height: 20),
 
-          // Botão de Logout
+          // Botão Logout
           SizedBox(
             width: double.infinity,
+            height: 44,
             child: OutlinedButton.icon(
               onPressed: () {
                 showDialog(
                   context: context,
                   builder: (ctx) => AlertDialog(
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18)),
-                    title: const Text('Sair da conta',
-                        style: TextStyle(
-                            fontWeight: FontWeight.w700, fontSize: 18)),
-                    content: const Text('Tem certeza que deseja sair?'),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    title: Text('Sair da conta', style: GoogleFonts.manrope(fontWeight: FontWeight.w700, fontSize: 18)),
+                    content: Text('Tem certeza que deseja sair?', style: GoogleFonts.manrope(fontSize: 14, color: const Color(0xFF6B7280))),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.pop(ctx),
-                        child: const Text('Cancelar',
-                            style: TextStyle(color: Color(0xFF64748B))),
+                        child: Text('Cancelar', style: GoogleFonts.manrope(color: const Color(0xFF6B7280))),
                       ),
                       ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFEA3F74),
+                          backgroundColor: const Color(0xFFC93659),
                           foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         ),
                         onPressed: () {
                           Navigator.pop(ctx);
                           AuthService.fazerLogout();
                           setState(() {});
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Você saiu da conta.'),
+                            SnackBar(
+                              content: Text('Você saiu da conta.', style: GoogleFonts.manrope()),
                             ),
                           );
                         },
@@ -655,18 +572,14 @@ class _ProfilePageState extends State<ProfilePage>
                 );
               },
               icon: const Icon(Icons.logout_rounded, size: 18),
-              label: const Text('Sair da conta',
-                  style: TextStyle(fontWeight: FontWeight.w600)),
+              label: Text('Sair da conta', style: GoogleFonts.manrope(fontWeight: FontWeight.w600, fontSize: 14)),
               style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFFEF4444),
-                side: const BorderSide(color: Color(0xFFFFCDD2)),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14)),
-                padding: const EdgeInsets.symmetric(vertical: 14),
+                foregroundColor: const Color(0xFFC93659),
+                side: const BorderSide(color: Color(0xFFF2B9C9)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
             ),
           ),
-          const SizedBox(height: 24),
         ],
       ),
     );
@@ -682,40 +595,39 @@ class _ProfilePageState extends State<ProfilePage>
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 90),
       itemCount: _userPosts.length,
       itemBuilder: (context, index) {
         final p = _userPosts[index];
-        return Card(
+        return Container(
           margin: const EdgeInsets.only(bottom: 12),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: const BorderSide(color: Color(0xFFEEF2F7)),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFE5E7EB)),
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  p.titulo,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 16,
-                    color: Color(0xFF0F172A),
-                  ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                p.titulo,
+                style: GoogleFonts.manrope(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                  color: const Color(0xFF202124),
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  p.conteudo,
-                  style: const TextStyle(
-                    color: Color(0xFF475569),
-                    fontSize: 14,
-                    height: 1.4,
-                  ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                p.conteudo,
+                style: GoogleFonts.manrope(
+                  color: const Color(0xFF6B7280),
+                  fontSize: 13,
+                  height: 1.45,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         );
       },
@@ -732,35 +644,34 @@ class _ProfilePageState extends State<ProfilePage>
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 90),
       itemCount: _userEventos.length,
       itemBuilder: (context, index) {
         final e = _userEventos[index];
-        return Card(
+        return Container(
           margin: const EdgeInsets.only(bottom: 12),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: const BorderSide(color: Color(0xFFEEF2F7)),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFE5E7EB)),
           ),
           child: ListTile(
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             leading: Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: const Color(0xFFFDF0F4),
-                borderRadius: BorderRadius.circular(12),
+                color: const Color(0xFFF7F8FA),
+                borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.event, color: Color(0xFFEA3F74), size: 22),
+              child: const Icon(Icons.event, color: Color(0xFFEA3F74), size: 20),
             ),
             title: Text(
               e.titulo,
-              style: const TextStyle(
-                  fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+              style: GoogleFonts.manrope(fontWeight: FontWeight.w700, color: const Color(0xFF202124), fontSize: 14),
             ),
             subtitle: Text(
               '${e.dataFormatada} • ${e.localEvento}',
-              style: const TextStyle(color: Color(0xFF64748B), fontSize: 12),
+              style: GoogleFonts.manrope(color: const Color(0xFF6B7280), fontSize: 12),
             ),
           ),
         );
@@ -778,36 +689,34 @@ class _ProfilePageState extends State<ProfilePage>
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 90),
       itemCount: _userComunidades.length,
       itemBuilder: (context, index) {
         final c = _userComunidades[index];
-        return Card(
+        return Container(
           margin: const EdgeInsets.only(bottom: 12),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: const BorderSide(color: Color(0xFFEEF2F7)),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFE5E7EB)),
           ),
           child: ListTile(
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             leading: Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: const Color(0xFFF0FDF4),
-                borderRadius: BorderRadius.circular(12),
+                color: const Color(0xFFF7F8FA),
+                borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.hub_rounded,
-                  color: Color(0xFF16A34A), size: 22),
+              child: const Icon(Icons.hub_rounded, color: Color(0xFFEA3F74), size: 20),
             ),
             title: Text(
               c.nome,
-              style: const TextStyle(
-                  fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+              style: GoogleFonts.manrope(fontWeight: FontWeight.w700, color: const Color(0xFF202124), fontSize: 14),
             ),
             subtitle: Text(
               '${c.totalMembros} membros',
-              style: const TextStyle(color: Color(0xFF64748B), fontSize: 12),
+              style: GoogleFonts.manrope(color: const Color(0xFF6B7280), fontSize: 12),
             ),
           ),
         );
@@ -826,21 +735,21 @@ class _ProfilePageState extends State<ProfilePage>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 48, color: const Color(0xFFCBD5E1)),
+            Icon(icon, size: 48, color: const Color(0xFF6B7280)),
             const SizedBox(height: 12),
             Text(
               title,
-              style: const TextStyle(
+              style: GoogleFonts.manrope(
                 fontWeight: FontWeight.w700,
                 fontSize: 15,
-                color: Color(0xFF475569),
+                color: const Color(0xFF202124),
               ),
             ),
             const SizedBox(height: 4),
             Text(
               subtitle,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+              style: GoogleFonts.manrope(color: const Color(0xFF6B7280), fontSize: 13),
             ),
           ],
         ),
@@ -862,17 +771,16 @@ class _ProfilePageState extends State<ProfilePage>
               children: [
                 Text(
                   label,
-                  style: const TextStyle(
-                      color: Color(0xFF94A3B8),
+                  style: GoogleFonts.manrope(
+                      color: const Color(0xFF6B7280),
                       fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.4),
+                      fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   value,
-                  style: const TextStyle(
-                      color: Color(0xFF0F172A),
+                  style: GoogleFonts.manrope(
+                      color: const Color(0xFF202124),
                       fontSize: 14,
                       fontWeight: FontWeight.w500),
                 ),
@@ -885,8 +793,7 @@ class _ProfilePageState extends State<ProfilePage>
   }
 
   Widget _divider() {
-    return const Divider(
-        height: 1, thickness: 1, color: Color(0xFFF1F5F9), indent: 16);
+    return const Divider(height: 1, thickness: 1, color: Color(0xFFE5E7EB), indent: 16);
   }
 }
 
@@ -900,10 +807,9 @@ class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
   double get maxExtent => _tabBar.preferredSize.height;
 
   @override
-  Widget build(
-      BuildContext context, double shrinkOffset, bool overlapsContent) {
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
     return Container(
-      color: const Color(0xFFF8FAFC),
+      color: const Color(0xFFF7F8FA),
       child: _tabBar,
     );
   }

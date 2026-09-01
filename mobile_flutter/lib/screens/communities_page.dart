@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../models/comunidade.dart';
 import '../services/comunidade_service.dart';
 import '../services/auth_service.dart';
 
+/// Tela de Comunidades Mobile — Fiel à Estilização Real da Tela WEB (.comunidade-card, .comunidade-mark, top-stripe, .comunidade-stats, .btn-primary).
+/// Fonte da Verdade: web/style.css
 class CommunitiesPage extends StatefulWidget {
   const CommunitiesPage({super.key});
 
@@ -86,7 +89,7 @@ class _CommunitiesPageState extends State<CommunitiesPage> {
       ok
           ? 'Você entrou em "${c.nome}"!'
           : 'Não foi possível entrar na comunidade.',
-      cor: ok ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+      cor: ok ? const Color(0xFF10B981) : const Color(0xFFC93659),
     );
 
     if (ok) _carregarComunidades();
@@ -100,7 +103,7 @@ class _CommunitiesPageState extends State<CommunitiesPage> {
 
     _snack(
       ok ? 'Você saiu de "${c.nome}".' : 'Não foi possível sair.',
-      cor: ok ? const Color(0xFF64748B) : const Color(0xFFEF4444),
+      cor: ok ? const Color(0xFF6B7280) : const Color(0xFFC93659),
     );
 
     if (ok) _carregarComunidades();
@@ -110,7 +113,7 @@ class _CommunitiesPageState extends State<CommunitiesPage> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(msg),
+        content: Text(msg, style: GoogleFonts.manrope(fontWeight: FontWeight.w600)),
         backgroundColor: cor,
         duration: const Duration(seconds: 2),
       ),
@@ -135,14 +138,14 @@ class _CommunitiesPageState extends State<CommunitiesPage> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setModalState) => Container(
           padding: EdgeInsets.only(
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
             left: 20,
             right: 20,
             top: 20,
           ),
           decoration: const BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
           ),
           child: SingleChildScrollView(
             child: Column(
@@ -151,101 +154,88 @@ class _CommunitiesPageState extends State<CommunitiesPage> {
               children: [
                 Center(
                   child: Container(
-                    width: 40,
+                    width: 36,
                     height: 4,
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade300,
+                      color: const Color(0xFFE5E7EB),
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
                 ),
                 const SizedBox(height: 20),
-                const Row(
-                  children: [
-                    Icon(Icons.group_add_rounded,
-                        color: Color(0xFFEA3F74), size: 24),
-                    SizedBox(width: 10),
-                    Text(
-                      'Nova Comunidade',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF0F172A),
-                      ),
-                    ),
-                  ],
+                Text(
+                  'Nova Comunidade',
+                  style: GoogleFonts.manrope(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF202124),
+                  ),
                 ),
                 const SizedBox(height: 20),
 
                 TextField(
                   controller: nomeCtrl,
-                  decoration: _modalInput(
-                      'Nome da Comunidade', Icons.groups_rounded),
+                  style: GoogleFonts.manrope(fontSize: 14, color: const Color(0xFF202124)),
+                  decoration: _modalInput('Nome da Comunidade', Icons.groups_rounded),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: descCtrl,
                   maxLines: 3,
-                  decoration: _modalInput(
-                      'Descrição e objetivos do grupo', Icons.info_outline_rounded),
+                  style: GoogleFonts.manrope(fontSize: 14, color: const Color(0xFF202124)),
+                  decoration: _modalInput('Descrição e objetivos', Icons.info_outline_rounded),
                 ),
                 const SizedBox(height: 24),
 
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFEA3F74),
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14)),
-                  ),
-                  onPressed: salvando
-                      ? null
-                      : () async {
-                          if (nomeCtrl.text.trim().isEmpty) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content:
-                                    Text('Informe um nome para a comunidade.'),
-                                backgroundColor: Color(0xFFEF4444),
-                              ),
+                SizedBox(
+                  height: 46,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFEA3F74),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    onPressed: salvando
+                        ? null
+                        : () async {
+                            if (nomeCtrl.text.trim().isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Informe um nome para a comunidade.', style: GoogleFonts.manrope()),
+                                  backgroundColor: const Color(0xFFC93659),
+                                ),
+                              );
+                              return;
+                            }
+
+                            setModalState(() => salvando = true);
+
+                            final nav = Navigator.of(ctx);
+                            final nova = await _service.criarComunidade(
+                              nome: nomeCtrl.text.trim(),
+                              descricao: descCtrl.text.trim(),
+                              criadorId: AuthService.idUsuario!,
                             );
-                            return;
-                          }
 
-                          setModalState(() => salvando = true);
+                            if (!mounted) return;
+                            nav.pop();
 
-                          final nav = Navigator.of(ctx);
-                          final nova = await _service.criarComunidade(
-                            nome: nomeCtrl.text.trim(),
-                            descricao: descCtrl.text.trim(),
-                            criadorId: AuthService.idUsuario!,
-                          );
-
-                          if (!mounted) return;
-                          nav.pop();
-
-                          if (nova != null) {
-                            _snack('Comunidade "${nova.nome}" criada com sucesso!');
-                            _carregarComunidades();
-                          } else {
-                            _snack('Erro ao criar comunidade no servidor.',
-                                cor: const Color(0xFFEF4444));
-                          }
-                        },
-                  child: salvando
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                              color: Colors.white, strokeWidth: 2.5),
-                        )
-                      : const Text(
-                          'Criar Comunidade',
-                          style: TextStyle(
-                              fontSize: 15, fontWeight: FontWeight.w700),
-                        ),
+                            if (nova != null) {
+                              _snack('Comunidade "${nova.nome}" criada com sucesso!');
+                              _carregarComunidades();
+                            } else {
+                              _snack('Erro ao criar comunidade no servidor.', cor: const Color(0xFFC93659));
+                            }
+                          },
+                    child: salvando
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                          )
+                        : Text('Criar Comunidade', style: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w700)),
+                  ),
                 ),
                 const SizedBox(height: 8),
               ],
@@ -261,20 +251,12 @@ class _CommunitiesPageState extends State<CommunitiesPage> {
       labelText: label,
       prefixIcon: Icon(icon, size: 18, color: const Color(0xFFEA3F74)),
       filled: true,
-      fillColor: const Color(0xFFF8FAFC),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: Colors.grey.shade200),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide:
-            const BorderSide(color: Color(0xFFEA3F74), width: 1.5),
-      ),
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-      labelStyle: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+      fillColor: Colors.white,
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE5E7EB))),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE5E7EB))),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFEA3F74), width: 1.5)),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      labelStyle: GoogleFonts.manrope(color: const Color(0xFF6B7280), fontSize: 13),
     );
   }
 
@@ -317,99 +299,71 @@ class _CommunitiesPageState extends State<CommunitiesPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: const Color(0xFFF7F8FA),
       body: RefreshIndicator(
         onRefresh: _carregarComunidades,
         color: const Color(0xFFEA3F74),
         child: CustomScrollView(
           slivers: [
-            // Header Banner
+            // Page Header Fiel à Web (.page-header da Web)
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                child: Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF1E2433), Color(0xFFEA3F74)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(22),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFFEA3F74).withValues(alpha: 0.25),
-                        blurRadius: 18,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Icon(Icons.hub_rounded,
-                                color: Colors.white, size: 26),
+                padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'ENCONTRE SUA TURMA',
+                          style: GoogleFonts.manrope(
+                            color: const Color(0xFFEA3F74),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.9,
                           ),
-                          const SizedBox(width: 14),
-                          const Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Comunidades',
-                                    style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 19,
-                                        fontWeight: FontWeight.w800)),
-                                Text(
-                                    'Conecte-se com grupos de interesses reais',
-                                    style: TextStyle(
-                                        color: Colors.white70, fontSize: 12)),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 14),
-                      ElevatedButton.icon(
-                        onPressed: _abrirCriarComunidade,
-                        icon: const Icon(Icons.group_add_rounded, size: 18),
-                        label: const Text('Nova Comunidade',
-                            style: TextStyle(fontWeight: FontWeight.w700)),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: const Color(0xFF1E2433),
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 18, vertical: 10),
                         ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Comunidades',
+                          style: GoogleFonts.manrope(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF202124),
+                          ),
+                        ),
+                      ],
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: _abrirCriarComunidade,
+                      icon: const Icon(Icons.add_rounded, size: 16),
+                      label: Text('Nova Comunidade', style: GoogleFonts.manrope(fontWeight: FontWeight.w700, fontSize: 13)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFEA3F74),
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),
 
-            // Barra de Busca
+            // Barra de Busca e Filtros (.search-bar da Web)
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                 child: TextField(
                   controller: _buscaCtrl,
                   onChanged: (_) => _aplicarFiltros(),
+                  style: GoogleFonts.manrope(fontSize: 14, color: const Color(0xFF202124)),
                   decoration: InputDecoration(
-                    hintText: 'Buscar comunidade por nome ou tema...',
-                    prefixIcon: const Icon(Icons.search_rounded,
-                        size: 20, color: Color(0xFF94A3B8)),
+                    hintText: 'Buscar por nome ou interesse...',
+                    hintStyle: GoogleFonts.manrope(fontSize: 14, color: const Color(0xFF6B7280)),
+                    prefixIcon: const Icon(Icons.search_rounded, size: 18, color: Color(0xFF6B7280)),
                     suffixIcon: _buscaCtrl.text.isNotEmpty
                         ? IconButton(
                             icon: const Icon(Icons.clear, size: 18),
@@ -419,75 +373,29 @@ class _CommunitiesPageState extends State<CommunitiesPage> {
                             },
                           )
                         : null,
-                    filled: true,
-                    fillColor: Colors.white,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: const BorderSide(color: Color(0xFFEEF2F7)),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: const BorderSide(color: Color(0xFFEEF2F7)),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: const BorderSide(
-                          color: Color(0xFFEA3F74), width: 1.5),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 12),
                   ),
                 ),
               ),
             ),
 
-            // Chips de Filtro
+            // Filter Tabs (.feed-tabs da Web)
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: Row(
                   children: [
-                    _buildFilterChip('TODAS', 'Todas as Comunidades'),
+                    _buildFilterTab('TODAS', 'Todas as Comunidades'),
                     if (AuthService.logado)
-                      _buildFilterChip('MINHAS', 'Minhas Comunidades'),
+                      _buildFilterTab('MINHAS', 'Minhas Comunidades'),
                   ],
                 ),
               ),
             ),
 
-            // Título
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      _carregando
-                          ? 'Carregando comunidades...'
-                          : 'Comunidades (${_comunidadesFiltradas.length})',
-                      style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF0F172A)),
-                    ),
-                    GestureDetector(
-                      onTap: _carregarComunidades,
-                      child: const Icon(Icons.refresh_rounded,
-                          color: Color(0xFF64748B), size: 20),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // Conteúdo
+            // Listagem de Cards de Comunidade (.comunidade-card Fiel à Web)
             if (_carregando)
               const SliverFillRemaining(
-                child: Center(
-                  child: CircularProgressIndicator(
-                      color: Color(0xFFEA3F74)),
-                ),
+                child: Center(child: CircularProgressIndicator(color: Color(0xFFEA3F74))),
               )
             else if (_erro != null)
               SliverFillRemaining(
@@ -495,23 +403,13 @@ class _CommunitiesPageState extends State<CommunitiesPage> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.wifi_off_rounded,
-                          size: 52, color: Color(0xFFCBD5E1)),
+                      const Icon(Icons.wifi_off_rounded, size: 48, color: Color(0xFF6B7280)),
                       const SizedBox(height: 12),
-                      Text(_erro!,
-                          style: const TextStyle(
-                              color: Color(0xFF64748B), fontSize: 14)),
+                      Text(_erro!, style: GoogleFonts.manrope(color: const Color(0xFF6B7280), fontSize: 14)),
                       const SizedBox(height: 16),
-                      ElevatedButton.icon(
+                      ElevatedButton(
                         onPressed: _carregarComunidades,
-                        icon: const Icon(Icons.refresh_rounded, size: 18),
-                        label: const Text('Tentar novamente'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFEA3F74),
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
-                        ),
+                        child: const Text('Tentar novamente'),
                       ),
                     ],
                   ),
@@ -523,29 +421,13 @@ class _CommunitiesPageState extends State<CommunitiesPage> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.groups_outlined,
-                          size: 56, color: Color(0xFFCBD5E1)),
+                      const Icon(Icons.groups_outlined, size: 48, color: Color(0xFF6B7280)),
                       const SizedBox(height: 12),
-                      const Text('Nenhuma comunidade encontrada',
-                          style: TextStyle(
-                              color: Color(0xFF64748B),
-                              fontSize: 15,
-                              fontWeight: FontWeight.w500)),
-                      const SizedBox(height: 6),
-                      Text('Crie o primeiro grupo e convide seus amigos!',
-                          style: TextStyle(
-                              color: Colors.grey.shade400, fontSize: 13)),
-                      const SizedBox(height: 20),
-                      ElevatedButton.icon(
+                      Text('Nenhuma comunidade encontrada', style: GoogleFonts.manrope(color: const Color(0xFF6B7280), fontSize: 14, fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
                         onPressed: _abrirCriarComunidade,
-                        icon: const Icon(Icons.add_rounded, size: 18),
-                        label: const Text('Criar Comunidade'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFEA3F74),
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
-                        ),
+                        child: const Text('Criar Primeira Comunidade'),
                       ),
                     ],
                   ),
@@ -553,17 +435,16 @@ class _CommunitiesPageState extends State<CommunitiesPage> {
               )
             else
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 90),
                 sliver: SliverList(
                   delegate: SliverChildBuilderDelegate(
                     (context, index) {
                       final c = _comunidadesFiltradas[index];
-                      final bool isMembro =
-                          c.isMembro(AuthService.idUsuario);
+                      final bool isMembro = c.isMembro(AuthService.idUsuario);
                       final cor = _corParaIndex(index);
                       final icone = _iconeParaComunidade(c.nome);
 
-                      return _ComunidadeCard(
+                      return _WebStyleComunidadeCard(
                         comunidade: c,
                         isMembro: isMembro,
                         cor: cor,
@@ -582,36 +463,41 @@ class _CommunitiesPageState extends State<CommunitiesPage> {
     );
   }
 
-  Widget _buildFilterChip(String key, String label) {
+  Widget _buildFilterTab(String key, String label) {
     final isSelected = _filtro == key;
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: FilterChip(
-        selected: isSelected,
-        label: Text(label),
-        labelStyle: TextStyle(
-          color: isSelected ? Colors.white : const Color(0xFF475569),
-          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-          fontSize: 12,
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _filtro = key;
+          _aplicarFiltros();
+        });
+      },
+      child: Container(
+        margin: const EdgeInsets.only(right: 16),
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(
+              color: isSelected ? const Color(0xFFEA3F74) : Colors.transparent,
+              width: 3.0,
+            ),
+          ),
         ),
-        backgroundColor: Colors.white,
-        selectedColor: const Color(0xFFEA3F74),
-        side: BorderSide(
-          color: isSelected ? const Color(0xFFEA3F74) : const Color(0xFFE2E8F0),
+        child: Text(
+          label,
+          style: GoogleFonts.manrope(
+            color: isSelected ? const Color(0xFFEA3F74) : const Color(0xFF6B7280),
+            fontSize: 13,
+            fontWeight: FontWeight.w800,
+          ),
         ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        onSelected: (val) {
-          setState(() {
-            _filtro = key;
-            _aplicarFiltros();
-          });
-        },
       ),
     );
   }
 }
 
-class _ComunidadeCard extends StatelessWidget {
+/// Card de Comunidade Fiel ao `.comunidade-card`, `.comunidade-mark`, top 4px stripe (`::before`), `.comunidade-stats`, `.btn-compact` da Web CSS
+class _WebStyleComunidadeCard extends StatelessWidget {
   final Comunidade comunidade;
   final bool isMembro;
   final Color cor;
@@ -619,7 +505,7 @@ class _ComunidadeCard extends StatelessWidget {
   final VoidCallback onParticipar;
   final VoidCallback onSair;
 
-  const _ComunidadeCard({
+  const _WebStyleComunidadeCard({
     required this.comunidade,
     required this.isMembro,
     required this.cor,
@@ -630,131 +516,163 @@ class _ComunidadeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 14),
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
-        side: const BorderSide(color: Color(0xFFEEF2F7), width: 1),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color.fromRGBO(17, 24, 39, 0.07),
+            blurRadius: 30,
+            offset: Offset(0, 12),
+          ),
+        ],
       ),
-      color: Colors.white,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Container(
-                  width: 46,
-                  height: 46,
-                  decoration: BoxDecoration(
-                    color: cor.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Icon(icone, color: cor, size: 24),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+            // Top Stripe (Faixa de Cor Superior de 4px Fiel ao CSS `.comunidade-card::before`)
+            Container(
+              height: 4,
+              width: double.infinity,
+              color: cor,
+            ),
+
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Top info
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        comunidade.nome,
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF0F172A),
+                      // .comunidade-mark (Container de ícone 44x44, radius 12px)
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: cor,
+                          borderRadius: BorderRadius.circular(12),
                         ),
+                        child: Icon(icone, color: Colors.white, size: 22),
                       ),
-                      const SizedBox(height: 2),
                       Text(
-                        '${comunidade.totalMembros} ${comunidade.totalMembros == 1 ? 'membro' : 'membros'}',
-                        style: const TextStyle(
-                            color: Color(0xFF64748B), fontSize: 12),
+                        'COMUNIDADE',
+                        style: GoogleFonts.manrope(
+                          color: cor,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.8,
+                        ),
                       ),
                     ],
                   ),
-                ),
-                if (isMembro)
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFDCFCE7),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Text('Membro',
-                        style: TextStyle(
-                            color: Color(0xFF16A34A),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600)),
-                  ),
-              ],
-            ),
 
-            if (comunidade.descricao != null &&
-                comunidade.descricao!.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              Text(
-                comunidade.descricao!,
-                style: const TextStyle(
-                    color: Color(0xFF475569), fontSize: 13, height: 1.4),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
+                  const SizedBox(height: 12),
 
-            if (comunidade.criador != null) ...[
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  const Icon(Icons.person_outline_rounded,
-                      size: 13, color: Color(0xFF94A3B8)),
-                  const SizedBox(width: 4),
+                  // Title h2
                   Text(
-                    'Criado por ${comunidade.criador!.nome}',
-                    style: const TextStyle(
-                        color: Color(0xFF94A3B8), fontSize: 12),
+                    comunidade.nome,
+                    style: GoogleFonts.manrope(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF202124),
+                    ),
+                  ),
+
+                  const SizedBox(height: 6),
+
+                  // Description p
+                  Text(
+                    comunidade.descricao != null && comunidade.descricao!.isNotEmpty
+                        ? comunidade.descricao!
+                        : 'Comunidade no SocialJoin',
+                    style: GoogleFonts.manrope(
+                      color: const Color(0xFF6B7280),
+                      fontSize: 12,
+                      height: 1.55,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+
+                  const SizedBox(height: 14),
+
+                  // .comunidade-stats (11px text, border-top 1px solid #e5e7eb)
+                  Container(
+                    padding: const EdgeInsets.symmetric(vertical: 11),
+                    decoration: const BoxDecoration(
+                      border: Border(
+                        top: BorderSide(color: Color(0xFFE5E7EB), width: 1.0),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.people_alt_outlined, size: 14, color: Color(0xFF6B7280)),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${comunidade.totalMembros} membros',
+                              style: GoogleFonts.manrope(color: const Color(0xFF6B7280), fontSize: 11, fontWeight: FontWeight.w600),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(width: 16),
+                        Row(
+                          children: [
+                            const Icon(Icons.event_outlined, size: 14, color: Color(0xFF6B7280)),
+                            const SizedBox(width: 4),
+                            Text(
+                              '0 eventos',
+                              style: GoogleFonts.manrope(color: const Color(0xFF6B7280), fontSize: 11, fontWeight: FontWeight.w600),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Footer com Criador & Botão de Ação (.comunidade-card-footer / .btn-compact da Web)
+                  Row(
+                    children: [
+                      Text(
+                        'Por ${comunidade.criador?.nome ?? 'Administrador'}',
+                        style: GoogleFonts.manrope(color: const Color(0xFF6B7280), fontSize: 11),
+                      ),
+                      const Spacer(),
+                      if (isMembro)
+                        OutlinedButton(
+                          onPressed: onSair,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF6B7280),
+                            side: const BorderSide(color: Color(0xFFE5E7EB)),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          child: Text('Sair', style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w700)),
+                        )
+                      else
+                        ElevatedButton(
+                          onPressed: onParticipar,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFEA3F74),
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          child: Text('Acessar', style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w700)),
+                        ),
+                    ],
                   ),
                 ],
               ),
-            ],
-
-            const SizedBox(height: 14),
-
-            SizedBox(
-              width: double.infinity,
-              child: isMembro
-                  ? OutlinedButton.icon(
-                      onPressed: onSair,
-                      icon: const Icon(Icons.exit_to_app_rounded, size: 16),
-                      label: const Text('Sair da Comunidade'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF64748B),
-                        side: const BorderSide(color: Color(0xFFCBD5E1)),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10)),
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        textStyle: const TextStyle(
-                            fontSize: 13, fontWeight: FontWeight.w600),
-                      ),
-                    )
-                  : ElevatedButton.icon(
-                      onPressed: onParticipar,
-                      icon: const Icon(Icons.person_add_rounded, size: 16),
-                      label: const Text('Participar da Comunidade'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: cor,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10)),
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        textStyle: const TextStyle(
-                            fontSize: 13, fontWeight: FontWeight.w600),
-                      ),
-                    ),
             ),
           ],
         ),

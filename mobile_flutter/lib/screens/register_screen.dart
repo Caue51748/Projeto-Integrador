@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../models/usuario.dart';
 import '../services/usuario_service.dart';
 import '../services/auth_service.dart';
 import 'home_screen.dart';
 
+/// Tela de Cadastro Mobile — Fiel à Estilização Real da Tela WEB (.auth-modal, .auth-kicker, .auth-intro, .auth-input-wrap, .auth-submit).
+/// Fonte da Verdade: web/style.css
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
@@ -41,9 +44,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
-  /// Abre o seletor de data moderno para celular
   Future<void> _selecionarDataNascimento() async {
-    // Esconde teclado se aberto
     FocusScope.of(context).unfocus();
 
     final DateTime hoje = DateTime.now();
@@ -61,15 +62,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: const ColorScheme.light(
-              primary: Color(0xFFEA3F74), // Cor de destaque principal
+              primary: Color(0xFFEA3F74),
               onPrimary: Colors.white,
               surface: Colors.white,
-              onSurface: Color(0xFF0F172A),
+              onSurface: Color(0xFF202124),
             ),
             textButtonTheme: TextButtonThemeData(
               style: TextButton.styleFrom(
                 foregroundColor: const Color(0xFFEA3F74),
-                textStyle: const TextStyle(fontWeight: FontWeight.w700),
+                textStyle: GoogleFonts.manrope(fontWeight: FontWeight.w700),
               ),
             ),
           ),
@@ -82,20 +83,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
       setState(() {
         _dataNascimentoSelecionada = dataEscolhida;
 
-        // Formato amigável para exibição ao usuário (DD/MM/AAAA)
         final dia = dataEscolhida.day.toString().padLeft(2, '0');
         final mes = dataEscolhida.month.toString().padLeft(2, '0');
         final ano = dataEscolhida.year.toString();
         dataNascimentoController.text = '$dia/$mes/$ano';
 
-        // Formato padrão ISO YYYY-MM-DD para envio à API
         _dataNascimentoIso = '$ano-$mes-$dia';
       });
     }
   }
 
   Future<void> _cadastrar() async {
-    // Validação síncrona dos campos
     if (!_formKey.currentState!.validate()) return;
 
     if (_dataNascimentoIso.isEmpty) {
@@ -137,7 +135,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ? novoUsuario.email
           : email;
 
-      // Autentica o usuário na sessão mobile
       AuthService.fazerLogin(
         idUsuario: id,
         nome: nomeFinal,
@@ -147,14 +144,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Conta criada com sucesso! Bem-vindo(a) ao SocialJoin!'),
-          backgroundColor: Color(0xFF10B981),
-          duration: Duration(seconds: 2),
+        SnackBar(
+          content: Text('Conta criada com sucesso! Bem-vindo(a) ao SocialJoin!', style: GoogleFonts.manrope()),
+          backgroundColor: const Color(0xFF10B981),
+          duration: const Duration(seconds: 2),
         ),
       );
 
-      // Redireciona para a HomeScreen
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const HomeScreen()),
         (route) => false,
@@ -170,303 +166,247 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFAFAFC),
+      backgroundColor: const Color(0xFFF7F8FA),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFF0F172A), size: 20),
+          icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF202124), size: 22),
           onPressed: () => Navigator.pop(context),
-          tooltip: 'Voltar',
         ),
-        title: const Text(
-          'Criar Conta',
-          style: TextStyle(
-            color: Color(0xFF0F172A),
-            fontSize: 17,
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.3,
-          ),
-        ),
-        centerTitle: true,
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Header Minimalista e Moderno
-                Center(
-                  child: Container(
-                    width: 56,
-                    height: 56,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFF9ACC6), Color(0xFFEA3F74)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
+          child: Container(
+            padding: const EdgeInsets.all(28),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFE5E7EB)),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color.fromRGBO(43, 23, 32, 0.15),
+                  blurRadius: 35,
+                  offset: Offset(0, 16),
+                ),
+              ],
+            ),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Kicker (.auth-kicker da Web)
+                  Text(
+                    'CRIE SUA CONTA NA REDE',
+                    style: GoogleFonts.manrope(
+                      color: const Color(0xFFEA3F74),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+
+                  // Intro Title (.auth-intro h2 da Web)
+                  Text(
+                    'Cadastrar no SocialJoin',
+                    style: GoogleFonts.manrope(
+                      fontSize: 26,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF202124),
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Preencha seus dados para participar dos eventos.',
+                    style: GoogleFonts.manrope(
+                      fontSize: 13,
+                      color: const Color(0xFF6B7280),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Campo: Nome Completo
+                  _buildWebFormField(
+                    controller: nomeController,
+                    label: 'Nome Completo',
+                    hint: 'Ex: Ana Clara Silva',
+                    icon: Icons.person_outline_rounded,
+                    keyboardType: TextInputType.name,
+                    textCapitalization: TextCapitalization.words,
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) return 'Informe seu nome completo';
+                      if (v.trim().length < 2) return 'O nome deve ter pelo menos 2 letras';
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Campo: Nome de Usuário (@)
+                  _buildWebFormField(
+                    controller: usernameController,
+                    label: 'Nome de usuário (@)',
+                    hint: 'Ex: anaclara',
+                    icon: Icons.alternate_email_rounded,
+                    keyboardType: TextInputType.text,
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) return 'Informe um nome de usuário';
+                      final clean = v.trim().replaceAll('@', '');
+                      if (clean.length < 3) return 'O usuário deve ter pelo menos 3 caracteres';
+                      if (clean.contains(' ')) return 'O usuário não pode conter espaços';
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Campo: Data de Nascimento
+                  _buildWebDateField(
+                    controller: dataNascimentoController,
+                    label: 'Data de nascimento',
+                    hint: 'Selecione sua data',
+                    icon: Icons.calendar_today_rounded,
+                    onTap: _selecionarDataNascimento,
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty || _dataNascimentoIso.isEmpty) {
+                        return 'Selecione sua data de nascimento';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Campo: E-mail
+                  _buildWebFormField(
+                    controller: emailController,
+                    label: 'E-mail',
+                    hint: 'seuemail@exemplo.com',
+                    icon: Icons.mail_outline_rounded,
+                    keyboardType: TextInputType.emailAddress,
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) return 'Informe seu e-mail';
+                      final email = v.trim();
+                      final emailRegExp = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+                      if (!emailRegExp.hasMatch(email)) return 'Informe um e-mail válido';
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Campo: Senha
+                  _buildWebFormField(
+                    controller: senhaController,
+                    label: 'Senha',
+                    hint: 'Mínimo de 6 caracteres',
+                    icon: Icons.lock_outline_rounded,
+                    isPassword: true,
+                    senhaVisivel: _senhaVisivel,
+                    onToggleSenha: () => setState(() => _senhaVisivel = !_senhaVisivel),
+                    validator: (v) {
+                      if (v == null || v.isEmpty) return 'Informe uma senha';
+                      if (v.length < 6) return 'A senha deve ter no mínimo 6 caracteres';
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Campo: Confirmar Senha
+                  _buildWebFormField(
+                    controller: confirmarSenhaController,
+                    label: 'Confirmar Senha',
+                    hint: 'Repita sua senha',
+                    icon: Icons.lock_clock_outlined,
+                    isPassword: true,
+                    senhaVisivel: _confirmarSenhaVisivel,
+                    onToggleSenha: () => setState(() => _confirmarSenhaVisivel = !_confirmarSenhaVisivel),
+                    validator: (v) {
+                      if (v == null || v.isEmpty) return 'Confirme sua senha';
+                      if (v != senhaController.text) return 'As senhas não coincidem';
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Feedback de erro (.auth-feedback da Web)
+                  if (erro.isNotEmpty) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF7F8FA),
+                        borderRadius: BorderRadius.circular(9),
+                        border: Border.all(color: const Color(0xFFF2B9C9)),
                       ),
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFFEA3F74).withValues(alpha: 0.25),
-                          blurRadius: 16,
-                          offset: const Offset(0, 6),
+                      child: Text(
+                        erro,
+                        style: GoogleFonts.manrope(
+                          color: const Color(0xFFC93659),
+                          fontSize: 13,
                         ),
-                      ],
+                      ),
                     ),
-                    child: const Icon(
-                      Icons.person_add_alt_1_rounded,
-                      color: Colors.white,
-                      size: 28,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Junte-se ao SocialJoin',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF0F172A),
-                    letterSpacing: -0.6,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                const Text(
-                  'Crie sua conta para participar de eventos e comunidades.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Color(0xFF64748B),
-                    height: 1.4,
-                  ),
-                ),
-                const SizedBox(height: 28),
+                    const SizedBox(height: 16),
+                  ],
 
-                // Campo: Nome Completo
-                _buildField(
-                  controller: nomeController,
-                  label: 'Nome Completo',
-                  hint: 'Ex: Ana Clara Silva',
-                  icon: Icons.person_outline_rounded,
-                  keyboardType: TextInputType.name,
-                  textCapitalization: TextCapitalization.words,
-                  validator: (v) {
-                    if (v == null || v.trim().isEmpty) {
-                      return 'Informe seu nome completo';
-                    }
-                    if (v.trim().length < 2) {
-                      return 'O nome deve ter pelo menos 2 letras';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // Campo: Nome de Usuário (@)
-                _buildField(
-                  controller: usernameController,
-                  label: 'Nome de usuário (@)',
-                  hint: 'Ex: anaclara',
-                  icon: Icons.alternate_email_rounded,
-                  keyboardType: TextInputType.text,
-                  validator: (v) {
-                    if (v == null || v.trim().isEmpty) {
-                      return 'Informe um nome de usuário';
-                    }
-                    final clean = v.trim().replaceAll('@', '');
-                    if (clean.length < 3) {
-                      return 'O usuário deve ter pelo menos 3 caracteres';
-                    }
-                    if (clean.contains(' ')) {
-                      return 'O usuário não pode conter espaços';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // Campo: Data de Nascimento (com DatePicker Nativo Mobile)
-                _buildDateField(
-                  controller: dataNascimentoController,
-                  label: 'Data de nascimento',
-                  hint: 'Toque para selecionar sua data',
-                  icon: Icons.calendar_today_rounded,
-                  onTap: _selecionarDataNascimento,
-                  validator: (v) {
-                    if (v == null || v.trim().isEmpty || _dataNascimentoIso.isEmpty) {
-                      return 'Selecione sua data de nascimento';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // Campo: E-mail
-                _buildField(
-                  controller: emailController,
-                  label: 'E-mail',
-                  hint: 'seuemail@exemplo.com',
-                  icon: Icons.mail_outline_rounded,
-                  keyboardType: TextInputType.emailAddress,
-                  validator: (v) {
-                    if (v == null || v.trim().isEmpty) {
-                      return 'Informe seu e-mail';
-                    }
-                    final email = v.trim();
-                    final emailRegExp = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
-                    if (!emailRegExp.hasMatch(email)) {
-                      return 'Informe um e-mail válido';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // Campo: Senha
-                _buildField(
-                  controller: senhaController,
-                  label: 'Senha',
-                  hint: 'Mínimo de 6 caracteres',
-                  icon: Icons.lock_outline_rounded,
-                  isPassword: true,
-                  senhaVisivel: _senhaVisivel,
-                  onToggleSenha: () => setState(() => _senhaVisivel = !_senhaVisivel),
-                  validator: (v) {
-                    if (v == null || v.isEmpty) {
-                      return 'Informe uma senha';
-                    }
-                    if (v.length < 6) {
-                      return 'A senha deve ter no mínimo 6 caracteres';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // Campo: Confirmar Senha
-                _buildField(
-                  controller: confirmarSenhaController,
-                  label: 'Confirmar Senha',
-                  hint: 'Repita sua senha',
-                  icon: Icons.lock_clock_outlined,
-                  isPassword: true,
-                  senhaVisivel: _confirmarSenhaVisivel,
-                  onToggleSenha: () => setState(() => _confirmarSenhaVisivel = !_confirmarSenhaVisivel),
-                  validator: (v) {
-                    if (v == null || v.isEmpty) {
-                      return 'Confirme sua senha';
-                    }
-                    if (v != senhaController.text) {
-                      return 'As senhas não coincidem';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 20),
-
-                // Banner de Feedback de Erro Amigável
-                if (erro.isNotEmpty) ...[
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFEF2F2),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: const Color(0xFFFECACA)),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Icon(
-                          Icons.error_outline_rounded,
-                          color: Color(0xFFEF4444),
-                          size: 20,
+                  // Botão Cadastrar (.btn-primary .auth-submit da Web)
+                  SizedBox(
+                    height: 46,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFEA3F74),
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
                         ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            erro,
-                            style: const TextStyle(
-                              color: Color(0xFFB91C1C),
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              height: 1.3,
+                      ),
+                      onPressed: isLoading ? null : _cadastrar,
+                      child: isLoading
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : Text(
+                              'Criar Conta',
+                              style: GoogleFonts.manrope(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
-                          ),
-                        ),
-                      ],
                     ),
                   ),
                   const SizedBox(height: 20),
-                ],
 
-                // Botão de Criação de Conta
-                SizedBox(
-                  height: 52,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFEA3F74),
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shadowColor: Colors.transparent,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                    onPressed: isLoading ? null : _cadastrar,
-                    child: isLoading
-                        ? const SizedBox(
-                            height: 22,
-                            width: 22,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2.5,
-                            ),
-                          )
-                        : const Text(
-                            'Criar Conta',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: -0.2,
-                            ),
-                          ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                // Link para Login
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text(
-                      'Já tem uma conta? ',
-                      style: TextStyle(
-                        color: Color(0xFF64748B),
-                        fontSize: 14,
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () => Navigator.pop(context),
-                      child: const Text(
-                        'Entrar',
-                        style: TextStyle(
-                          color: Color(0xFFEA3F74),
-                          fontWeight: FontWeight.w700,
-                          fontSize: 14,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Já tem uma conta? ',
+                        style: GoogleFonts.manrope(
+                          color: const Color(0xFF6B7280),
+                          fontSize: 13,
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-              ],
+                      GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: Text(
+                          'Entrar',
+                          style: GoogleFonts.manrope(
+                            color: const Color(0xFFEA3F74),
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -474,8 +414,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  /// Campo de Texto Padronizado Minimalista
-  Widget _buildField({
+  Widget _buildWebFormField({
     required TextEditingController controller,
     required String label,
     String? hint,
@@ -492,11 +431,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
       children: [
         Text(
           label,
-          style: const TextStyle(
+          style: GoogleFonts.manrope(
             fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF334155),
-            letterSpacing: -0.2,
+            fontWeight: FontWeight.w700,
+            color: const Color(0xFF202124),
           ),
         ),
         const SizedBox(height: 6),
@@ -506,58 +444,32 @@ class _RegisterScreenState extends State<RegisterScreen> {
           keyboardType: keyboardType,
           textCapitalization: textCapitalization,
           validator: validator,
-          style: const TextStyle(
+          style: GoogleFonts.manrope(
             fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: Color(0xFF0F172A),
+            color: const Color(0xFF202124),
           ),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
-            prefixIcon: Icon(icon, size: 20, color: const Color(0xFF94A3B8)),
+            prefixIcon: Icon(icon, size: 20, color: const Color(0xFFEA3F74)),
             suffixIcon: isPassword
                 ? IconButton(
                     icon: Icon(
                       (senhaVisivel ?? false)
                           ? Icons.visibility_off_outlined
                           : Icons.visibility_outlined,
-                      size: 20,
-                      color: const Color(0xFF94A3B8),
+                      size: 19,
+                      color: const Color(0xFF6B7280),
                     ),
                     onPressed: onToggleSenha,
                   )
                 : null,
-            filled: true,
-            fillColor: Colors.white,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: Color(0xFFEA3F74), width: 1.8),
-            ),
-            errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: Color(0xFFEF4444)),
-            ),
-            focusedErrorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: Color(0xFFEF4444), width: 1.8),
-            ),
           ),
         ),
       ],
     );
   }
 
-  /// Campo Especial para Data de Nascimento com Seletor
-  Widget _buildDateField({
+  Widget _buildWebDateField({
     required TextEditingController controller,
     required String label,
     String? hint,
@@ -570,11 +482,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
       children: [
         Text(
           label,
-          style: const TextStyle(
+          style: GoogleFonts.manrope(
             fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF334155),
-            letterSpacing: -0.2,
+            fontWeight: FontWeight.w700,
+            color: const Color(0xFF202124),
           ),
         ),
         const SizedBox(height: 6),
@@ -583,42 +494,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
           readOnly: true,
           onTap: onTap,
           validator: validator,
-          style: const TextStyle(
+          style: GoogleFonts.manrope(
             fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: Color(0xFF0F172A),
+            color: const Color(0xFF202124),
           ),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
             prefixIcon: Icon(icon, size: 20, color: const Color(0xFFEA3F74)),
             suffixIcon: const Icon(
               Icons.calendar_month_rounded,
               color: Color(0xFFEA3F74),
-              size: 20,
-            ),
-            filled: true,
-            fillColor: Colors.white,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: Color(0xFFEA3F74), width: 1.8),
-            ),
-            errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: Color(0xFFEF4444)),
-            ),
-            focusedErrorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: Color(0xFFEF4444), width: 1.8),
+              size: 19,
             ),
           ),
         ),
