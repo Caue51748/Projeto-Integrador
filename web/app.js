@@ -4,11 +4,16 @@ class AppController {
     constructor() {
         this.listaUsuariosCompleta = [];
         this.usuariosMap = {};
+        this.usuariosFotosMap = {};
         this.comunidadesMap = {}; // Guarda id -> nome da comunidade
         this.carregarFiltroComunidadesEventos();
         this.listaComunidades = [];
         this.comentariosPorPost = {};
         this.posts = [];
+        this.paginaFeed = 0;
+        this.tamanhoPaginaFeed = 10;
+        this.temMaisPosts = true;
+        this.carregandoMaisPosts = false;
         this.votos = [];
         this.postsSalvos = [];
         this.filtroFeed = 'todos';
@@ -43,6 +48,19 @@ class AppController {
         this.chatSidebarAberto = true;
     }
     async inicializar() {
+
+        // Listener para Scroll Infinito no Feed
+        window.addEventListener('scroll', () => {
+            const feedView = document.getElementById('view-feed');
+            if (feedView && feedView.classList.contains('active')) {
+                const scrollY = window.scrollY || window.pageYOffset;
+                const visibleHeight = window.innerHeight;
+                const totalHeight = document.documentElement.scrollHeight || document.body.scrollHeight;
+                if (scrollY + visibleHeight >= totalHeight - 350) {
+                    this.carregarMaisPosts();
+                }
+            }
+        });
 
         document.addEventListener('keydown', (evento) => {
             if (evento.key === 'Escape') {
@@ -396,10 +414,15 @@ class AppController {
         const user = ApiService.getUsuarioLogado();
         if (user) {
             const inicial = (user.nome || 'U').charAt(0).toUpperCase();
+            const fotoUrl = ApiService.formatarUrlFotoPerfil(user.fotoPerfil);
+            const avatarHtml = fotoUrl
+                ? `<img src="${fotoUrl}?v=${Date.now()}" class="account-avatar" style="object-fit:cover; border-radius:50%; width:28px; height:28px;" onerror="this.outerHTML='<span class=\\'account-avatar\\'>${inicial}</span>'">`
+                : `<span class="account-avatar">${inicial}</span>`;
+
             container.innerHTML = `
     <div class="account-menu">
         <button class="account-trigger" aria-haspopup="true" aria-expanded="false" onclick="app.alternarMenuConta(event)">
-            <span class="account-avatar">${inicial}</span>
+            ${avatarHtml}
             <span class="account-name">${this.escaparHtmlDestaque(user.nome || 'Minha conta')}</span>
             <i class="material-icons account-chevron">expand_more</i>
         </button>
@@ -696,20 +719,23 @@ class AppController {
         this.mostrarTelaBoasVindas();
     }
 
-    // --- CARREGAMENTO GLOBAL ---
+    // --- CARREGAMENTO GLOBAL E PAGINADO ---
     async carregarDadosGlobais() {
         try {
-            const [usuarios, comunidades, comentarios, votos, salvos, posts] = await Promise.all([
+            const [usuarios, comunidades, comentarios, votos, salvos] = await Promise.all([
                 ApiService.listarUsuarios(),
                 ApiService.listarComunidades().catch(() => []),
-                ApiService.listarComentarios(),
+                ApiService.listarComentarios().catch(() => []),
                 ApiService.listarVotos().catch(() => []),
-                ApiService.listarPostsSalvos().catch(() => []),
-                ApiService.listarPosts()
+                ApiService.listarPostsSalvos().catch(() => [])
             ]);
 
             this.listaUsuariosCompleta = usuarios;
-            this.listaUsuariosCompleta.forEach(u => this.usuariosMap[u.idUsuario || u.id] = u.nome);
+            this.listaUsuariosCompleta.forEach(u => {
+                const id = u.idUsuario || u.id;
+                this.usuariosMap[id] = u.nome;
+                this.usuariosFotosMap[id] = u.fotoPerfil;
+            });
 
             this.listaComunidades = comunidades;
             comunidades.forEach(c =>
@@ -726,8 +752,10 @@ class AppController {
 
             this.votos = votos;
             this.postsSalvos = salvos;
-            this.posts = posts.reverse();
             this.renderizarSugestoesPessoas();
+
+            // Carrega os primeiros posts sob demanda (primeira página)
+            await this.carregarMaisPosts(true);
 
             // Atualiza a view que estiver visível depois dos dados compartilhados carregarem.
             if (this.comunidadeAtivaId) this.renderizarSubreddit(this.comunidadeAtivaId);
@@ -741,6 +769,62 @@ class AppController {
         } catch (e) {
             console.error(e);
             document.getElementById('feed-container').innerHTML = `Erro de conexão com servidor.`;
+        }
+    }
+
+    async carregarMaisPosts(reset = false) {
+        if (this.carregandoMaisPosts) return;
+        if (!reset && !this.temMaisPosts) return;
+
+        if (reset) {
+            this.paginaFeed = 0;
+            this.posts = [];
+            this.temMaisPosts = true;
+        }
+
+        this.carregandoMaisPosts = true;
+        const container = document.getElementById('feed-container');
+
+        let loadingIndicator = document.getElementById('feed-loading-indicator');
+        if (!loadingIndicator && container && container.parentNode) {
+            loadingIndicator = document.createElement('div');
+            loadingIndicator.id = 'feed-loading-indicator';
+            loadingIndicator.style.cssText = 'text-align:center; padding:16px; color:var(--text-muted); font-size:14px;';
+            loadingIndicator.innerHTML = '<span style="display:inline-block; width:14px; height:14px; border:2px solid var(--accent); border-top-color:transparent; border-radius:50%; animation:spin 1s linear infinite; vertical-align:middle; margin-right:8px;"></span>Carregando publicações...';
+            container.parentNode.insertBefore(loadingIndicator, container.nextSibling);
+        }
+        if (loadingIndicator) loadingIndicator.style.display = 'block';
+
+        try {
+            const novosPosts = await ApiService.listarPosts(this.paginaFeed, this.tamanhoPaginaFeed);
+            const postsArray = Array.isArray(novosPosts) ? novosPosts : (novosPosts.content || []);
+
+            if (postsArray.length < this.tamanhoPaginaFeed) {
+                this.temMaisPosts = false;
+                if (loadingIndicator) {
+                    loadingIndicator.innerHTML = (this.posts.length + postsArray.length > 0)
+                        ? '<p style="color:var(--text-muted); font-size:13px; margin:16px 0;">Você chegou ao fim das publicações.</p>'
+                        : '';
+                }
+            } else if (loadingIndicator) {
+                loadingIndicator.style.display = 'none';
+            }
+
+            if (reset) {
+                this.posts = postsArray;
+            } else {
+                const idsExistentes = new Set(this.posts.map(p => p.idPost || p.id));
+                const postsFiltrados = postsArray.filter(p => !idsExistentes.has(p.idPost || p.id));
+                this.posts = [...this.posts, ...postsFiltrados];
+            }
+
+            this.paginaFeed++;
+            this.renderizarFeedGeral();
+        } catch (erro) {
+            console.error("Erro ao carregar posts paginados:", erro);
+            if (loadingIndicator) loadingIndicator.style.display = 'none';
+        } finally {
+            this.carregandoMaisPosts = false;
         }
     }
 
@@ -1261,6 +1345,14 @@ class AppController {
             let idComunidade = post.idComunidade || post.id_comunidade;
 
             let nomeAutor = this.usuariosMap[idAutor] || 'Desconhecido';
+            let fotoAutor = this.usuariosFotosMap[idAutor];
+            let urlFotoAutor = ApiService.formatarUrlFotoPerfil(fotoAutor);
+            let inicial = (nomeAutor || 'U').charAt(0).toUpperCase();
+
+            let avatarHtml = urlFotoAutor
+                ? `<img src="${urlFotoAutor}" class="avatar" style="object-fit:cover;" onerror="this.outerHTML='<div class=\\'avatar\\'>${inicial}</div>'">`
+                : `<div class="avatar">${inicial}</div>`;
+
             let nomeComunidade = this.comunidadesMap[idComunidade];
             let dataPostagem = post.dataPostagem
                 ? new Date(post.dataPostagem).toLocaleDateString('pt-BR')
@@ -1299,7 +1391,7 @@ class AppController {
             const totalCurtidas = this.contarVotos(idPost);
             div.innerHTML = `
                 <div class="post-header-area">
-                    <div class="avatar">${nomeAutor.charAt(0).toUpperCase()}</div>
+                    ${avatarHtml}
                     <div>
                         <span class="post-author">${this.escaparHtmlDestaque(nomeAutor)}</span>
                         <div class="post-meta">${mostrarTagComunidade && nomeComunidade ? `em c/${this.escaparHtmlDestaque(nomeComunidade)}` : 'Feed global'} · ${dataPostagem}</div>
@@ -1358,8 +1450,24 @@ ${ApiService.getIdUsuarioLogado() ? `
         const container = document.getElementById('post-detalhes-conteudo');
         if (!container) return;
 
+        // Busca comentários atualizados sob demanda para este post
+        try {
+            const comentariosPost = await ApiService.listarComentariosPorPost(idPost);
+            if (comentariosPost && comentariosPost.length) {
+                this.comentariosPorPost[idPost] = comentariosPost;
+            }
+        } catch (_) {}
+
         const idAutor = post.idUsuario || post.id_usuario;
         const nomeAutor = this.usuariosMap[idAutor] || 'Desconhecido';
+        const fotoAutor = this.usuariosFotosMap[idAutor];
+        const urlFotoAutor = ApiService.formatarUrlFotoPerfil(fotoAutor);
+        const inicialAutor = (nomeAutor || 'U').charAt(0).toUpperCase();
+
+        const avatarHeaderHtml = urlFotoAutor
+            ? `<img src="${urlFotoAutor}" class="avatar" style="object-fit:cover;" onerror="this.outerHTML='<div class=\\'avatar\\'>${inicialAutor}</div>'">`
+            : `<div class="avatar">${inicialAutor}</div>`;
+
         const idComunidade = post.idComunidade || post.id_comunidade;
         const nomeComunidade = this.comunidadesMap[idComunidade];
         const comentarios = this.comentariosPorPost[idPost] || [];
@@ -1372,7 +1480,7 @@ ${ApiService.getIdUsuarioLogado() ? `
         container.innerHTML = `
             <article class="post-detail-card">
                 <div class="post-detail-header">
-                    <div class="avatar">${this.escaparHtmlDestaque(nomeAutor.charAt(0).toUpperCase())}</div>
+                    ${avatarHeaderHtml}
                     <div><strong>${this.escaparHtmlDestaque(nomeAutor)}</strong><span>${nomeComunidade ? `em c/${this.escaparHtmlDestaque(nomeComunidade)}` : 'Feed global'} · ${dataPostagem}</span></div>
                 </div>
                 <h1>${this.escaparHtmlDestaque(post.titulo)}</h1>
@@ -1384,7 +1492,17 @@ ${ApiService.getIdUsuarioLogado() ? `
                 <section class="post-comments-section">
                     <div class="post-comments-heading"><h2>Comentários</h2><span>${comentarios.length}</span></div>
                     ${ApiService.getIdUsuarioLogado() ? `<div class="detail-comment-box"><input id="comentario-detalhe-${idPost}" type="text" placeholder="Escreva um comentário..." onkeydown="if(event.key === 'Enter') app.enviarComentarioDetalhe(${idPost})"><button onclick="app.enviarComentarioDetalhe(${idPost})">Comentar</button></div>` : '<p class="comments-login-note">Entre para participar da conversa.</p>'}
-                    <div class="post-detail-comments">${comentarios.length ? comentarios.map(c => `<div class="detail-comment"><div class="avatar detail-comment-avatar">${this.escaparHtmlDestaque((this.usuariosMap[c.idUsuario || c.id_usuario] || 'U').charAt(0).toUpperCase())}</div><div><strong>${this.escaparHtmlDestaque(this.usuariosMap[c.idUsuario || c.id_usuario] || 'Usuário')}</strong><p>${this.escaparHtmlDestaque(c.conteudo)}</p></div></div>`).join('') : '<p class="comments-empty">Ainda não há comentários. Seja o primeiro a participar.</p>'}</div>
+                    <div class="post-detail-comments">${comentarios.length ? comentarios.map(c => {
+                        const idC = c.idUsuario || c.id_usuario;
+                        const nomeC = this.usuariosMap[idC] || 'Usuário';
+                        const fotoC = this.usuariosFotosMap[idC];
+                        const urlFotoC = ApiService.formatarUrlFotoPerfil(fotoC);
+                        const iniC = (nomeC || 'U').charAt(0).toUpperCase();
+                        const avC = urlFotoC
+                            ? `<img src="${urlFotoC}" class="avatar detail-comment-avatar" style="object-fit:cover;" onerror="this.outerHTML='<div class=\\'avatar detail-comment-avatar\\'>${iniC}</div>'">`
+                            : `<div class="avatar detail-comment-avatar">${iniC}</div>`;
+                        return `<div class="detail-comment">${avC}<div><strong>${this.escaparHtmlDestaque(nomeC)}</strong><p>${this.escaparHtmlDestaque(c.conteudo)}</p></div></div>`;
+                    }).join('') : '<p class="comments-empty">Ainda não há comentários. Seja o primeiro a participar.</p>'}</div>
                 </section>
             </article>
         `;
@@ -2956,10 +3074,12 @@ ${ApiService.getIdUsuarioLogado() ? `
             margin-bottom:24px;
         ">
 
-           ${usuario.fotoPerfil
+           ${(() => {
+                const fotoUrl = ApiService.formatarUrlFotoPerfil(usuario.fotoPerfil);
+                return fotoUrl
                     ? `
         <img
-            src="${ApiService.API_URL}/${usuario.fotoPerfil}?v=${Date.now()}"
+            src="${fotoUrl}?v=${Date.now()}"
             alt="Foto de perfil"
             style="
                 width:72px;
@@ -2967,7 +3087,18 @@ ${ApiService.getIdUsuarioLogado() ? `
                 border-radius:50%;
                 object-fit:cover;
                 flex-shrink:0;
-            ">
+            "
+            onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+        >
+        <div class="avatar"
+             style="
+                display:none;
+                width:72px;
+                height:72px;
+                font-size:28px;
+             ">
+            ${inicial}
+        </div>
       `
                     : `
         <div class="avatar"
@@ -2978,7 +3109,8 @@ ${ApiService.getIdUsuarioLogado() ? `
              ">
             ${inicial}
         </div>
-      `
+      `;
+            })()
                 }
 
             <div>
@@ -3610,6 +3742,8 @@ ${ApiService.getIdUsuarioLogado() ? `
                 ...usuarioSessao,
                 fotoPerfil: usuarioAtualizado.fotoPerfil
             });
+
+            this.usuariosFotosMap[idUsuario] = usuarioAtualizado.fotoPerfil;
 
             input.value = '';
 

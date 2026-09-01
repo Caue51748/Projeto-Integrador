@@ -7,14 +7,17 @@ import 'api_service.dart';
 class PostService {
   String get baseUrl => ApiService.baseUrl;
 
-  Future<List<Post>> listarPosts() async {
+  Future<List<Post>> listarPosts({int? page, int size = 10}) async {
     try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/posts'),
-      ).timeout(const Duration(seconds: 8));
+      final uri = (page != null)
+          ? Uri.parse('$baseUrl/posts?page=$page&size=$size')
+          : Uri.parse('$baseUrl/posts');
+
+      final response = await http.get(uri).timeout(const Duration(seconds: 8));
 
       if (response.statusCode == 200) {
-        final List lista = jsonDecode(utf8.decode(response.bodyBytes));
+        final dynamic data = jsonDecode(utf8.decode(response.bodyBytes));
+        final List lista = (data is List) ? data : (data['content'] ?? []);
         return lista.map((e) => Post.fromJson(e)).toList();
       }
     } catch (e) {

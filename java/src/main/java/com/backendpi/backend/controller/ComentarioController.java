@@ -22,6 +22,11 @@ public class ComentarioController {
         return service.listar();
     }
 
+    @GetMapping("/post/{idPost}")
+    public List<Comentario> listarPorPost(@PathVariable Long idPost) {
+        return service.listarPorPost(idPost);
+    }
+
     @PostMapping
     public Comentario criar(@RequestBody Comentario comentario) {
         return service.criar(comentario);

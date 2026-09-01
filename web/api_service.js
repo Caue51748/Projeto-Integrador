@@ -55,6 +55,25 @@ export class ApiService {
         return user ? (user.idUsuario || user.id_usuario || user.id) : null;
     }
 
+    // --- FORMATAÇÃO DE URL DE FOTO (GOOGLE DRIVE / LOCAL) ---
+    static formatarUrlFotoPerfil(fotoPerfil) {
+        if (!fotoPerfil) return null;
+        if (typeof fotoPerfil !== 'string') return null;
+        const foto = fotoPerfil.trim();
+        if (!foto) return null;
+        if (foto.startsWith('http://') || foto.startsWith('https://') || foto.startsWith('data:')) {
+            return foto;
+        }
+        if (foto.startsWith('uploads/')) {
+            return `${this.API_URL}/${foto}`;
+        }
+        if (foto.startsWith('/google/drive/image/') || foto.startsWith('google/drive/image/')) {
+            return `${this.API_URL}/${foto.replace(/^\//, '')}`;
+        }
+        // Identificador de arquivo do Google Drive
+        return `${this.API_URL}/google/drive/image/${foto}`;
+    }
+
     // --- USUÁRIOS ---
     static async listarUsuarios() { return await (await fetch(`${this.API_URL}/usuarios`)).json(); }
     static async criarUsuario(
@@ -73,8 +92,15 @@ export class ApiService {
         });
     }
 
-    // --- POSTS E COMENTÁRIOS ---
-    static async listarPosts() { return await (await fetch(`${this.API_URL}/posts`)).json(); }
+    // --- POSTS E COMENTÁRIOS COM PAGINAÇÃO ---
+    static async listarPosts(page = null, size = 10) {
+        const url = (page !== null && page !== undefined)
+            ? `${this.API_URL}/posts?page=${page}&size=${size}`
+            : `${this.API_URL}/posts`;
+        const resp = await fetch(url);
+        if (!resp.ok) return [];
+        return await resp.json();
+    }
 
     static async buscarPostPorId(idPost) {
         const resposta = await fetch(`${this.API_URL}/posts/${idPost}`);
@@ -93,6 +119,15 @@ export class ApiService {
     }
 
     static async listarComentarios() { return await (await fetch(`${this.API_URL}/comentarios`)).json(); }
+    static async listarComentariosPorPost(idPost) {
+        try {
+            const resp = await fetch(`${this.API_URL}/comentarios/post/${idPost}`);
+            if (!resp.ok) return [];
+            return await resp.json();
+        } catch (e) {
+            return [];
+        }
+    }
     static async criarComentario(conteudo, idUsuario, idPost) {
         return await fetch(`${this.API_URL}/comentarios`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },

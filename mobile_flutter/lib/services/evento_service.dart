@@ -7,21 +7,59 @@ import 'api_service.dart';
 class EventoService {
   String get baseUrl => ApiService.baseUrl;
 
-  /// Lista todos os eventos do banco
+  /// Lista todos os eventos do banco com resiliência total a respostas List [...] ou Page { "content": [...] }
+  /// de ambos os endpoints da API (/api/eventos e /api/eventos/buscar).
   Future<List<Evento>> listarEventos() async {
+    // 1. Primeira tentativa: GET /api/eventos
     try {
       final response = await http.get(
         Uri.parse('$baseUrl/api/eventos'),
       ).timeout(const Duration(seconds: 8));
 
       if (response.statusCode == 200) {
-        final List lista =
-            jsonDecode(utf8.decode(response.bodyBytes));
-        return lista.map((e) => Evento.fromJson(e)).toList();
+        final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+        List listaData = [];
+        if (decoded is List) {
+          listaData = decoded;
+        } else if (decoded is Map && decoded['content'] is List) {
+          listaData = decoded['content'] as List;
+        }
+
+        if (listaData.isNotEmpty) {
+          return listaData
+              .whereType<Map<String, dynamic>>()
+              .map((e) => Evento.fromJson(e))
+              .toList();
+        }
       }
     } catch (e) {
-      if (kDebugMode) print('Erro ao listar eventos: $e');
+      if (kDebugMode) print('Aviso em /api/eventos: $e');
     }
+
+    // 2. Segunda tentativa: GET /api/eventos/buscar (Endpoint utilizado pela Web)
+    try {
+      final responseBusca = await http.get(
+        Uri.parse('$baseUrl/api/eventos/buscar?size=100'),
+      ).timeout(const Duration(seconds: 8));
+
+      if (responseBusca.statusCode == 200) {
+        final decoded = jsonDecode(utf8.decode(responseBusca.bodyBytes));
+        List listaData = [];
+        if (decoded is List) {
+          listaData = decoded;
+        } else if (decoded is Map && decoded['content'] is List) {
+          listaData = decoded['content'] as List;
+        }
+
+        return listaData
+            .whereType<Map<String, dynamic>>()
+            .map((e) => Evento.fromJson(e))
+            .toList();
+      }
+    } catch (e) {
+      if (kDebugMode) print('Aviso em /api/eventos/buscar: $e');
+    }
+
     return [];
   }
 
@@ -33,9 +71,18 @@ class EventoService {
       ).timeout(const Duration(seconds: 8));
 
       if (response.statusCode == 200) {
-        final List lista =
-            jsonDecode(utf8.decode(response.bodyBytes));
-        return lista.map((e) => Evento.fromJson(e)).toList();
+        final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+        List listaData = [];
+        if (decoded is List) {
+          listaData = decoded;
+        } else if (decoded is Map && decoded['content'] is List) {
+          listaData = decoded['content'] as List;
+        }
+
+        return listaData
+            .whereType<Map<String, dynamic>>()
+            .map((e) => Evento.fromJson(e))
+            .toList();
       }
     } catch (e) {
       if (kDebugMode) print('Erro ao listar eventos do usuário: $e');
@@ -51,8 +98,10 @@ class EventoService {
       ).timeout(const Duration(seconds: 8));
 
       if (response.statusCode == 200) {
-        return Evento.fromJson(
-            jsonDecode(utf8.decode(response.bodyBytes)));
+        final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+        if (decoded is Map<String, dynamic>) {
+          return Evento.fromJson(decoded);
+        }
       }
     } catch (e) {
       if (kDebugMode) print('Erro ao buscar evento por id: $e');
@@ -70,8 +119,10 @@ class EventoService {
       ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        return Evento.fromJson(
-            jsonDecode(utf8.decode(response.bodyBytes)));
+        final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+        if (decoded is Map<String, dynamic>) {
+          return Evento.fromJson(decoded);
+        }
       }
     } catch (e) {
       if (kDebugMode) print('Erro ao criar evento: $e');
@@ -83,8 +134,7 @@ class EventoService {
   Future<bool> participarEvento(int idEvento, int idUsuario) async {
     try {
       final response = await http.post(
-        Uri.parse(
-            '$baseUrl/api/eventos/$idEvento/participar/$idUsuario'),
+        Uri.parse('$baseUrl/api/eventos/$idEvento/participar/$idUsuario'),
       ).timeout(const Duration(seconds: 8));
 
       return response.statusCode == 200 || response.statusCode == 201;
@@ -98,8 +148,7 @@ class EventoService {
   Future<bool> sairEvento(int idEvento, int idUsuario) async {
     try {
       final response = await http.delete(
-        Uri.parse(
-            '$baseUrl/api/eventos/$idEvento/participar/$idUsuario'),
+        Uri.parse('$baseUrl/api/eventos/$idEvento/participar/$idUsuario'),
       ).timeout(const Duration(seconds: 8));
 
       return response.statusCode == 200 || response.statusCode == 204;
@@ -113,8 +162,7 @@ class EventoService {
   Future<int> contarParticipantes(int idEvento) async {
     try {
       final response = await http.get(
-        Uri.parse(
-            '$baseUrl/api/eventos/$idEvento/participantes/quantidade'),
+        Uri.parse('$baseUrl/api/eventos/$idEvento/participantes/quantidade'),
       ).timeout(const Duration(seconds: 6));
 
       if (response.statusCode == 200) {
@@ -134,11 +182,14 @@ class EventoService {
       ).timeout(const Duration(seconds: 6));
 
       if (response.statusCode == 200) {
-        final List lista = jsonDecode(utf8.decode(response.bodyBytes));
-        return lista
-            .map<int>((item) => (item['usuarioId'] as num?)?.toInt() ?? 0)
-            .where((id) => id > 0)
-            .toList();
+        final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+        if (decoded is List) {
+          return decoded
+              .whereType<Map<String, dynamic>>()
+              .map<int>((item) => (item['usuarioId'] ?? item['id'] as num?)?.toInt() ?? 0)
+              .where((id) => id > 0)
+              .toList();
+        }
       }
     } catch (e) {
       if (kDebugMode) print('Erro ao listar participantes: $e');

@@ -7,6 +7,7 @@ class Usuario {
   String? username;
   String? bio;
   String? dataNascimento;
+  String? fotoPerfil;
 
   Usuario({
     this.idUsuario,
@@ -17,6 +18,7 @@ class Usuario {
     this.username,
     this.bio,
     this.dataNascimento,
+    this.fotoPerfil,
   });
 
   factory Usuario.fromJson(Map<String, dynamic> json) {
@@ -29,6 +31,7 @@ class Usuario {
       username: json['username'],
       bio: json['bio'],
       dataNascimento: json['dataNascimento'] ?? json['data_nascimento'],
+      fotoPerfil: json['fotoPerfil'] ?? json['foto_perfil'],
     );
   }
 
@@ -43,6 +46,7 @@ class Usuario {
     if (username != null) map['username'] = username;
     if (bio != null) map['bio'] = bio;
     if (dataNascimento != null) map['dataNascimento'] = dataNascimento;
+    if (fotoPerfil != null) map['fotoPerfil'] = fotoPerfil;
     return map;
   }
 }

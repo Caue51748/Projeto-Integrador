@@ -182,4 +182,70 @@ class UsuarioService {
       if (kDebugMode) print('Erro ao deletar usuário: $e');
     }
   }
+
+  /// Atualiza foto de perfil via POST /usuarios/{id}/foto (Google Drive)
+  Future<Map<String, dynamic>> atualizarFotoPerfil({
+    required int idUsuario,
+    String? caminhoArquivo,
+    Uint8List? bytes,
+    required String nomeArquivo,
+  }) async {
+    try {
+      final uri = Uri.parse('$baseUrl/usuarios/$idUsuario/foto');
+      final request = http.MultipartRequest('POST', uri);
+
+      if (bytes != null) {
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            'foto',
+            bytes,
+            filename: nomeArquivo,
+          ),
+        );
+      } else if (caminhoArquivo != null) {
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'foto',
+            caminhoArquivo,
+            filename: nomeArquivo,
+          ),
+        );
+      } else {
+        return {'sucesso': false, 'erro': 'Nenhum arquivo selecionado.'};
+      }
+
+      final streamedResponse =
+          await request.send().timeout(const Duration(seconds: 30));
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (kDebugMode) {
+        print('=== UPLOAD FOTO RESPONSE ===');
+        print('Status: ${response.statusCode}');
+        print('Body: ${response.body}');
+      }
+
+      if (response.statusCode == 200) {
+        final json = jsonDecode(utf8.decode(response.bodyBytes));
+        final user = Usuario.fromJson(json);
+        return {'sucesso': true, 'usuario': user};
+      }
+
+      String msg = 'Não foi possível alterar a foto.';
+      try {
+        final err = jsonDecode(utf8.decode(response.bodyBytes));
+        if (err is Map && err.containsKey('error') && err['error'] != null) {
+          msg = err['error'].toString();
+        }
+      } catch (_) {
+        if (response.body.isNotEmpty) msg = response.body;
+      }
+      return {'sucesso': false, 'erro': msg};
+    } catch (e) {
+      if (kDebugMode) print('Erro ao atualizar foto de perfil: $e');
+      return {
+        'sucesso': false,
+        'erro': 'Erro de conexão ao enviar a foto para o servidor.'
+      };
+    }
+  }
 }

@@ -25,6 +25,23 @@ class ComentarioService {
     return [];
   }
 
+  /// Busca apenas os comentários vinculados a este post sob demanda
+  Future<List<Comentario>> listarPorPost(int idPost) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/comentarios/post/$idPost'),
+      ).timeout(const Duration(seconds: 8));
+
+      if (response.statusCode == 200) {
+        final List lista = jsonDecode(utf8.decode(response.bodyBytes));
+        return lista.map((e) => Comentario.fromJson(e)).toList();
+      }
+    } catch (e) {
+      if (kDebugMode) print("ERRO AO BUSCAR COMENTÁRIOS DO POST: $e");
+    }
+    return [];
+  }
+
   Future<bool> criarComentario(Comentario comentario) async {
     try {
       final response = await http.post(
