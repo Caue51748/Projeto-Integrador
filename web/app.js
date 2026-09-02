@@ -463,6 +463,31 @@ class AppController {
             <button class="account-menu-item" role="menuitem" onclick="app.abrirMeuPerfil()">
                 <i class="material-icons">person_outline</i> Meu perfil
             </button>
+              <button
+        class="account-menu-item"
+        role="menuitem"
+        onclick="app.abrirItensSalvos()"
+    >
+        <i class="material-icons">
+            bookmark_border
+        </i>
+
+        Itens salvos
+    </button>
+     <button
+        class="account-menu-item"
+        role="menuitem"
+        onclick="app.abrirConfiguracoes()"
+    >
+        <i class="material-icons">
+            settings
+        </i>
+
+        Configurações
+    </button>
+
+
+    <div class="account-menu-divider"></div>
             <button class="account-menu-item account-menu-logout" role="menuitem" onclick="app.fazerLogout()">
                 <i class="material-icons">logout</i> Sair do sistema
             </button>
@@ -2129,19 +2154,19 @@ class AppController {
         }
     }
 
-   montarMembrosComunidade(membros) {
+    montarMembrosComunidade(membros) {
 
-    const container =
-        document.getElementById(
-            'subreddit-feed-container'
-        );
+        const container =
+            document.getElementById(
+                'subreddit-feed-container'
+            );
 
-    if (!container) return;
+        if (!container) return;
 
 
-    if (!membros.length) {
+        if (!membros.length) {
 
-        container.innerHTML = `
+            container.innerHTML = `
             <div class="comunidade-aba-empty">
 
                 <i class="material-icons">
@@ -2155,39 +2180,39 @@ class AppController {
             </div>
         `;
 
-        return;
-    }
+            return;
+        }
 
 
-    container.innerHTML = `
+        container.innerHTML = `
         <div class="comunidade-membros-grid">
 
             ${membros.map(membro => {
 
-                const id =
-                    membro.idUsuario ||
-                    membro.id;
+            const id =
+                membro.idUsuario ||
+                membro.id;
 
-                const foto =
-                    this.usuariosFotosMap[id];
+            const foto =
+                this.usuariosFotosMap[id];
 
-                const urlFoto =
-                    ApiService.formatarUrlFotoPerfil(
-                        foto
-                    );
+            const urlFoto =
+                ApiService.formatarUrlFotoPerfil(
+                    foto
+                );
 
-                const inicial =
-                    (
-                        membro.nome ||
-                        'U'
-                    )
-                        .charAt(0)
-                        .toUpperCase();
+            const inicial =
+                (
+                    membro.nome ||
+                    'U'
+                )
+                    .charAt(0)
+                    .toUpperCase();
 
 
-                const avatar =
-                    urlFoto
-                        ? `
+            const avatar =
+                urlFoto
+                    ? `
                             <img
                                 src="${urlFoto}"
                                 class="
@@ -2201,7 +2226,7 @@ class AppController {
                                 "
                             >
                         `
-                        : `
+                    : `
                             <div
                                 class="
                                     avatar
@@ -2209,13 +2234,13 @@ class AppController {
                                 "
                             >
                                 ${this.escaparHtmlDestaque(
-                                    inicial
-                                )}
+                        inicial
+                    )}
                             </div>
                         `;
 
 
-                return `
+            return `
                     <article
                         class="comunidade-membro-card"
                         tabindex="0"
@@ -2242,16 +2267,16 @@ class AppController {
 
                             <strong>
                                 ${this.escaparHtmlDestaque(
-                                    membro.nome ||
-                                    'Usuário'
-                                )}
+                membro.nome ||
+                'Usuário'
+            )}
                             </strong>
 
                             <span>
                                 @${this.escaparHtmlDestaque(
-                                    membro.username ||
-                                    'usuario'
-                                )}
+                membro.username ||
+                'usuario'
+            )}
                             </span>
 
                         </div>
@@ -2266,11 +2291,11 @@ class AppController {
 
                     </article>
                 `;
-            }).join('')}
+        }).join('')}
 
         </div>
     `;
-}
+    }
 
     async participarComunidade() {
         const idLogado = ApiService.getIdUsuarioLogado();
@@ -2602,6 +2627,13 @@ class AppController {
         if (!resposta.ok) return alert('Não foi possível atualizar os salvos.');
         this.postsSalvos = salvo ? this.postsSalvos.filter(item => item.id !== salvo.id) : [...this.postsSalvos, await resposta.json()];
         this.renderizarFeedGeral();
+        if (
+            document
+                .getElementById('view-salvos')
+                ?.classList.contains('active')
+        ) {
+            this.renderizarItensSalvos();
+        }
     }
 
     async carregarEventosFeed() {
@@ -5155,11 +5187,81 @@ ${ApiService.getIdUsuarioLogado() ? `
                     viewAtual.id.replace('view-', '');
             }
 
-            const usuario =
-                await ApiService.buscarUsuarioPorId(idUsuario);
+            let usuario = null;
+            let postsUsuario = [];
 
-            const postsUsuario =
-                await ApiService.listarPostsPorUsuario(idUsuario);
+
+            // =========================
+            // USUÁRIO
+            // =========================
+
+            try {
+
+                usuario =
+                    await ApiService.buscarUsuarioPorId(
+                        idUsuario
+                    );
+
+            } catch (erro) {
+
+                console.warn(
+                    'Falha ao buscar usuário diretamente:',
+                    erro
+                );
+
+                // Tenta usar os usuários já carregados
+                usuario =
+                    (this.listaUsuariosCompleta || [])
+                        .find(usuario => {
+
+                            const id =
+                                usuario.idUsuario ||
+                                usuario.id;
+
+                            return String(id) ===
+                                String(idUsuario);
+                        });
+            }
+
+
+            if (!usuario) {
+                throw new Error(
+                    'Usuário não encontrado'
+                );
+            }
+
+
+            // =========================
+            // POSTS
+            // =========================
+
+            try {
+
+                postsUsuario =
+                    await ApiService.listarPostsPorUsuario(
+                        idUsuario
+                    );
+
+            } catch (erro) {
+
+                console.warn(
+                    'Falha ao buscar posts do perfil:',
+                    erro
+                );
+
+                // Fallback usando os posts já carregados
+                postsUsuario =
+                    (this.posts || [])
+                        .filter(post => {
+
+                            const idAutor =
+                                post.idUsuario ||
+                                post.id_usuario;
+
+                            return String(idAutor) ===
+                                String(idUsuario);
+                        });
+            }
 
             const idLogado =
                 ApiService.getIdUsuarioLogado();
@@ -5174,8 +5276,28 @@ ${ApiService.getIdUsuarioLogado() ? `
 
             const container =
                 document.getElementById('perfil-conteudo');
-            const comunidadesUsuario = this.listaComunidades.filter(comunidade => (comunidade.membros || []).some(membro => (membro.idUsuario || membro.id) == idUsuario));
-            const eventosUsuario = this.listaEventos.filter(evento => evento.criadorId == idUsuario);
+            const comunidadesUsuario =
+                (this.listaComunidades || [])
+                    .filter(comunidade =>
+                        (comunidade.membros || [])
+                            .some(membro =>
+                                (
+                                    membro.idUsuario ||
+                                    membro.id
+                                ) == idUsuario
+                            )
+                    );
+
+            const eventosUsuario =
+                (this.listaEventos || [])
+                    .filter(evento =>
+                        evento.criadorId == idUsuario
+                    );
+            if (!container) {
+                throw new Error(
+                    'Container do perfil não encontrado'
+                );
+            }
 
             container.innerHTML = `
     <div class="card perfil-hero">
@@ -6872,25 +6994,25 @@ ${ApiService.getIdUsuarioLogado() ? `
 
     renderizarEventosComunidade() {
 
-    const container =
-        document.getElementById(
-            'subreddit-feed-container'
-        );
-
-    if (!container) return;
-
-
-    const eventos =
-        (this.listaEventos || [])
-            .filter(evento =>
-                evento.comunidadeId ==
-                this.comunidadeAtivaId
+        const container =
+            document.getElementById(
+                'subreddit-feed-container'
             );
 
+        if (!container) return;
 
-    if (!eventos.length) {
 
-        container.innerHTML = `
+        const eventos =
+            (this.listaEventos || [])
+                .filter(evento =>
+                    evento.comunidadeId ==
+                    this.comunidadeAtivaId
+                );
+
+
+        if (!eventos.length) {
+
+            container.innerHTML = `
             <div class="comunidade-aba-empty">
 
                 <i class="material-icons">
@@ -6909,40 +7031,40 @@ ${ApiService.getIdUsuarioLogado() ? `
             </div>
         `;
 
-        return;
-    }
+            return;
+        }
 
 
-    container.innerHTML = `
+        container.innerHTML = `
         <div class="comunidade-eventos-lista">
 
             ${eventos.map(evento => {
 
-                const idEvento =
-                    evento.idEvento ||
-                    evento.id;
+            const idEvento =
+                evento.idEvento ||
+                evento.id;
 
-                const data =
-                    evento.dataEvento
-                        ? new Date(
-                            `${evento.dataEvento}T00:00:00`
+            const data =
+                evento.dataEvento
+                    ? new Date(
+                        `${evento.dataEvento}T00:00:00`
+                    )
+                        .toLocaleDateString(
+                            'pt-BR',
+                            {
+                                day: '2-digit',
+                                month: 'short'
+                            }
                         )
-                            .toLocaleDateString(
-                                'pt-BR',
-                                {
-                                    day: '2-digit',
-                                    month: 'short'
-                                }
-                            )
-                            .replace('.', '')
-                        : '--';
+                        .replace('.', '')
+                    : '--';
 
-                const horario =
-                    evento.horarioInicio
-                        ?.substring(0, 5) ||
-                    '--:--';
+            const horario =
+                evento.horarioInicio
+                    ?.substring(0, 5) ||
+                '--:--';
 
-                return `
+            return `
                     <article
                         class="comunidade-evento-card"
                         onclick="
@@ -6973,16 +7095,16 @@ ${ApiService.getIdUsuarioLogado() ? `
                                 comunidade-evento-categoria
                             ">
                                 ${this.escaparHtmlDestaque(
-                                    evento.categoria ||
-                                    'Evento'
-                                )}
+                evento.categoria ||
+                'Evento'
+            )}
                             </span>
 
                             <h3>
                                 ${this.escaparHtmlDestaque(
-                                    evento.titulo ||
-                                    'Evento'
-                                )}
+                evento.titulo ||
+                'Evento'
+            )}
                             </h3>
 
                             <p>
@@ -6991,9 +7113,9 @@ ${ApiService.getIdUsuarioLogado() ? `
                                 </i>
 
                                 ${this.escaparHtmlDestaque(
-                                    evento.localEvento ||
-                                    'Local a confirmar'
-                                )}
+                evento.localEvento ||
+                'Local a confirmar'
+            )}
                             </p>
 
                         </div>
@@ -7008,11 +7130,165 @@ ${ApiService.getIdUsuarioLogado() ? `
 
                     </article>
                 `;
-            }).join('')}
+        }).join('')}
 
         </div>
     `;
-}
+    }
+
+    abrirItensSalvos() {
+
+        const idUsuario =
+            ApiService.getIdUsuarioLogado();
+
+        if (!idUsuario) {
+            return;
+        }
+
+
+        // Fecha menu da conta
+        document
+            .querySelector('.account-menu')
+            ?.classList.remove('open');
+
+
+        document
+            .querySelectorAll('.view-section')
+            .forEach(view =>
+                view.classList.remove('active')
+            );
+
+
+        document
+            .querySelectorAll('.nav-btn')
+            .forEach(botao =>
+                botao.classList.remove('active')
+            );
+
+
+        document
+            .getElementById('view-salvos')
+            ?.classList.add('active');
+
+
+        this.salvarViewAtual('salvos');
+
+        this.renderizarItensSalvos();
+    }
+
+    renderizarItensSalvos() {
+
+        const container =
+            document.getElementById(
+                'salvos-container'
+            );
+
+        if (!container) {
+            return;
+        }
+
+
+        const idUsuario =
+            ApiService.getIdUsuarioLogado();
+
+
+        const idsSalvos =
+            new Set(
+                (this.postsSalvos || [])
+                    .filter(item =>
+                        String(item.idUsuario) ===
+                        String(idUsuario)
+                    )
+                    .map(item =>
+                        String(item.idPost)
+                    )
+            );
+
+
+        const posts =
+            (this.posts || [])
+                .filter(post => {
+
+                    const idPost =
+                        post.idPost ||
+                        post.id;
+
+                    return idsSalvos.has(
+                        String(idPost)
+                    );
+                });
+
+
+        if (!posts.length) {
+
+            container.innerHTML = `
+            <div class="salvos-empty">
+
+                <div class="salvos-empty-icon">
+                    <i class="material-icons">
+                        bookmark_border
+                    </i>
+                </div>
+
+                <h3>
+                    Nenhuma publicação salva
+                </h3>
+
+                <p>
+                    Quando você salvar uma publicação,
+                    ela aparecerá aqui.
+                </p>
+
+                <button
+                    type="button"
+                    class="btn-primary"
+                    onclick="app.mudarAba('feed')"
+                >
+                    Explorar publicações
+                </button>
+
+            </div>
+        `;
+
+            return;
+        }
+
+
+        this.montarCardsPosts(
+            posts,
+            'salvos-container',
+            true
+        );
+    }
+
+    abrirConfiguracoes() {
+
+        document
+            .querySelector('.account-menu')
+            ?.classList.remove('open');
+
+        this.abrirModal(
+            'configuracoes-modal'
+        );
+    }
+
+    abrirEdicaoPerfilPelasConfiguracoes() {
+
+        this.fecharModal(
+            'configuracoes-modal'
+        );
+
+        this.abrirEdicaoPerfil();
+    }
+
+    abrirMeuPerfilPelasConfiguracoes() {
+
+        this.fecharModal(
+            'configuracoes-modal'
+        );
+
+        this.abrirMeuPerfil();
+    }
 }
 
 
