@@ -61,8 +61,14 @@ public class UsuarioService {
         repository.deleteById(id);
     }
 
-    public Usuario login(String email, String senha) {
-        return repository.findByEmailAndSenha(email, senha);
+    public Usuario login(String email, String telefone, String senha) {
+        if (email != null && !email.trim().isEmpty()) {
+            return repository.findByEmailAndSenha(email.trim(), senha);
+        }
+        if (telefone != null && !telefone.trim().isEmpty()) {
+            return repository.findByTelefoneAndSenha(telefone.trim(), senha);
+        }
+        return null;
     }
 
     public Optional<Usuario> buscarPorId(Long id) {

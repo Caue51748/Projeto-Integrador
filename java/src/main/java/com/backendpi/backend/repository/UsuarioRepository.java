@@ -16,6 +16,11 @@ public interface UsuarioRepository
             String senha
     );
 
+    Usuario findByTelefoneAndSenha(
+            String telefone,
+            String senha
+    );
+
     boolean existsByUsername(String username);
     boolean existsByTelefone(String telefone);
 }

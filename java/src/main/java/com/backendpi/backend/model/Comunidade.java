@@ -31,11 +31,11 @@ public class Comunidade {
     @Column(name = "imagem_comunidade", length = 500)
     private String imagemComunidade;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "criador_id")
     private Usuario criador;
 
-    @ManyToMany(fetch = FetchType.LAZY)
+    @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
             name = "usuario_comunidade",
             joinColumns = @JoinColumn(

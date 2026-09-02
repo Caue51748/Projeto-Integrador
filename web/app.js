@@ -18,8 +18,10 @@ class AppController {
         this.postsSalvos = [];
         this.filtroFeed = 'todos';
         this.ordenacaoFeed = 'recentes';
+        this.comunidadeFeedSelecionada = null;
         this.modoCadastro = false;
         this.telaBoasVindasVisivel = true;
+        this.filtroComunidades = 'todas';
         this.comunidadeAtivaId = null;
         this.usuarioParticipaDaComunidade = false;
         this.comunidadeEditando = null;
@@ -46,6 +48,7 @@ class AppController {
         this.conversaAtiva = null;
         this.chatSocket = null;
         this.chatSidebarAberto = true;
+        this.filtroPessoas = 'todas';
     }
     async inicializar() {
 
@@ -141,6 +144,7 @@ class AppController {
             try {
                 await this.carregarDadosGlobais();
                 await this.carregarConversas();
+                await this.abrirPostPeloLink();
             } catch (erro) {
                 console.error(
                     "Erro ao carregar dados iniciais:",
@@ -151,6 +155,23 @@ class AppController {
             return;
         }
 
+
+        const parametros =
+            new URLSearchParams(
+                window.location.search
+            );
+
+        const postCompartilhado =
+            parametros.get('post');
+
+        if (postCompartilhado) {
+
+            this.esconderTelaBoasVindas();
+
+            await this.abrirPostPeloLink();
+
+            return;
+        }
 
         this.mostrarTelaBoasVindas();
     }
@@ -367,6 +388,8 @@ class AppController {
         const subtitulo = document.getElementById('auth-subtitle');
         const submit = document.getElementById('auth-submit');
         const forgot = document.getElementById('auth-forgot');
+        const emailLabel = document.getElementById('auth-email-label') || document.querySelector('label[for="auth-email"]');
+        const emailInput = document.getElementById('auth-email');
 
         if (!modal || !titulo || !submit) return;
 
@@ -377,6 +400,15 @@ class AppController {
             : 'Entre para acompanhar eventos, comunidades e conversas.';
         submit.innerText = this.modoCadastro ? 'Criar minha conta' : 'Entrar';
         forgot.style.display = this.modoCadastro ? 'none' : 'block';
+
+        if (emailLabel) {
+            emailLabel.innerText = this.modoCadastro ? 'E-mail' : 'E-mail ou telefone';
+        }
+        if (emailInput) {
+            emailInput.placeholder = this.modoCadastro ? 'seu@email.com' : 'seu@email.com ou (00) 00000-0000';
+            emailInput.setAttribute('autocomplete', this.modoCadastro ? 'email' : 'username');
+        }
+
         document.getElementById('auth-senha').setAttribute(
             'autocomplete',
             this.modoCadastro ? 'new-password' : 'current-password'
@@ -431,6 +463,31 @@ class AppController {
             <button class="account-menu-item" role="menuitem" onclick="app.abrirMeuPerfil()">
                 <i class="material-icons">person_outline</i> Meu perfil
             </button>
+              <button
+        class="account-menu-item"
+        role="menuitem"
+        onclick="app.abrirItensSalvos()"
+    >
+        <i class="material-icons">
+            bookmark_border
+        </i>
+
+        Itens salvos
+    </button>
+     <button
+        class="account-menu-item"
+        role="menuitem"
+        onclick="app.abrirConfiguracoes()"
+    >
+        <i class="material-icons">
+            settings
+        </i>
+
+        Configurações
+    </button>
+
+
+    <div class="account-menu-divider"></div>
             <button class="account-menu-item account-menu-logout" role="menuitem" onclick="app.fazerLogout()">
                 <i class="material-icons">logout</i> Sair do sistema
             </button>
@@ -452,41 +509,266 @@ class AppController {
     abrirModal(id) {
         const modal = document.getElementById(id);
         if (!modal) return;
+
+        if (id === 'evento-modal') {
+            if (!ApiService.getUsuarioLogado()) {
+                this.definirModoAuth(false);
+                this.abrirModal('auth-modal');
+                this.mostrarAuthFeedback("Faça login para organizar um evento.");
+                return;
+            }
+            this.prepararModalEvento();
+        }
+
         modal.style.display = 'flex';
         if (id === 'auth-modal') {
-            setTimeout(() => document.getElementById('auth-email')?.focus(), 0);
+            setTimeout(() => {
+                const targetId = this.modoCadastro ? 'auth-nome-completo' : 'auth-email';
+                document.getElementById(targetId)?.focus();
+            }, 0);
+        } else if (id === 'evento-modal') {
+            setTimeout(() => document.getElementById('evento-titulo')?.focus(), 0);
         }
     }
+
+    abrirModalEvento() {
+        this.abrirModal('evento-modal');
+    }
+
+    prepararModalEvento() {
+        this.popularComunidadesEvento(this.comunidadeAtivaId || null);
+        this.mostrarEventoFeedback('');
+
+        const hojeIso = new Date().toISOString().split('T')[0];
+        const dataInput = document.getElementById('evento-data');
+        if (dataInput && !dataInput.value) {
+            dataInput.min = hojeIso;
+        }
+    }
+
+    popularComunidadesEvento(selecionadaId = null) {
+        const select = document.getElementById('evento-comunidade-id');
+        if (!select) return;
+
+        select.innerHTML = '<option value="">Nenhuma (Evento aberto / Global)</option>';
+        if (Array.isArray(this.listaComunidades)) {
+            this.listaComunidades.forEach(com => {
+                const id = com.idComunidade || com.id;
+                const nome = com.nome || 'Comunidade';
+                const selected = (selecionadaId && String(id) === String(selecionadaId)) ? 'selected' : '';
+                select.innerHTML += `<option value="${id}" ${selected}>${this.escaparHtmlDestaque(nome)}</option>`;
+            });
+        }
+        if (selecionadaId) {
+            select.value = selecionadaId;
+        }
+    }
+
+    atualizarPreviewCapaEvento(input) {
+        const file = input?.files?.[0];
+        const previewBox = document.getElementById('evento-capa-preview-box');
+        const nomeEl = document.getElementById('evento-capa-nome');
+        if (!previewBox || !nomeEl) return;
+
+        if (file) {
+            nomeEl.innerText = file.name;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                previewBox.style.backgroundImage = `linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.65)), url('${e.target.result}')`;
+                previewBox.classList.add('has-preview');
+            };
+            reader.readAsDataURL(file);
+        } else {
+            nomeEl.innerText = 'Clique para selecionar uma imagem';
+            previewBox.style.backgroundImage = 'none';
+            previewBox.classList.remove('has-preview');
+        }
+    }
+
+    mostrarEventoFeedback(mensagem) {
+        const feedback = document.getElementById('evento-feedback');
+        if (!feedback) return;
+        feedback.innerText = mensagem;
+        feedback.classList.toggle('visible', Boolean(mensagem));
+        if (mensagem) {
+            feedback.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    }
+
+    definirEventoLoading(carregando) {
+        const botao = document.getElementById('btn-criar-evento');
+        if (!botao) return;
+        botao.disabled = carregando;
+        botao.classList.toggle('loading', carregando);
+        botao.innerText = carregando ? 'Agendando evento...' : 'Agendar Evento';
+    }
+
+    limparFormularioEvento() {
+        const titulo = document.getElementById('evento-titulo');
+        if (titulo) titulo.value = '';
+        const desc = document.getElementById('evento-desc');
+        if (desc) desc.value = '';
+        const cat = document.getElementById('evento-categoria');
+        if (cat) cat.value = '';
+        const data = document.getElementById('evento-data');
+        if (data) data.value = '';
+        const inicio = document.getElementById('evento-horario-inicio');
+        if (inicio) inicio.value = '';
+        const fim = document.getElementById('evento-horario-fim');
+        if (fim) fim.value = '';
+        const enc = document.getElementById('evento-encerramento-inscricoes');
+        if (enc) enc.value = '';
+        const local = document.getElementById('evento-local');
+        if (local) local.value = '';
+        const com = document.getElementById('evento-comunidade-id');
+        if (com) com.value = '';
+        const lim = document.getElementById('evento-limite');
+        if (lim) lim.value = '';
+        const check = document.getElementById('evento-checkin');
+        if (check) check.checked = false;
+        const capaInput = document.getElementById('evento-capa');
+        if (capaInput) capaInput.value = '';
+        const preco =
+            document.getElementById('evento-preco');
+
+        if (preco) {
+            preco.value = '';
+        }
+        this.atualizarPreviewCapaEvento(capaInput);
+        this.mostrarEventoFeedback('');
+    }
+
     fecharModal(id) { document.getElementById(id).style.display = 'none'; }
 
     abrirModalPost() {
-        if (!ApiService.getUsuarioLogado()) {
+
+        const idUsuario =
+            ApiService.getIdUsuarioLogado();
+
+        if (!idUsuario) {
             return alert("Faça login primeiro.");
         }
 
-        // Se estiver dentro de uma comunidade, precisa ser membro
-        if (this.comunidadeAtivaId && !this.usuarioParticipaDaComunidade) {
-            return alert("Você precisa entrar na comunidade antes de publicar.");
+
+        // Se estiver dentro de uma comunidade,
+        // só permite publicar se participar dela.
+        if (
+            this.comunidadeAtivaId &&
+            !this.usuarioParticipaDaComunidade
+        ) {
+            return alert(
+                "Você precisa entrar na comunidade antes de publicar."
+            );
         }
 
-        const tituloEl = document.getElementById('modal-post-title');
+
+        const tituloEl =
+            document.getElementById('modal-post-title');
 
         if (this.comunidadeAtivaId) {
+
             tituloEl.innerText =
-                `Postar em: ${this.comunidadesMap[this.comunidadeAtivaId]}`;
+                `Postar em: ${this.comunidadesMap[
+                this.comunidadeAtivaId
+                ]
+                }`;
+
         } else {
-            tituloEl.innerText = "Nova Publicação Global";
+
+            tituloEl.innerText =
+                "Nova Publicação Global";
         }
 
-        const seletorComunidade = document.getElementById('post-comunidade-id');
+
+        const seletorComunidade =
+            document.getElementById(
+                'post-comunidade-id'
+            );
+
+
         if (seletorComunidade) {
-            seletorComunidade.innerHTML = '<option value="">Publicar no feed global</option>';
-            this.listaComunidades.forEach(comunidade => {
-                const id = comunidade.idComunidade || comunidade.id;
-                seletorComunidade.innerHTML += `<option value="${id}">${this.escaparHtmlDestaque(comunidade.nome)}</option>`;
-            });
-            if (this.comunidadeAtivaId) seletorComunidade.value = this.comunidadeAtivaId;
+
+            seletorComunidade.innerHTML = `
+            <option value="">
+                Publicar no feed global
+            </option>
+        `;
+
+
+            /*
+             * Mostra somente comunidades
+             * das quais o usuário participa.
+             */
+            const comunidadesPermitidas =
+                this.listaComunidades.filter(
+                    comunidade => {
+
+                        const membros =
+                            comunidade.membros || [];
+
+                        const usuarioEhMembro =
+                            membros.some(
+                                membro =>
+                                    String(
+                                        membro.idUsuario ||
+                                        membro.id
+                                    ) ===
+                                    String(idUsuario)
+                            );
+
+
+                        /*
+                         * Também permite ao criador
+                         * publicar na própria comunidade.
+                         */
+                        const idCriador =
+                            comunidade.criador?.idUsuario ||
+                            comunidade.criador?.id;
+
+                        const usuarioEhCriador =
+                            String(idCriador) ===
+                            String(idUsuario);
+
+
+                        return (
+                            usuarioEhMembro ||
+                            usuarioEhCriador
+                        );
+                    }
+                );
+
+
+            comunidadesPermitidas.forEach(
+                comunidade => {
+
+                    const id =
+                        comunidade.idComunidade ||
+                        comunidade.id;
+
+                    seletorComunidade.innerHTML += `
+                    <option value="${id}">
+                        ${this.escaparHtmlDestaque(
+                        comunidade.nome
+                    )
+                        }
+                    </option>
+                `;
+                }
+            );
+
+
+            /*
+             * Se o usuário abriu o modal
+             * de dentro de uma comunidade,
+             * ela já fica selecionada.
+             */
+            if (this.comunidadeAtivaId) {
+
+                seletorComunidade.value =
+                    this.comunidadeAtivaId;
+            }
         }
+
 
         this.abrirModal('post-modal');
     }
@@ -597,12 +879,21 @@ class AppController {
             return this.mostrarAuthFeedback(
                 this.modoCadastro
                     ? 'Informe uma senha para continuar.'
-                    : 'Informe seu e-mail e sua senha para continuar.'
+                    : 'Informe seu e-mail ou telefone e sua senha para continuar.'
             );
         }
 
-        if (!this.modoCadastro && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) {
-            return this.mostrarAuthFeedback('Informe um e-mail válido.');
+        if (!this.modoCadastro) {
+            const credencial = e;
+            if (!credencial) {
+                return this.mostrarAuthFeedback('Informe seu e-mail ou telefone para continuar.');
+            }
+            if (credencial.includes('@') && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(credencial)) {
+                return this.mostrarAuthFeedback('Informe um e-mail válido.');
+            }
+            if (!credencial.includes('@') && credencial.replace(/\D/g, '').length < 10) {
+                return this.mostrarAuthFeedback('Informe um e-mail ou telefone válido.');
+            }
         }
 
         try {
@@ -617,11 +908,11 @@ class AppController {
                     return this.mostrarAuthFeedback('Preencha os campos obrigatórios do cadastro.');
                 }
 
-                if (!e && !telefone) {
-                    return this.mostrarAuthFeedback('Informe pelo menos um e-mail ou telefone.');
+                if (!e) {
+                    return this.mostrarAuthFeedback('Informe seu e-mail para criar a conta.');
                 }
 
-                if (e && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) {
+                if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) {
                     return this.mostrarAuthFeedback('Informe um e-mail válido.');
                 }
 
@@ -636,11 +927,11 @@ class AppController {
                         (hoje.getMonth() === nascimento.getMonth() && hoje.getDate() < nascimento.getDate())) ? 1 : 0);
 
                 if (Number.isNaN(nascimento.getTime()) || idade < 13 || idade > 120) {
-                    return this.mostrarAuthFeedback('Informe uma data de nascimento válida.');
+                    return this.mostrarAuthFeedback('Informe uma data de nascimento válida (idade mínima de 13 anos).');
                 }
 
                 if (telefone && telefone.replace(/\D/g, '').length < 10) {
-                    return this.mostrarAuthFeedback('Informe um telefone válido.');
+                    return this.mostrarAuthFeedback('Informe um telefone válido ou deixe em branco.');
                 }
 
                 if (s.length < 8) {
@@ -650,6 +941,7 @@ class AppController {
                 if (s !== confirmarSenha) {
                     return this.mostrarAuthFeedback('As senhas não coincidem.');
                 }
+
                 this.definirAuthLoading(true);
                 const res = await ApiService.criarUsuario(
                     nomeCompleto,
@@ -657,7 +949,7 @@ class AppController {
                     username,
                     dataNascimento,
                     e,
-                    telefone,
+                    telefone || null,
                     s,
                     interesses
                 );
@@ -669,22 +961,17 @@ class AppController {
                     this.posLogin();
                 } else this.mostrarAuthFeedback('Não foi possível criar a conta. Verifique seus dados.');
             } else {
+                const credencial = e;
+
                 this.definirAuthLoading(true);
-                const res =
-                    await ApiService.login(e, s);
+                const res = await ApiService.login(credencial, s);
 
                 if (res.ok) {
-
-                    const user =
-                        await res.json();
-
+                    const user = await res.json();
                     ApiService.salvarSessao(user);
-
                     this.posLogin();
-
                 } else {
-
-                    this.mostrarAuthFeedback("E-mail ou senha incorretos.");
+                    this.mostrarAuthFeedback('E-mail/telefone ou senha incorretos.');
                 }
             }
         } catch (err) {
@@ -994,50 +1281,489 @@ class AppController {
     }
 
     renderizarComunidades(comunidades) {
-        const container = document.getElementById('comunidades-container');
+
+        const container =
+            document.getElementById(
+                'comunidades-container'
+            );
+
         if (!container) return;
 
-        const comunidadesOrdenadas = this.ordenarPorInteresses(comunidades);
 
-        if (!comunidadesOrdenadas.length) {
-            container.innerHTML = '<div class="comunidade-empty">Nenhuma comunidade encontrada. Crie a primeira.</div>';
+        if (!comunidades.length) {
+
+            let mensagem =
+                'Nenhuma comunidade encontrada.';
+
+            if (
+                this.filtroComunidades ===
+                'minhas'
+            ) {
+                mensagem =
+                    'Você ainda não participa de nenhuma comunidade.';
+            }
+
+            if (
+                this.filtroComunidades ===
+                'criadas'
+            ) {
+                mensagem =
+                    'Você ainda não criou nenhuma comunidade.';
+            }
+
+            container.innerHTML = `
+            <div class="comunidade-empty">
+
+                <div class="comunidade-empty-icon">
+                    <i class="material-icons">
+                        groups
+                    </i>
+                </div>
+
+                <h3>
+                    ${mensagem}
+                </h3>
+
+                <p>
+                    Explore comunidades ou crie
+                    um espaço para reunir pessoas
+                    com os mesmos interesses.
+                </p>
+
+            </div>
+        `;
+
             return;
         }
-        const eventosPorComunidade = this.listaEventos.reduce((total, evento) => {
-            total[evento.comunidadeId] = (total[evento.comunidadeId] || 0) + 1;
-            return total;
-        }, {});
-        container.innerHTML = '';
-        comunidadesOrdenadas.forEach(c => {
-            const idCom = c.idComunidade || c.id;
-            const div = document.createElement('div');
-            div.className = 'comunidade-card';
 
-            const idUsuarioLogado = ApiService.getIdUsuarioLogado();
+
+        const eventosPorComunidade =
+            this.listaEventos.reduce(
+                (total, evento) => {
+
+                    if (evento.comunidadeId) {
+
+                        total[evento.comunidadeId] =
+                            (
+                                total[
+                                evento.comunidadeId
+                                ] || 0
+                            ) + 1;
+                    }
+
+                    return total;
+                },
+                {}
+            );
+
+
+        container.innerHTML = '';
+
+
+        comunidades.forEach(comunidade => {
+
+            const idCom =
+                comunidade.idComunidade ||
+                comunidade.id;
+
+            const idUsuario =
+                ApiService.getIdUsuarioLogado();
+
+            const idAdministrador =
+                comunidade.criador?.idUsuario ||
+                comunidade.criador?.id;
 
             const ehAdministrador =
-                c.criador &&
-                (c.criador.idUsuario || c.criador.id) == idUsuarioLogado;
+                String(idAdministrador) ===
+                String(idUsuario);
 
-            div.style.setProperty('--community-color', c.cor || '#EA3F74');
-            const imagemComunidade = c.imagemComunidade ? `style="background-image:url('${this.urlCapaEvento(c.imagemComunidade)}')"` : '';
-            div.innerHTML = `<div class="comunidade-card-top"><div class="comunidade-mark ${c.imagemComunidade ? 'has-image' : ''}" ${imagemComunidade}>${!c.imagemComunidade ? this.escaparHtmlDestaque((c.nome || 'C').charAt(0).toUpperCase()) : ''}</div><span>${this.escaparHtmlDestaque(c.categoria || 'Comunidade')}</span></div><h2>${this.escaparHtmlDestaque(c.nome)}</h2><p>${this.escaparHtmlDestaque(c.descricao || 'Uma comunidade para trocar ideias e viver experiências.')}</p><div class="comunidade-stats"><span>👥 ${c.membros ? c.membros.length : 0} membros</span><span>🎟 ${eventosPorComunidade[idCom] || 0} eventos</span></div><div class="comunidade-card-footer"><span>Por ${this.escaparHtmlDestaque(c.criador?.nome || 'Administrador')}</span><button class="btn-primary" onclick="app.entrarSubreddit(${idCom})">Acessar</button>${ehAdministrador ? `<button class="btn-compact" onclick="app.gerenciarComunidade(${idCom})">Gerenciar</button>` : ''}</div>`;
+            const participa =
+                this.usuarioParticipaComunidade(
+                    comunidade
+                );
 
-            div.addEventListener('click', evento => {
-                if (!evento.target.closest('button')) this.entrarSubreddit(idCom);
-            });
+            const quantidadeMembros =
+                comunidade.membros?.length || 0;
+
+            const quantidadeEventos =
+                eventosPorComunidade[idCom] || 0;
+
+
+            const div =
+                document.createElement('article');
+
+            div.className =
+                'comunidade-card';
+
+            div.tabIndex = 0;
+
+            div.setAttribute(
+                'role',
+                'link'
+            );
+
+            div.style.setProperty(
+                '--community-color',
+                comunidade.cor || '#EA3F74'
+            );
+
+
+            const imagemComunidade =
+                comunidade.imagemComunidade
+                    ? `
+                    style="
+                        background-image:
+                        url('${this.urlCapaEvento(
+                        comunidade.imagemComunidade
+                    )}')
+                    "
+                `
+                    : '';
+
+
+            const statusHtml =
+                ehAdministrador
+                    ? `
+                    <span class="
+                        comunidade-status
+                        administrando
+                    ">
+                        <i class="material-icons">
+                            admin_panel_settings
+                        </i>
+
+                        Você administra
+                    </span>
+                `
+                    : participa
+                        ? `
+                        <span class="
+                            comunidade-status
+                            participando
+                        ">
+                            <i class="material-icons">
+                                check_circle
+                            </i>
+
+                            Participando
+                        </span>
+                    `
+                        : `
+                        <span class="
+                            comunidade-status
+                            descoberta
+                        ">
+                            Descobrir
+                        </span>
+                    `;
+
+
+            div.innerHTML = `
+
+            <div class="comunidade-card-top">
+
+                <div
+                    class="
+                        comunidade-mark
+                        ${comunidade.imagemComunidade
+                    ? 'has-image'
+                    : ''
+                }
+                    "
+                    ${imagemComunidade}
+                >
+                    ${!comunidade.imagemComunidade
+                    ? this.escaparHtmlDestaque(
+                        (
+                            comunidade.nome ||
+                            'C'
+                        )
+                            .charAt(0)
+                            .toUpperCase()
+                    )
+                    : ''
+                }
+                </div>
+
+                <span class="comunidade-categoria">
+                    ${this.escaparHtmlDestaque(
+                    comunidade.categoria ||
+                    'Geral'
+                )}
+                </span>
+
+            </div>
+
+
+            <div class="comunidade-card-content">
+
+                <h2>
+                    ${this.escaparHtmlDestaque(
+                    comunidade.nome ||
+                    'Comunidade'
+                )}
+                </h2>
+
+                <p>
+                    ${this.escaparHtmlDestaque(
+                    comunidade.descricao ||
+                    'Uma comunidade para trocar ideias e viver experiências.'
+                )}
+                </p>
+
+            </div>
+
+
+            <div class="comunidade-stats">
+
+                <span>
+                    <i class="material-icons">
+                        group
+                    </i>
+
+                    ${quantidadeMembros}
+                    ${quantidadeMembros === 1
+                    ? 'membro'
+                    : 'membros'
+                }
+                </span>
+
+                <span>
+                    <i class="material-icons">
+                        event
+                    </i>
+
+                    ${quantidadeEventos}
+                    ${quantidadeEventos === 1
+                    ? 'evento'
+                    : 'eventos'
+                }
+                </span>
+
+            </div>
+
+
+            <div class="comunidade-card-footer">
+
+                <div class="comunidade-card-footer-info">
+
+                    ${statusHtml}
+
+                    <small>
+                        Por
+                        ${this.escaparHtmlDestaque(
+                    comunidade.criador?.nome ||
+                    'Administrador'
+                )}
+                    </small>
+
+                </div>
+
+
+                ${ehAdministrador
+                    ? `
+                            <button
+                                type="button"
+                                class="comunidade-gerenciar-btn"
+                                onclick="
+                                    app.gerenciarComunidade(
+                                        ${idCom}
+                                    )
+                                "
+                            >
+                                Gerenciar
+                            </button>
+                        `
+                    : `
+                            <span
+                                class="
+                                    comunidade-card-arrow
+                                "
+                            >
+                                <i class="material-icons">
+                                    arrow_forward
+                                </i>
+                            </span>
+                        `
+                }
+
+            </div>
+        `;
+
+
+            div.addEventListener(
+                'click',
+                evento => {
+
+                    if (
+                        evento.target.closest('button')
+                    ) {
+                        return;
+                    }
+
+                    this.entrarSubreddit(idCom);
+                }
+            );
+
+
+            div.addEventListener(
+                'keydown',
+                evento => {
+
+                    if (
+                        evento.key !== 'Enter' &&
+                        evento.key !== ' '
+                    ) {
+                        return;
+                    }
+
+                    evento.preventDefault();
+
+                    this.entrarSubreddit(idCom);
+                }
+            );
+
 
             container.appendChild(div);
         });
     }
 
+    usuarioParticipaComunidade(comunidade) {
+
+        const idUsuario =
+            ApiService.getIdUsuarioLogado();
+
+        if (!idUsuario || !comunidade) {
+            return false;
+        }
+
+        const idCriador =
+            comunidade.criador?.idUsuario ||
+            comunidade.criador?.id;
+
+        const ehCriador =
+            String(idCriador) ===
+            String(idUsuario);
+
+        const ehMembro =
+            (comunidade.membros || [])
+                .some(membro => {
+
+                    const idMembro =
+                        membro.idUsuario ||
+                        membro.id;
+
+                    return String(idMembro) ===
+                        String(idUsuario);
+                });
+
+        return ehCriador || ehMembro;
+    }
+
     filtrarComunidades() {
-        const termo = document.getElementById('comunidades-search')?.value.toLowerCase() || '';
-        const ordem = document.getElementById('comunidades-ordenacao')?.value;
-        let comunidades = this.listaComunidades.filter(c => `${c.nome} ${c.descricao} ${c.categoria || ''}`.toLowerCase().includes(termo));
-        if (ordem === 'membros') comunidades.sort((a, b) => (b.membros?.length || 0) - (a.membros?.length || 0));
-        if (ordem === 'recentes') comunidades = comunidades.reverse();
-        this.renderizarComunidades(comunidades);
+
+        const termo =
+            document
+                .getElementById('comunidades-search')
+                ?.value
+                .trim()
+                .toLowerCase() || '';
+
+        const ordem =
+            document
+                .getElementById('comunidades-ordenacao')
+                ?.value || 'membros';
+
+        const idUsuario =
+            ApiService.getIdUsuarioLogado();
+
+        let comunidades =
+            [...(this.listaComunidades || [])];
+
+
+        // =========================
+        // BUSCA
+        // =========================
+        if (termo) {
+
+            comunidades =
+                comunidades.filter(comunidade => {
+
+                    const texto = `
+                    ${comunidade.nome || ''}
+                    ${comunidade.descricao || ''}
+                    ${comunidade.categoria || ''}
+                `.toLowerCase();
+
+                    return texto.includes(termo);
+                });
+        }
+
+
+        // =========================
+        // ABAS
+        // =========================
+        if (this.filtroComunidades === 'minhas') {
+
+            comunidades =
+                comunidades.filter(comunidade =>
+                    this.usuarioParticipaComunidade(
+                        comunidade
+                    )
+                );
+        }
+
+
+        if (this.filtroComunidades === 'criadas') {
+
+            comunidades =
+                comunidades.filter(comunidade => {
+
+                    const idCriador =
+                        comunidade.criador?.idUsuario ||
+                        comunidade.criador?.id;
+
+                    return String(idCriador) ===
+                        String(idUsuario);
+                });
+        }
+
+
+        // =========================
+        // ORDENAÇÃO
+        // =========================
+        if (ordem === 'membros') {
+
+            comunidades.sort(
+                (a, b) =>
+                    (b.membros?.length || 0) -
+                    (a.membros?.length || 0)
+            );
+        }
+
+
+        if (ordem === 'recentes') {
+
+            comunidades.reverse();
+        }
+
+
+        if (ordem === 'nome') {
+
+            comunidades.sort(
+                (a, b) =>
+                    (a.nome || '')
+                        .localeCompare(
+                            b.nome || '',
+                            'pt-BR'
+                        )
+            );
+        }
+
+
+        this.renderizarComunidades(
+            comunidades
+        );
     }
 
     async criarComunidade() {
@@ -1068,88 +1794,512 @@ class AppController {
     }
 
     entrarSubreddit(id, nome, desc) {
+
         this.salvarViewAtual('subreddit');
 
-        localStorage.setItem(
+        sessionStorage.setItem(
             'comunidadeAtivaId',
             id
         );
 
-        const usuarioLogado = ApiService.getIdUsuarioLogado();
-        const botao = document.getElementById("btn-participar");
-
         this.comunidadeAtivaId = id;
 
-        const comunidade = this.listaComunidades.find(
-            c => (c.idComunidade || c.id) == id
-        );
+        const usuarioLogado =
+            ApiService.getIdUsuarioLogado();
 
-        nome = comunidade?.nome || nome;
-        desc = comunidade?.descricao || desc;
+        const comunidade =
+            (this.listaComunidades || [])
+                .find(
+                    c =>
+                        (c.idComunidade || c.id) == id
+                );
+
+        if (!comunidade) {
+            return;
+        }
+
+
+        nome =
+            comunidade.nome ||
+            nome ||
+            'Comunidade';
+
+        desc =
+            comunidade.descricao ||
+            desc ||
+            '';
+
 
         const idAdministrador =
-            comunidade?.criador?.idUsuario || comunidade?.criador?.id;
+            comunidade.criador?.idUsuario ||
+            comunidade.criador?.id;
 
+        const ehAdministrador =
+            String(idAdministrador) ===
+            String(usuarioLogado);
+
+
+        const ehMembro =
+            (comunidade.membros || [])
+                .some(membro => {
+
+                    const idMembro =
+                        membro.idUsuario ||
+                        membro.id;
+
+                    return String(idMembro) ===
+                        String(usuarioLogado);
+                });
+
+
+        /*
+         * Para a interface da própria comunidade,
+         * o administrador também é considerado
+         * participante.
+         */
         this.usuarioParticipaDaComunidade =
-            comunidade &&
-            comunidade.membros &&
-            comunidade.membros.some(
-                m => (m.idUsuario || m.id) == usuarioLogado
+            ehMembro ||
+            ehAdministrador;
+
+
+        // =========================
+        // DADOS DA COMUNIDADE
+        // =========================
+
+        document.getElementById(
+            'sub-titulo'
+        ).innerText = nome;
+
+        document.getElementById(
+            'sub-desc'
+        ).innerText = desc;
+
+
+        const categoria =
+            document.getElementById(
+                'sub-categoria'
             );
 
-        // Administrador não precisa de botão Entrar/Sair
-        if (usuarioLogado == idAdministrador) {
-            botao.style.display = "none";
-        } else {
-            botao.style.display = "block";
+        if (categoria) {
+            categoria.innerText =
+                comunidade.categoria ||
+                'Geral';
+        }
 
-            if (this.usuarioParticipaDaComunidade) {
-                botao.innerText = "Sair";
-                botao.style.background = "var(--danger)";
+
+        // =========================
+        // AVATAR / IMAGEM
+        // =========================
+
+        const visual =
+            document.getElementById(
+                'sub-community-visual'
+            );
+
+        if (visual) {
+
+            visual.style.backgroundColor =
+                comunidade.cor ||
+                '#EA3F74';
+
+            visual.style.backgroundImage =
+                comunidade.imagemComunidade
+                    ? `url('${this.urlCapaEvento(
+                        comunidade.imagemComunidade
+                    )}')`
+                    : '';
+
+            visual.innerText =
+                comunidade.imagemComunidade
+                    ? ''
+                    : nome
+                        .charAt(0)
+                        .toUpperCase();
+
+            visual.classList.toggle(
+                'has-image',
+                Boolean(
+                    comunidade.imagemComunidade
+                )
+            );
+        }
+
+
+        // =========================
+        // CONTAGENS
+        // =========================
+
+        const postsComunidade =
+            (this.posts || [])
+                .filter(post =>
+                    (
+                        post.idComunidade ||
+                        post.id_comunidade
+                    ) == id
+                );
+
+        const eventosComunidade =
+            (this.listaEventos || [])
+                .filter(evento =>
+                    evento.comunidadeId == id
+                );
+
+        const totalMembros =
+            comunidade.membros?.length || 0;
+
+
+        document.getElementById(
+            'sub-total-membros'
+        ).innerText =
+            totalMembros;
+
+        document.getElementById(
+            'sub-total-eventos'
+        ).innerText =
+            eventosComunidade.length;
+
+
+        document.getElementById(
+            'comunidade-tab-posts-count'
+        ).innerText =
+            postsComunidade.length;
+
+        document.getElementById(
+            'comunidade-tab-eventos-count'
+        ).innerText =
+            eventosComunidade.length;
+
+        document.getElementById(
+            'comunidade-tab-membros-count'
+        ).innerText =
+            totalMembros;
+
+
+        // =========================
+        // STATUS
+        // =========================
+
+        const status =
+            document.getElementById(
+                'sub-status'
+            );
+
+        if (status) {
+
+            if (ehAdministrador) {
+
+                status.className =
+                    'comunidade-detalhe-status administrando';
+
+                status.innerHTML = `
+                <i class="material-icons">
+                    admin_panel_settings
+                </i>
+                Você administra
+            `;
+
+            } else if (ehMembro) {
+
+                status.className =
+                    'comunidade-detalhe-status participando';
+
+                status.innerHTML = `
+                <i class="material-icons">
+                    check_circle
+                </i>
+                Participando
+            `;
+
             } else {
-                botao.innerText = "Entrar";
-                botao.style.background = "var(--text-main)";
+
+                status.className =
+                    'comunidade-detalhe-status';
+
+                status.innerHTML = '';
             }
         }
 
-        // Estas linhas precisam ficar FORA do if/else
-        // porque todo usuário deve conseguir acessar a comunidade.
-        document.getElementById('sub-titulo').innerText = nome;
-        document.getElementById('sub-desc').innerText = desc;
-        const visual = document.getElementById('sub-community-visual');
-        if (visual) {
-            visual.style.backgroundColor = comunidade?.cor || '#EA3F74';
-            visual.style.backgroundImage = comunidade?.imagemComunidade ? `url('${this.urlCapaEvento(comunidade.imagemComunidade)}')` : '';
-            visual.innerText = comunidade?.imagemComunidade ? '' : (nome || 'C').charAt(0).toUpperCase();
+
+        // =========================
+        // BOTÕES
+        // =========================
+
+        const btnParticipar =
+            document.getElementById(
+                'btn-participar'
+            );
+
+        const btnGerenciar =
+            document.getElementById(
+                'btn-gerenciar-comunidade'
+            );
+
+        const btnPostar =
+            document.getElementById(
+                'btn-postar-comunidade'
+            );
+
+
+        if (ehAdministrador) {
+
+            btnParticipar.style.display =
+                'none';
+
+            btnGerenciar.style.display =
+                'inline-flex';
+
+            btnPostar.style.display =
+                'inline-flex';
+
+        } else {
+
+            btnGerenciar.style.display =
+                'none';
+
+            btnParticipar.style.display =
+                'inline-flex';
+
+            btnParticipar.classList.toggle(
+                'sair',
+                ehMembro
+            );
+
+            btnParticipar.innerHTML =
+                ehMembro
+                    ? `
+                    <i class="material-icons">
+                        logout
+                    </i>
+                    Sair da comunidade
+                `
+                    : `
+                    <i class="material-icons">
+                        group_add
+                    </i>
+                    Entrar
+                `;
+
+            /*
+             * Só membro pode postar.
+             */
+            btnPostar.style.display =
+                ehMembro
+                    ? 'inline-flex'
+                    : 'none';
         }
 
-        document.querySelectorAll('.view-section')
-            .forEach(el => el.classList.remove('active'));
 
-        document.getElementById('view-subreddit')
+        // =========================
+        // MOSTRA VIEW
+        // =========================
+
+        document
+            .querySelectorAll('.view-section')
+            .forEach(el =>
+                el.classList.remove('active')
+            );
+
+        document
+            .getElementById('view-subreddit')
             .classList.add('active');
 
-        this.renderizarSubreddit(id);
+
         this.mudarAbaComunidade('posts');
     }
 
     mudarAbaComunidade(aba) {
-        document.querySelectorAll('.comunidade-tab').forEach(tab => tab.classList.remove('active'));
-        document.getElementById(`comunidade-tab-${aba}`)?.classList.add('active');
-        if (aba === 'posts') return this.renderizarSubreddit(this.comunidadeAtivaId);
-        if (aba === 'membros') {
-            const comunidade = this.listaComunidades.find(c => (c.idComunidade || c.id) == this.comunidadeAtivaId);
-            this.montarMembrosComunidade(comunidade?.membros || []);
+
+        document
+            .querySelectorAll('.comunidade-tab')
+            .forEach(tab =>
+                tab.classList.remove('active')
+            );
+
+        document
+            .getElementById(
+                `comunidade-tab-${aba}`
+            )
+            ?.classList.add('active');
+
+
+        if (aba === 'posts') {
+
+            this.renderizarSubreddit(
+                this.comunidadeAtivaId
+            );
+
             return;
         }
-        const eventos = this.listaEventos.filter(evento => evento.comunidadeId == this.comunidadeAtivaId);
-        const container = document.getElementById('subreddit-feed-container');
-        container.innerHTML = eventos.length ? eventos.map(evento => `<div class="comunidade-evento-item"><div><span>${evento.dataEvento || ''}</span><strong>${this.escaparHtmlDestaque(evento.titulo)}</strong><small>${this.escaparHtmlDestaque(evento.localEvento || 'Local a confirmar')}</small></div><button class="btn-primary" onclick="app.abrirDetalhesEvento(${evento.id})">Ver evento</button></div>`).join('') : '<div class="comunidade-empty">Esta comunidade ainda não tem eventos.</div>';
+
+
+        if (aba === 'membros') {
+
+            const comunidade =
+                this.listaComunidades.find(
+                    c =>
+                        (
+                            c.idComunidade ||
+                            c.id
+                        ) ==
+                        this.comunidadeAtivaId
+                );
+
+            this.montarMembrosComunidade(
+                comunidade?.membros || []
+            );
+
+            return;
+        }
+
+
+        if (aba === 'eventos') {
+
+            this.renderizarEventosComunidade();
+
+        }
     }
 
     montarMembrosComunidade(membros) {
-        const container = document.getElementById('subreddit-feed-container');
-        container.innerHTML = membros.length ? `<div class="membros-grid">${membros.map(membro => `<div class="membro-card"><div class="avatar">${this.escaparHtmlDestaque((membro.nome || 'U').charAt(0).toUpperCase())}</div><strong>${this.escaparHtmlDestaque(membro.nome || 'Usuário')}</strong><span>@${this.escaparHtmlDestaque(membro.username || '')}</span></div>`).join('')}</div>` : '<div class="comunidade-empty">Nenhum membro encontrado.</div>';
+
+        const container =
+            document.getElementById(
+                'subreddit-feed-container'
+            );
+
+        if (!container) return;
+
+
+        if (!membros.length) {
+
+            container.innerHTML = `
+            <div class="comunidade-aba-empty">
+
+                <i class="material-icons">
+                    group_off
+                </i>
+
+                <h3>
+                    Nenhum membro encontrado
+                </h3>
+
+            </div>
+        `;
+
+            return;
+        }
+
+
+        container.innerHTML = `
+        <div class="comunidade-membros-grid">
+
+            ${membros.map(membro => {
+
+            const id =
+                membro.idUsuario ||
+                membro.id;
+
+            const foto =
+                this.usuariosFotosMap[id];
+
+            const urlFoto =
+                ApiService.formatarUrlFotoPerfil(
+                    foto
+                );
+
+            const inicial =
+                (
+                    membro.nome ||
+                    'U'
+                )
+                    .charAt(0)
+                    .toUpperCase();
+
+
+            const avatar =
+                urlFoto
+                    ? `
+                            <img
+                                src="${urlFoto}"
+                                class="
+                                    avatar
+                                    comunidade-membro-avatar
+                                "
+                                alt=""
+                                onerror="
+                                    this.outerHTML =
+                                    '<div class=\\'avatar comunidade-membro-avatar\\'>${inicial}</div>'
+                                "
+                            >
+                        `
+                    : `
+                            <div
+                                class="
+                                    avatar
+                                    comunidade-membro-avatar
+                                "
+                            >
+                                ${this.escaparHtmlDestaque(
+                        inicial
+                    )}
+                            </div>
+                        `;
+
+
+            return `
+                    <article
+                        class="comunidade-membro-card"
+                        tabindex="0"
+                        role="link"
+                        onclick="
+                            app.abrirPerfil(${id})
+                        "
+                        onkeydown="
+                            if (
+                                event.key === 'Enter' ||
+                                event.key === ' '
+                            ) {
+                                event.preventDefault();
+                                app.abrirPerfil(${id});
+                            }
+                        "
+                    >
+
+                        ${avatar}
+
+                        <div class="
+                            comunidade-membro-info
+                        ">
+
+                            <strong>
+                                ${this.escaparHtmlDestaque(
+                membro.nome ||
+                'Usuário'
+            )}
+                            </strong>
+
+                            <span>
+                                @${this.escaparHtmlDestaque(
+                membro.username ||
+                'usuario'
+            )}
+                            </span>
+
+                        </div>
+
+
+                        <i class="
+                            material-icons
+                            comunidade-membro-arrow
+                        ">
+                            chevron_right
+                        </i>
+
+                    </article>
+                `;
+        }).join('')}
+
+        </div>
+    `;
     }
 
     async participarComunidade() {
@@ -1188,19 +2338,11 @@ class AppController {
                 alert("Não foi possível realizar esta ação.");
                 return;
             }
-
-            this.usuarioParticipaDaComunidade =
-                !this.usuarioParticipaDaComunidade;
-
-            if (this.usuarioParticipaDaComunidade) {
-                btn.innerText = "Sair";
-                btn.style.background = "var(--danger)";
-            } else {
-                btn.innerText = "Entrar";
-                btn.style.background = "var(--text-main)";
-            }
-
             await this.carregarComunidades();
+
+            this.entrarSubreddit(
+                this.comunidadeAtivaId
+            );
 
         } catch (e) {
             console.error(e);
@@ -1214,23 +2356,238 @@ class AppController {
         this.montarCardsPosts(postsDestaComunidade, 'subreddit-feed-container', false);
     }
 
+    obterMinhasComunidades() {
+
+        const idUsuario =
+            ApiService.getIdUsuarioLogado();
+
+        if (!idUsuario) {
+            return [];
+        }
+
+        return (this.listaComunidades || [])
+            .filter(comunidade => {
+
+                const membros =
+                    comunidade.membros || [];
+
+                const ehMembro =
+                    membros.some(membro => {
+
+                        const idMembro =
+                            membro.idUsuario ||
+                            membro.id;
+
+                        return String(idMembro) ===
+                            String(idUsuario);
+                    });
+
+                const idCriador =
+                    comunidade.criador?.idUsuario ||
+                    comunidade.criador?.id;
+
+                const ehCriador =
+                    String(idCriador) ===
+                    String(idUsuario);
+
+                return ehMembro || ehCriador;
+            });
+    }
+
     renderizarFeedGeral() {
+
         let posts = [...this.posts];
-        const idUsuario = ApiService.getIdUsuarioLogado();
-        const imagem = document.getElementById("editar-comunidade-imagem")?.files?.[0];
 
-        if (this.filtroFeed === 'comunidades') posts = posts.filter(post => post.idComunidade || post.id_comunidade);
-        if (this.filtroFeed === 'meus') posts = posts.filter(post => (post.idUsuario || post.id_usuario) == idUsuario);
-        if (this.ordenacaoFeed === 'comentados') posts.sort((a, b) => (this.comentariosPorPost[b.idPost || b.id] || []).length - (this.comentariosPorPost[a.idPost || a.id] || []).length);
-        if (this.ordenacaoFeed === 'curtidos') posts.sort((a, b) => this.contarVotos(b.idPost || b.id) - this.contarVotos(a.idPost || a.id));
+        const idUsuario =
+            ApiService.getIdUsuarioLogado();
 
-        this.montarCardsPosts(posts, 'feed-container', true);
+
+        // =========================
+        // FILTRO DE COMUNIDADES
+        // =========================
+        if (this.filtroFeed === 'comunidades') {
+
+            const idsMinhasComunidades =
+                this.obterIdsMinhasComunidades();
+
+            posts = posts.filter(post => {
+
+                const idComunidade =
+                    post.idComunidade ||
+                    post.id_comunidade;
+
+                if (!idComunidade) {
+                    return false;
+                }
+
+                // Só comunidades das quais participa
+                if (
+                    !idsMinhasComunidades.has(
+                        String(idComunidade)
+                    )
+                ) {
+                    return false;
+                }
+
+                // Se escolheu um chip específico
+                if (
+                    this.comunidadeFeedSelecionada !== null
+                ) {
+                    return (
+                        String(idComunidade) ===
+                        String(
+                            this.comunidadeFeedSelecionada
+                        )
+                    );
+                }
+
+                return true;
+            });
+        }
+
+
+        // =========================
+        // MEUS POSTS
+        // =========================
+        if (this.filtroFeed === 'meus') {
+
+            posts = posts.filter(post =>
+                (
+                    post.idUsuario ||
+                    post.id_usuario
+                ) == idUsuario
+            );
+        }
+
+
+        // =========================
+        // ORDENAÇÃO
+        // =========================
+        if (
+            this.ordenacaoFeed === 'comentados'
+        ) {
+
+            posts.sort((a, b) => {
+
+                const idA =
+                    a.idPost || a.id;
+
+                const idB =
+                    b.idPost || b.id;
+
+                return (
+                    (
+                        this.comentariosPorPost[idB] ||
+                        []
+                    ).length
+                    -
+                    (
+                        this.comentariosPorPost[idA] ||
+                        []
+                    ).length
+                );
+            });
+        }
+
+
+        if (
+            this.ordenacaoFeed === 'curtidos'
+        ) {
+
+            posts.sort((a, b) =>
+                this.contarVotos(
+                    b.idPost || b.id
+                )
+                -
+                this.contarVotos(
+                    a.idPost || a.id
+                )
+            );
+        }
+
+
+        // Atualiza elementos auxiliares
+        this.renderizarFiltrosComunidadesFeed();
+        this.atualizarSidebarFeed();
+
+
+        // Estado vazio especial
+        if (
+            this.filtroFeed === 'comunidades' &&
+            !this.obterMinhasComunidades().length
+        ) {
+
+            const container =
+                document.getElementById(
+                    'feed-container'
+                );
+
+            if (container) {
+                container.innerHTML = `
+                <div class="feed-comunidades-empty">
+
+                    <div class="feed-empty-icon">
+                        <i class="material-icons">
+                            groups
+                        </i>
+                    </div>
+
+                    <h3>
+                        Encontre sua comunidade
+                    </h3>
+
+                    <p>
+                        Você ainda não participa de
+                        nenhuma comunidade.
+                    </p>
+
+                    <button
+                        type="button"
+                        class="btn-primary"
+                        onclick="
+                            app.mudarAba('comunidades')
+                        "
+                    >
+                        Explorar comunidades
+                    </button>
+
+                </div>
+            `;
+            }
+
+            return;
+        }
+
+
+        this.montarCardsPosts(
+            posts,
+            'feed-container',
+            true
+        );
     }
 
     mudarFiltroFeed(filtro) {
+
         this.filtroFeed = filtro;
-        document.querySelectorAll('.feed-tab').forEach(tab => tab.classList.remove('active'));
-        document.getElementById(`feed-tab-${filtro}`)?.classList.add('active');
+
+        // Ao sair da aba Comunidades,
+        // limpa o filtro interno.
+        if (filtro !== 'comunidades') {
+            this.comunidadeFeedSelecionada = null;
+        }
+
+        document
+            .querySelectorAll('.feed-tab')
+            .forEach(tab =>
+                tab.classList.remove('active')
+            );
+
+        document
+            .getElementById(
+                `feed-tab-${filtro}`
+            )
+            ?.classList.add('active');
+
         this.renderizarFeedGeral();
     }
 
@@ -1275,6 +2632,13 @@ class AppController {
         if (!resposta.ok) return alert('Não foi possível atualizar os salvos.');
         this.postsSalvos = salvo ? this.postsSalvos.filter(item => item.id !== salvo.id) : [...this.postsSalvos, await resposta.json()];
         this.renderizarFeedGeral();
+        if (
+            document
+                .getElementById('view-salvos')
+                ?.classList.contains('active')
+        ) {
+            this.renderizarItensSalvos();
+        }
     }
 
     async carregarEventosFeed() {
@@ -1389,14 +2753,89 @@ class AppController {
             const curtido = this.votoDoUsuario(idPost);
             const salvo = this.postEstaSalvo(idPost);
             const totalCurtidas = this.contarVotos(idPost);
+            const origemPostHtml =
+                idComunidade && nomeComunidade
+                    ? (
+                        mostrarTagComunidade
+                            ? `
+                    em
+                    <button
+                        type="button"
+                        class="post-community-link"
+                        onclick="
+                            event.stopPropagation();
+                            app.abrirComunidadeDoFeed(
+                                ${idComunidade}
+                            );
+                        "
+                    >
+                        ${this.escaparHtmlDestaque(
+                                nomeComunidade
+                            )}
+                    </button>
+                `
+                            : this.escaparHtmlDestaque(
+                                nomeComunidade
+                            )
+                    )
+                    : 'Feed global';
             div.innerHTML = `
                 <div class="post-header-area">
                     ${avatarHtml}
                     <div>
                         <span class="post-author">${this.escaparHtmlDestaque(nomeAutor)}</span>
-                        <div class="post-meta">${mostrarTagComunidade && nomeComunidade ? `em c/${this.escaparHtmlDestaque(nomeComunidade)}` : 'Feed global'} · ${dataPostagem}</div>
+                        <div class="post-meta">
+    ${origemPostHtml}
+    · ${dataPostagem}
+</div>
                     </div>
-                    <button class="post-more" aria-label="Mais opções"><i class="material-icons">more_horiz</i></button>
+                    
+                 <div class="post-menu-wrapper">
+                 
+
+    <button
+        type="button"
+        class="post-more"
+        aria-label="Mais opções"
+        onclick="app.alternarMenuPost(event)"
+    >
+        <i class="material-icons">more_horiz</i>
+    </button>
+
+    <div
+        id="post-menu-${idPost}"
+        class="post-menu"
+    >
+
+        <button
+            type="button"
+            class="post-menu-item"
+            onclick="
+                event.stopPropagation();
+                app.compartilharPost(${idPost});
+            "
+        >
+            <i class="material-icons">link</i>
+            <span>Copiar link</span>
+        </button>
+
+        ${podeExcluir ? `
+            <button
+                type="button"
+                class="post-menu-item post-menu-delete"
+                onclick="
+                    event.stopPropagation();
+                    app.excluirPost(${idPost});
+                "
+            >
+                <i class="material-icons">delete_outline</i>
+                <span>Excluir publicação</span>
+            </button>
+        ` : ''}
+
+    </div>
+
+</div>
                 </div>
                 <div class="post-title">${this.escaparHtmlDestaque(post.titulo)}</div>
                <div class="post-body">${this.escaparHtmlDestaque(post.conteudo)}</div>
@@ -1407,16 +2846,6 @@ class AppController {
                     <button class="post-action" onclick="document.getElementById('comentario-${idPost}').focus()"><i class="material-icons">chat_bubble_outline</i><span>${comentarios.length}</span></button>
                     <button class="post-action ${salvo ? 'active' : ''}" onclick="app.alternarPostSalvo(${idPost})"><i class="material-icons">${salvo ? 'bookmark' : 'bookmark_border'}</i></button>
                 </div>
-
-${podeExcluir ? `
-    <div style="margin-top: 10px;">
-        <button
-            class="btn-secondary"
-            onclick="app.excluirPost(${idPost})">
-            Excluir
-        </button>
-    </div>
-` : ''}
 
 ${ApiService.getIdUsuarioLogado() ? `
                     <div class="comment-input-container">
@@ -1456,7 +2885,7 @@ ${ApiService.getIdUsuarioLogado() ? `
             if (comentariosPost && comentariosPost.length) {
                 this.comentariosPorPost[idPost] = comentariosPost;
             }
-        } catch (_) {}
+        } catch (_) { }
 
         const idAutor = post.idUsuario || post.id_usuario;
         const nomeAutor = this.usuariosMap[idAutor] || 'Desconhecido';
@@ -1470,6 +2899,25 @@ ${ApiService.getIdUsuarioLogado() ? `
 
         const idComunidade = post.idComunidade || post.id_comunidade;
         const nomeComunidade = this.comunidadesMap[idComunidade];
+        const idUsuarioLogado =
+            ApiService.getIdUsuarioLogado();
+
+        const comunidade =
+            (this.listaComunidades || []).find(
+                c =>
+                    (c.idComunidade || c.id) == idComunidade
+            );
+
+        const idAdministrador =
+            comunidade?.criador?.idUsuario ||
+            comunidade?.criador?.id;
+
+        const podeExcluir =
+            idUsuarioLogado &&
+            (
+                idUsuarioLogado == idAutor ||
+                idUsuarioLogado == idAdministrador
+            );
         const comentarios = this.comentariosPorPost[idPost] || [];
         const curtido = this.votoDoUsuario(idPost);
         const salvo = this.postEstaSalvo(idPost);
@@ -1479,10 +2927,76 @@ ${ApiService.getIdUsuarioLogado() ? `
 
         container.innerHTML = `
             <article class="post-detail-card">
-                <div class="post-detail-header">
-                    ${avatarHeaderHtml}
-                    <div><strong>${this.escaparHtmlDestaque(nomeAutor)}</strong><span>${nomeComunidade ? `em c/${this.escaparHtmlDestaque(nomeComunidade)}` : 'Feed global'} · ${dataPostagem}</span></div>
-                </div>
+              <div class="post-detail-header">
+
+    ${avatarHeaderHtml}
+
+    <div class="post-detail-author-info">
+        <strong>
+            ${this.escaparHtmlDestaque(nomeAutor)}
+        </strong>
+
+        <span>
+            ${nomeComunidade
+                ? `em ${this.escaparHtmlDestaque(nomeComunidade)}`
+                : 'Feed global'
+            }
+            · ${dataPostagem}
+        </span>
+    </div>
+
+
+    <div class="post-menu-wrapper">
+
+        <button
+            type="button"
+            class="post-more"
+            aria-label="Mais opções"
+           onclick="app.alternarMenuPost(event)"
+        >
+            <i class="material-icons">more_horiz</i>
+        </button>
+
+        <div
+            class="post-menu"
+        >
+
+            <button
+                type="button"
+                class="post-menu-item"
+                onclick="
+                    event.stopPropagation();
+                    app.compartilharPost(${idPost});
+                "
+            >
+                <i class="material-icons">link</i>
+                <span>Copiar link</span>
+            </button>
+
+            ${podeExcluir ? `
+                <button
+                    type="button"
+                    class="post-menu-item post-menu-delete"
+                    onclick="
+                        event.stopPropagation();
+                        app.excluirPost(${idPost});
+                    "
+                >
+                    <i class="material-icons">
+                        delete_outline
+                    </i>
+
+                    <span>
+                        Excluir publicação
+                    </span>
+                </button>
+            ` : ''}
+
+        </div>
+
+    </div>
+
+</div>
                 <h1>${this.escaparHtmlDestaque(post.titulo)}</h1>
                 <div class="post-detail-body">${this.escaparHtmlDestaque(post.conteudo)}</div>
                 <div class="post-actions post-detail-actions">
@@ -1493,16 +3007,16 @@ ${ApiService.getIdUsuarioLogado() ? `
                     <div class="post-comments-heading"><h2>Comentários</h2><span>${comentarios.length}</span></div>
                     ${ApiService.getIdUsuarioLogado() ? `<div class="detail-comment-box"><input id="comentario-detalhe-${idPost}" type="text" placeholder="Escreva um comentário..." onkeydown="if(event.key === 'Enter') app.enviarComentarioDetalhe(${idPost})"><button onclick="app.enviarComentarioDetalhe(${idPost})">Comentar</button></div>` : '<p class="comments-login-note">Entre para participar da conversa.</p>'}
                     <div class="post-detail-comments">${comentarios.length ? comentarios.map(c => {
-                        const idC = c.idUsuario || c.id_usuario;
-                        const nomeC = this.usuariosMap[idC] || 'Usuário';
-                        const fotoC = this.usuariosFotosMap[idC];
-                        const urlFotoC = ApiService.formatarUrlFotoPerfil(fotoC);
-                        const iniC = (nomeC || 'U').charAt(0).toUpperCase();
-                        const avC = urlFotoC
-                            ? `<img src="${urlFotoC}" class="avatar detail-comment-avatar" style="object-fit:cover;" onerror="this.outerHTML='<div class=\\'avatar detail-comment-avatar\\'>${iniC}</div>'">`
-                            : `<div class="avatar detail-comment-avatar">${iniC}</div>`;
-                        return `<div class="detail-comment">${avC}<div><strong>${this.escaparHtmlDestaque(nomeC)}</strong><p>${this.escaparHtmlDestaque(c.conteudo)}</p></div></div>`;
-                    }).join('') : '<p class="comments-empty">Ainda não há comentários. Seja o primeiro a participar.</p>'}</div>
+                const idC = c.idUsuario || c.id_usuario;
+                const nomeC = this.usuariosMap[idC] || 'Usuário';
+                const fotoC = this.usuariosFotosMap[idC];
+                const urlFotoC = ApiService.formatarUrlFotoPerfil(fotoC);
+                const iniC = (nomeC || 'U').charAt(0).toUpperCase();
+                const avC = urlFotoC
+                    ? `<img src="${urlFotoC}" class="avatar detail-comment-avatar" style="object-fit:cover;" onerror="this.outerHTML='<div class=\\'avatar detail-comment-avatar\\'>${iniC}</div>'">`
+                    : `<div class="avatar detail-comment-avatar">${iniC}</div>`;
+                return `<div class="detail-comment">${avC}<div><strong>${this.escaparHtmlDestaque(nomeC)}</strong><p>${this.escaparHtmlDestaque(c.conteudo)}</p></div></div>`;
+            }).join('') : '<p class="comments-empty">Ainda não há comentários. Seja o primeiro a participar.</p>'}</div>
                 </section>
             </article>
         `;
@@ -1544,44 +3058,462 @@ ${ApiService.getIdUsuarioLogado() ? `
         this.renderizarFeedGeral();
     }
 
+    mudarFiltroPessoas(filtro) {
+
+        this.filtroPessoas = filtro;
+
+        document
+            .querySelectorAll('.pessoas-filtro-btn')
+            .forEach(botao =>
+                botao.classList.remove('active')
+            );
+
+        document
+            .getElementById(
+                `pessoas-filtro-${filtro}`
+            )
+            ?.classList.add('active');
+
+        this.filtrarUsuarios();
+    }
+
     // --- ABA BUSCA ---
     filtrarUsuarios() {
-        const txt = document.getElementById('search-input').value.toLowerCase();
-        const filtro = document.getElementById('pessoas-filtro')?.value || 'todas';
-        const organizadores = new Set(this.listaEventos.map(evento => String(evento.criadorId)));
-        const membros = new Set(this.listaComunidades.flatMap(comunidade => (comunidade.membros || []).map(membro => String(membro.idUsuario || membro.id))));
-        const pessoas = this.listaUsuariosCompleta.filter(usuario => {
-            const id = String(usuario.idUsuario || usuario.id);
-            const correspondeTexto = (usuario.nome || '').toLowerCase().includes(txt) || (usuario.username || '').toLowerCase().includes(txt);
-            const correspondeFiltro = filtro === 'organizadores' ? organizadores.has(id) : filtro === 'comunidades' ? membros.has(id) : true;
-            return correspondeTexto && correspondeFiltro;
+
+        const termo =
+            document
+                .getElementById('search-input')
+                ?.value
+                .trim()
+                .toLowerCase() || '';
+
+        const idUsuarioLogado =
+            ApiService.getIdUsuarioLogado();
+
+
+        let pessoas =
+            [...(this.listaUsuariosCompleta || [])];
+
+
+        // Não mostrar a própria conta
+        pessoas = pessoas.filter(usuario => {
+
+            const id =
+                usuario.idUsuario ||
+                usuario.id;
+
+            return String(id) !==
+                String(idUsuarioLogado);
         });
+
+
+        // =========================
+        // BUSCA
+        // =========================
+        if (termo) {
+
+            pessoas = pessoas.filter(usuario => {
+
+                const nome =
+                    usuario.nome || '';
+
+                const username =
+                    usuario.username || '';
+
+                return (
+                    nome
+                        .toLowerCase()
+                        .includes(termo)
+                    ||
+                    username
+                        .toLowerCase()
+                        .includes(termo)
+                );
+            });
+        }
+
+
+        // =========================
+        // MINHAS COMUNIDADES
+        // =========================
+        if (this.filtroPessoas === 'comuns') {
+
+            pessoas = pessoas.filter(usuario => {
+
+                const id =
+                    usuario.idUsuario ||
+                    usuario.id;
+
+                return (
+                    this.obterComunidadesEmComum(id)
+                        .length > 0
+                );
+            });
+        }
+
+
+        // =========================
+        // ORGANIZADORES
+        // =========================
+        if (
+            this.filtroPessoas ===
+            'organizadores'
+        ) {
+
+            const organizadores =
+                new Set(
+                    (this.listaEventos || [])
+                        .map(evento =>
+                            String(
+                                evento.criadorId
+                            )
+                        )
+                );
+
+            pessoas = pessoas.filter(usuario => {
+
+                const id =
+                    usuario.idUsuario ||
+                    usuario.id;
+
+                return organizadores.has(
+                    String(id)
+                );
+            });
+        }
+
+
         this.renderizarUsuarios(pessoas);
     }
 
     renderizarUsuarios(lista) {
-        const container = document.getElementById('users-container');
+
+        const container =
+            document.getElementById(
+                'users-container'
+            );
+
+        if (!container) return;
+
         container.innerHTML = '';
+
+
         if (!lista.length) {
-            container.innerHTML = '<div class="pessoas-empty">Nenhuma pessoa encontrada com esses filtros.</div>';
+
+            container.innerHTML = `
+            <div class="pessoas-empty">
+
+                <div class="pessoas-empty-icon">
+                    <i class="material-icons">
+                        person_search
+                    </i>
+                </div>
+
+                <h3>
+                    Nenhuma pessoa encontrada
+                </h3>
+
+                <p>
+                    Tente outro nome ou altere
+                    os filtros de pessoas.
+                </p>
+
+            </div>
+        `;
+
             return;
         }
-        lista.forEach(u => {
-            const div = document.createElement('div');
-            div.className = 'pessoa-card';
+
+
+        lista.forEach(usuario => {
+
+            const id =
+                usuario.idUsuario ||
+                usuario.id;
+
+            const comunidades =
+                this.obterComunidadesDoUsuario(id);
+
+            const comunidadesEmComum =
+                this.obterComunidadesEmComum(id);
+
+            const eventos =
+                (this.listaEventos || [])
+                    .filter(evento =>
+                        String(evento.criadorId) ===
+                        String(id)
+                    );
+
+
+            // =========================
+            // FOTO
+            // =========================
+
+            const foto =
+                this.usuariosFotosMap[id];
+
+            const urlFoto =
+                ApiService.formatarUrlFotoPerfil(
+                    foto
+                );
+
+            const inicial =
+                (
+                    usuario.nome ||
+                    'U'
+                )
+                    .charAt(0)
+                    .toUpperCase();
+
+
+            const avatarHtml =
+                urlFoto
+                    ? `
+                    <img
+                        src="${urlFoto}"
+                        class="avatar pessoa-avatar"
+                        alt=""
+                        onerror="
+                            this.outerHTML =
+                            '<div class=\\'avatar pessoa-avatar\\'>${inicial}</div>'
+                        "
+                    >
+                `
+                    : `
+                    <div
+                        class="avatar pessoa-avatar"
+                    >
+                        ${this.escaparHtmlDestaque(
+                        inicial
+                    )}
+                    </div>
+                `;
+
+
+            // =========================
+            // CONTEXTO
+            // =========================
+
+            let contextoHtml = '';
+
+
+            if (comunidadesEmComum.length) {
+
+                const primeira =
+                    comunidadesEmComum[0];
+
+                const restantes =
+                    comunidadesEmComum.length - 1;
+
+                contextoHtml = `
+                <div class="pessoa-contexto">
+
+                    <i class="material-icons">
+                        groups
+                    </i>
+
+                    <span>
+                        Também participa de
+
+                        <strong>
+                            ${this.escaparHtmlDestaque(
+                    primeira.nome ||
+                    'uma comunidade'
+                )}
+                        </strong>
+
+                        ${restantes > 0
+                        ? ` e mais ${restantes}`
+                        : ''
+                    }
+                    </span>
+
+                </div>
+            `;
+            }
+
+            else if (eventos.length) {
+
+                contextoHtml = `
+                <div class="pessoa-contexto">
+
+                    <i class="material-icons">
+                        event_available
+                    </i>
+
+                    <span>
+                        Organiza
+                        <strong>
+                            ${eventos.length}
+                            ${eventos.length === 1
+                        ? 'evento'
+                        : 'eventos'
+                    }
+                        </strong>
+                    </span>
+
+                </div>
+            `;
+            }
+
+
+            // =========================
+            // CARD
+            // =========================
+
+            const div =
+                document.createElement('article');
+
+            div.className =
+                'pessoa-card';
+
             div.tabIndex = 0;
-            div.setAttribute('role', 'link');
-            const id = u.idUsuario || u.id;
-            const comunidades = this.listaComunidades.filter(comunidade => (comunidade.membros || []).some(membro => (membro.idUsuario || membro.id) == id));
-            const eventos = this.listaEventos.filter(evento => evento.criadorId == id);
-            div.innerHTML = `<div class="pessoa-card-main"><div class="avatar">${this.escaparHtmlDestaque((u.nome || 'U').charAt(0).toUpperCase())}</div><div><h2>${this.escaparHtmlDestaque(u.nome || 'Usuário')}</h2><span>@${this.escaparHtmlDestaque(u.username || 'usuario')}</span></div></div><p>${this.escaparHtmlDestaque(u.bio || 'Participa da comunidade SocialJoin.')}</p><div class="pessoa-card-stats"><span>${comunidades.length} comunidade(s)</span><span>${eventos.length} evento(s)</span></div>`;
-            div.addEventListener('click', () => this.abrirPerfil(id));
-            div.addEventListener('keydown', evento => {
-                if (evento.key === 'Enter' || evento.key === ' ') {
+
+            div.setAttribute(
+                'role',
+                'link'
+            );
+
+            div.setAttribute(
+                'aria-label',
+                `Abrir perfil de ${usuario.nome ||
+                'usuário'
+                }`
+            );
+
+
+            div.innerHTML = `
+
+            <div class="pessoa-card-main">
+
+                ${avatarHtml}
+
+                <div class="pessoa-card-identidade">
+
+                    <h2>
+                        ${this.escaparHtmlDestaque(
+                usuario.nome ||
+                'Usuário'
+            )}
+                    </h2>
+
+                    <span>
+                        @${this.escaparHtmlDestaque(
+                usuario.username ||
+                'usuario'
+            )}
+                    </span>
+
+                </div>
+
+            </div>
+
+
+            <p class="pessoa-card-bio">
+                ${this.escaparHtmlDestaque(
+                usuario.bio ||
+                'Participa da comunidade SocialJoin.'
+            )}
+            </p>
+
+
+            ${contextoHtml}
+
+
+            <div class="pessoa-card-stats">
+
+                <span>
+                    <i class="material-icons">
+                        groups
+                    </i>
+
+                    ${comunidades.length}
+
+                    ${comunidades.length === 1
+                    ? 'comunidade'
+                    : 'comunidades'
+                }
+                </span>
+
+
+                <span>
+                    <i class="material-icons">
+                        event
+                    </i>
+
+                    ${eventos.length}
+
+                    ${eventos.length === 1
+                    ? 'evento'
+                    : 'eventos'
+                }
+                </span>
+
+            </div>
+
+
+            <div class="pessoa-card-footer">
+
+                <span class="pessoa-ver-perfil">
+                    Ver perfil
+
+                    <i class="material-icons">
+                        arrow_forward
+                    </i>
+                </span>
+
+
+                <button
+                    type="button"
+                    class="pessoa-mensagem-btn"
+                    onclick="
+                        event.stopPropagation();
+                        app.iniciarConversa(${id});
+                    "
+                >
+                    <i class="material-icons">
+                        chat_bubble_outline
+                    </i>
+
+                    Mensagem
+                </button>
+
+            </div>
+        `;
+
+
+            // Card inteiro continua abrindo perfil
+            div.addEventListener(
+                'click',
+                () =>
+                    this.abrirPerfil(id)
+            );
+
+
+            div.addEventListener(
+                'keydown',
+                evento => {
+
+                    if (
+                        evento.target.closest('button')
+                    ) {
+                        return;
+                    }
+
+                    if (
+                        evento.key !== 'Enter' &&
+                        evento.key !== ' '
+                    ) {
+                        return;
+                    }
+
                     evento.preventDefault();
+
                     this.abrirPerfil(id);
                 }
-            });
+            );
+
+
             container.appendChild(div);
         });
     }
@@ -1618,7 +3550,7 @@ ${ApiService.getIdUsuarioLogado() ? `
             this.renderizarRecomendacoes();
             this.renderizarSugestoesPessoas();
 
-            this.renderizarEventoDestaque(eventos[0]);
+            await this.carregarEventoDestaqueMaisPopular();
 
             container.innerHTML = '';
 
@@ -1696,6 +3628,15 @@ ${ApiService.getIdUsuarioLogado() ? `
                     const quantidadeParticipantes =
                         evento.quantidadeParticipantes || 0;
                     const eventoLotado = evento.limiteParticipantes && quantidadeParticipantes >= evento.limiteParticipantes;
+                    const precoIngresso = Number(evento.precoIngresso || 0);
+
+                    const precoFormatado =
+                        precoIngresso > 0
+                            ? precoIngresso.toLocaleString('pt-BR', {
+                                style: 'currency',
+                                currency: 'BRL'
+                            })
+                            : 'Gratuito';
                     const idUsuario = ApiService.getIdUsuarioLogado();
                     const ehCriador = idUsuario && idUsuario == evento.criadorId;
                     const acao = ehCriador ? 'Organizador' : eventoLotado ? 'Evento lotado' : idUsuario ? 'Ver detalhes' : 'Entrar para participar';
@@ -1708,7 +3649,23 @@ ${ApiService.getIdUsuarioLogado() ? `
                         <div class="evento-card-meta"><span>${horarioInicioFormatado} - ${horarioFimFormatado}</span><b>${statusExibido}</b></div>
                         <h3>${evento.titulo}</h3>
                         <p>${evento.descricao || 'Sem descrição informada.'}</p>
-                        <div class="evento-card-info"><span>📍 ${evento.localEvento}</span><span>👥 ${evento.limiteParticipantes ? `${quantidadeParticipantes}/${evento.limiteParticipantes}` : `${quantidadeParticipantes}`} participantes</span></div>
+                       <div class="evento-card-info">
+
+    <span>
+        📍 ${evento.localEvento}
+    </span>
+
+    <span>
+        👥 ${evento.limiteParticipantes
+                            ? `${quantidadeParticipantes}/${evento.limiteParticipantes}`
+                            : `${quantidadeParticipantes}`} participantes
+    </span>
+
+    <span>
+        🎟 ${precoFormatado}
+    </span>
+
+</div>
                         <button class="btn-primary evento-card-action" onclick="app.abrirDetalhesEvento(${evento.id})">${acao}</button>
                     </div>
                 `;
@@ -1773,7 +3730,7 @@ ${ApiService.getIdUsuarioLogado() ? `
         try {
             const eventos = await ApiService.listarEventosParticipando(idUsuario);
             this.listaEventos = eventos;
-            this.renderizarEventoDestaque(eventos[0]);
+            await this.carregarEventoDestaqueMaisPopular();
             container.innerHTML = eventos.length ? eventos.map(evento => `<div class="meu-evento-row"><div><strong>${evento.titulo}</strong><span>${this.formatarDataEvento(evento.dataEvento)} · ${evento.localEvento}</span></div><button class="btn-primary" onclick="app.abrirDetalhesEvento(${evento.id})">Ver evento</button></div>`).join('') : '<div class="evento-destaque-vazio">Você ainda não está participando de nenhum evento.</div>';
         } catch (erro) {
             console.error(erro);
@@ -1782,101 +3739,100 @@ ${ApiService.getIdUsuarioLogado() ? `
     }
 
     async criarEvento() {
-
         const idUsuario = ApiService.getIdUsuarioLogado();
 
         if (!idUsuario) {
-            return alert("Faça login para organizar um evento!");
+            this.fecharModal('evento-modal');
+            this.definirModoAuth(false);
+            this.abrirModal('auth-modal');
+            this.mostrarAuthFeedback("Faça login para organizar um evento!");
+            return;
         }
 
         const titulo =
             document.getElementById('evento-titulo').value.trim();
-
         const descricao =
             document.getElementById('evento-desc').value.trim();
-
         const categoria =
             document.getElementById('evento-categoria').value;
-
         const capa =
             document.getElementById('evento-capa').files[0];
-
         const dataEvento =
             document.getElementById('evento-data').value;
-
         const horarioInicio =
             document.getElementById('evento-horario-inicio').value;
-
         const horarioFim =
             document.getElementById('evento-horario-fim').value;
-
         const encerramentoInscricoes =
-            document.getElementById(
-                'evento-encerramento-inscricoes'
-            ).value;
-
+            document.getElementById('evento-encerramento-inscricoes').value;
         const localEvento =
             document.getElementById('evento-local').value.trim();
-
         const comunidadeValor =
             document.getElementById('evento-comunidade-id').value;
-
         const limiteValor =
             document.getElementById('evento-limite').value;
+        const precoValor =
+            document.getElementById('evento-preco').value;
 
+        const precoIngresso =
+            precoValor
+                ? parseFloat(precoValor)
+                : 0;
         const exigeCheckin =
             document.getElementById('evento-checkin').checked;
 
-        if (
-            !titulo ||
-            !dataEvento ||
-            !horarioInicio ||
-            !horarioFim ||
-            !localEvento
-        ) {
-            return alert(
-                "Preencha título, data, horário de início, horário de fim e local."
+        this.mostrarEventoFeedback('');
+
+        if (!titulo || !dataEvento || !horarioInicio || !horarioFim || !localEvento) {
+            return this.mostrarEventoFeedback(
+                "Preencha todos os campos obrigatórios (Título, Categoria, Data, Horários e Local)."
             );
         }
 
-        const inicioEvento = new Date(
-            `${dataEvento}T${horarioInicio}`
-        );
+        if (!categoria) {
+            return this.mostrarEventoFeedback("Selecione uma categoria para o evento.");
+        }
 
-        const fimEvento = new Date(
-            `${dataEvento}T${horarioFim}`
-        );
-
+        const inicioEvento = new Date(`${dataEvento}T${horarioInicio}`);
+        const fimEvento = new Date(`${dataEvento}T${horarioFim}`);
         const agora = new Date();
 
         if (fimEvento <= inicioEvento) {
-            return alert(
-                "O horário de fim deve ser depois do horário de início."
+            return this.mostrarEventoFeedback(
+                "O horário de término deve ser posterior ao horário de início."
             );
         }
 
         if (inicioEvento <= agora) {
-            return alert(
-                "Não é possível criar um evento no passado."
+            return this.mostrarEventoFeedback(
+                "A data e horário de início não podem estar no passado."
             );
         }
 
         if (encerramentoInscricoes) {
-
-            const fimInscricoes =
-                new Date(encerramentoInscricoes);
-
+            const fimInscricoes = new Date(encerramentoInscricoes);
             if (fimInscricoes > inicioEvento) {
-                return alert(
-                    "O encerramento das inscrições não pode acontecer depois do início do evento."
+                return this.mostrarEventoFeedback(
+                    "O encerramento das inscrições não pode acontecer após o início do evento."
                 );
             }
-
             if (fimInscricoes <= agora) {
-                return alert(
-                    "O encerramento das inscrições deve estar no futuro."
+                return this.mostrarEventoFeedback(
+                    "O encerramento das inscrições deve estar em uma data e horário futuros."
                 );
             }
+        }
+
+        if (limiteValor && parseInt(limiteValor) < 1) {
+            return this.mostrarEventoFeedback(
+                "O limite de participantes deve ser de pelo menos 1 pessoa."
+            );
+        }
+
+        if (precoIngresso < 0) {
+            return this.mostrarEventoFeedback(
+                "O valor do ingresso não pode ser negativo."
+            );
         }
 
         const novoEvento = {
@@ -1884,67 +3840,53 @@ ${ApiService.getIdUsuarioLogado() ? `
             descricao,
             categoria: categoria || null,
             dataEvento,
-
             horarioInicio: horarioInicio + ":00",
             horarioFim: horarioFim + ":00",
-
-            encerramentoInscricoes:
-                encerramentoInscricoes
-                    ? encerramentoInscricoes + ":00"
-                    : null,
-
+            encerramentoInscricoes: encerramentoInscricoes
+                ? encerramentoInscricoes + ":00"
+                : null,
             localEvento,
-
             criadorId: parseInt(idUsuario),
+            comunidadeId: comunidadeValor
+                ? parseInt(comunidadeValor)
+                : null,
+            limiteParticipantes: limiteValor
+                ? parseInt(limiteValor)
+                : null,
 
-            comunidadeId:
-                comunidadeValor
-                    ? parseInt(comunidadeValor)
-                    : null,
-
-            limiteParticipantes:
-                limiteValor
-                    ? parseInt(limiteValor)
-                    : null,
+            precoIngresso,
 
             exigeCheckin
         };
-        try {
 
-            const res =
-                await ApiService.criarEventoAPI(novoEvento);
+        try {
+            this.definirEventoLoading(true);
+
+            const res = await ApiService.criarEventoAPI(novoEvento);
 
             if (res.ok) {
-
                 const eventoCriado = await res.json();
-                if (capa) await ApiService.enviarCapaEvento(eventoCriado.id, capa);
+                const eventoId = eventoCriado.id || eventoCriado.idEvento;
+                if (capa && eventoId) {
+                    try {
+                        await ApiService.enviarCapaEvento(eventoId, capa);
+                    } catch (capaErr) {
+                        console.error("Erro ao enviar capa do evento:", capaErr);
+                    }
+                }
 
                 this.fecharModal('evento-modal');
-
-                document.getElementById('evento-titulo').value = '';
-                document.getElementById('evento-desc').value = '';
-                document.getElementById('evento-data').value = '';
-                document.getElementById('evento-horario-inicio').value = '';
-                document.getElementById('evento-horario-fim').value = '';
-                document.getElementById('evento-encerramento-inscricoes').value = '';
-                document.getElementById('evento-local').value = '';
-                document.getElementById('evento-comunidade-id').value = '';
-                document.getElementById('evento-limite').value = '';
-                document.getElementById('evento-checkin').checked = false;
-                document.getElementById('evento-categoria').value = '';
-                document.getElementById('evento-capa').value = '';
-
+                this.limparFormularioEvento();
                 await this.carregarEventos();
-
-                alert("Evento publicado com sucesso!");
-
+                alert("🎉 Evento publicado com sucesso!");
             } else {
-                alert("Não foi possível criar o evento.");
+                this.mostrarEventoFeedback("Não foi possível criar o evento. Verifique os dados e tente novamente.");
             }
-
         } catch (error) {
             console.error(error);
-            alert("Erro de conexão ao criar o evento.");
+            this.mostrarEventoFeedback("Erro de conexão ao criar o evento. Tente novamente.");
+        } finally {
+            this.definirEventoLoading(false);
         }
     }
 
@@ -2102,6 +4044,60 @@ ${ApiService.getIdUsuarioLogado() ? `
             alert("Você não tem permissão para remover este membro.");
         }
     }
+    alternarMenuPost(evento) {
+
+        evento.stopPropagation();
+
+        const botao = evento.currentTarget;
+
+        const wrapper =
+            botao.closest('.post-menu-wrapper');
+
+        const menu =
+            wrapper?.querySelector('.post-menu');
+
+        if (!menu) return;
+
+        document
+            .querySelectorAll('.post-menu.open')
+            .forEach(outroMenu => {
+
+                if (outroMenu !== menu) {
+                    outroMenu.classList.remove('open');
+                }
+
+            });
+
+        menu.classList.toggle('open');
+    }
+
+    async compartilharPost(idPost) {
+
+        const url = new URL(window.location.href);
+
+        url.searchParams.set('post', idPost);
+
+        const link = url.toString();
+
+        try {
+
+            await navigator.clipboard.writeText(link);
+
+            alert('Link da publicação copiado!');
+
+        } catch (erro) {
+
+            console.error(
+                'Não foi possível copiar automaticamente:',
+                erro
+            );
+
+            prompt(
+                'Copie o link da publicação:',
+                link
+            );
+        }
+    }
 
     async excluirPost(idPost) {
 
@@ -2119,7 +4115,7 @@ ${ApiService.getIdUsuarioLogado() ? `
                 this.renderizarSubreddit(this.comunidadeAtivaId);
             }
         } else {
-            alert("Você não tem permissão para excluir esta publicaçãox.");
+            alert("Você não tem permissão para excluir esta publicação.");
         }
     }
 
@@ -2163,8 +4159,9 @@ ${ApiService.getIdUsuarioLogado() ? `
         document.getElementById('editar-evento-local').value =
             evento.localEvento || '';
 
-        document.getElementById('editar-evento-comunidade').value =
-            evento.comunidadeId || '';
+        this.popularComunidadesEdicaoEvento(
+            evento.comunidadeId
+        );
 
         document.getElementById('editar-evento-limite').value =
             evento.limiteParticipantes || '';
@@ -2754,7 +4751,7 @@ ${ApiService.getIdUsuarioLogado() ? `
 
         this.salvarViewAtual('evento-detalhes');
 
-        localStorage.setItem(
+        sessionStorage.setItem(
             'eventoDetalhesId',
             idEvento
         );
@@ -2822,6 +4819,18 @@ ${ApiService.getIdUsuarioLogado() ? `
 
         let limiteInscricao;
 
+        const precoIngresso = Number(evento.precoIngresso || 0);
+
+const eventoPago = precoIngresso > 0;
+
+const precoFormatado =
+    eventoPago
+        ? precoIngresso.toLocaleString('pt-BR', {
+            style: 'currency',
+            currency: 'BRL'
+        })
+        : 'Gratuito';
+
         if (evento.encerramentoInscricoes) {
             limiteInscricao = new Date(evento.encerramentoInscricoes);
         } else {
@@ -2849,155 +4858,377 @@ ${ApiService.getIdUsuarioLogado() ? `
         const container =
             document.getElementById('evento-detalhes-conteudo');
 
-        container.innerHTML = `
-        <div class="card">
+        const statusClasse =
+            situacaoEvento === 'CANCELADO'
+                ? 'cancelado'
+                : situacaoEvento === 'ENCERRADO'
+                    ? 'encerrado'
+                    : situacaoEvento === 'ACONTECENDO_AGORA'
+                        ? 'agora'
+                        : 'agendado';
 
-            <div style="
-                display:flex;
-                justify-content:space-between;
-                gap:16px;
-                align-items:flex-start;
-            ">
-                <div>
-                    <h1 style="margin-top:0;">
-                        ${evento.titulo}
-                    </h1>
-
-                    <p style="
-                        color:var(--text-muted);
-                        margin-top:6px;
-                    ">
-                        Organizado por ${nomeCriador}
-                    </p>
-
-                    ${evento.categoria ? `<span class="evento-detalhe-categoria">${evento.categoria}</span>` : ''}
-                </div>
-
-                <span style="
-    font-size:13px;
-    font-weight:700;
-">
-    ${situacaoEventoExibida}
-</span>
-            </div>
-
-            ${evento.imagemCapa ? `<div class="evento-detalhe-capa" style="background-image:url('${this.urlCapaEvento(evento.imagemCapa)}')"></div>` : ''}
-
-            <p style="
-                font-size:15px;
-                line-height:1.6;
-                margin:24px 0;
-            ">
-                ${evento.descricao || 'Sem descrição informada.'}
-            </p>
-
-            <div style="
-                border-top:1px solid var(--border-color);
-                padding-top:20px;
-                display:grid;
-                gap:10px;
-            ">
-                <div>📅 <b>Data:</b> ${dataFormatada}</div>
-
-                <div>⏰ <b>Horário:</b> ${horarioInicioFormatado} às ${horarioFimFormatado}</div>
-
-                <div>📍 <b>Local:</b> ${evento.localEvento}</div>
-
-                ${nomeComunidade ? `
-                    <div>
-                        💬 <b>Comunidade:</b> ${nomeComunidade}
-                    </div>
-                ` : ''}
-
-                <div>
-                    👥 <b>Participantes:</b>
-                    ${evento.limiteParticipantes
+        const limiteParticipantesTexto =
+            evento.limiteParticipantes
                 ? `${quantidadeParticipantes} de ${evento.limiteParticipantes}`
-                : quantidadeParticipantes
-            }
-                </div>
+                : `${quantidadeParticipantes}`;
 
-                <div>
-                    🎟 <b>Controle de entrada:</b>
-                    ${evento.exigeCheckin ? 'Obrigatório pelo aplicativo mobile' : 'Não obrigatório'}
-                </div>
-            </div>
-
-            <div style="
-    margin-top:20px;
-    text-align:right;
-    color:var(--text-muted);
-    font-size:13px;
-">
-    <b>Inscrições até:</b><br>
-    ${limiteInscricao.toLocaleString('pt-BR', {
+        const limiteInscricaoFormatado =
+            limiteInscricao.toLocaleString('pt-BR', {
                 dateStyle: 'short',
                 timeStyle: 'short'
-            })}
+            });
+
+        container.innerHTML = `
+    <article class="evento-detalhes-card">
+
+        ${evento.imagemCapa
+                ? `
+                <div
+                    class="evento-detalhes-hero"
+                    style="
+                        background-image:
+                        url('${this.urlCapaEvento(evento.imagemCapa)}');
+                    "
+                >
+                    <div class="evento-detalhes-hero-overlay"></div>
+
+                    ${evento.categoria
+                    ? `
+                            <span class="evento-detalhes-categoria">
+                                ${this.escaparHtmlDestaque(evento.categoria)}
+                            </span>
+                        `
+                    : ''
+                }
+                </div>
+            `
+                : `
+                <div class="evento-detalhes-hero evento-detalhes-hero-vazio">
+                    <i class="material-icons">event</i>
+
+                    ${evento.categoria
+                    ? `
+                            <span class="evento-detalhes-categoria">
+                                ${this.escaparHtmlDestaque(evento.categoria)}
+                            </span>
+                        `
+                    : ''
+                }
+                </div>
+            `
+            }
+
+        <div class="evento-detalhes-conteudo">
+
+            <header class="evento-detalhes-header">
+
+                <div class="evento-detalhes-titulo-area">
+
+                    <span class="evento-detalhes-kicker">
+                        <i class="material-icons">event_available</i>
+                        Evento
+                    </span>
+
+                    <h1>
+                        ${this.escaparHtmlDestaque(evento.titulo || 'Evento')}
+                    </h1>
+
+                    <p class="evento-detalhes-organizador">
+                        Organizado por
+                        <strong>
+                            ${this.escaparHtmlDestaque(nomeCriador)}
+                        </strong>
+                    </p>
+
+                </div>
+
+                <span class="
+                    evento-status-badge
+                    ${statusClasse}
+                ">
+                    ${situacaoEventoExibida}
+                </span>
+
+            </header>
+
+
+            <section class="evento-detalhes-resumo">
+
+                <div class="evento-info-card">
+                    <div class="evento-info-icon">
+                        <i class="material-icons">
+                            calendar_today
+                        </i>
+                    </div>
+
+                    <div>
+                        <span>Data</span>
+                        <strong>
+                            ${dataFormatada || 'A confirmar'}
+                        </strong>
+                    </div>
+                </div>
+
+
+                <div class="evento-info-card">
+                    <div class="evento-info-icon">
+                        <i class="material-icons">
+                            schedule
+                        </i>
+                    </div>
+
+                    <div>
+                        <span>Horário</span>
+                        <strong>
+                            ${horarioInicioFormatado}
+                            às
+                            ${horarioFimFormatado}
+                        </strong>
+                    </div>
+                </div>
+
+
+                <div class="evento-info-card">
+                    <div class="evento-info-icon">
+                        <i class="material-icons">
+                            place
+                        </i>
+                    </div>
+
+                    <div>
+                        <span>Local</span>
+                        <strong>
+                            ${this.escaparHtmlDestaque(
+                evento.localEvento ||
+                'A confirmar'
+            )}
+                        </strong>
+                    </div>
+                </div>
+
+
+                <div class="evento-info-card">
+                    <div class="evento-info-icon">
+                        <i class="material-icons">
+                            groups
+                        </i>
+                    </div>
+
+                    <div>
+                        <span>Participantes</span>
+                        <strong>
+                            ${limiteParticipantesTexto}
+                        </strong>
+                    </div>
+                </div>
+
+                <div class="evento-info-card">
+    <div class="evento-info-icon">
+        <i class="material-icons">confirmation_number</i>
+    </div>
+
+    <div>
+        <span>Ingresso</span>
+        <strong>${precoFormatado}</strong>
+    </div>
 </div>
 
-            <div style="
-                display:flex;
-                gap:10px;
-                flex-wrap:wrap;
-                margin-top:24px;
-            ">
+            </section>
 
-              ${!eventoCancelado &&
+
+            <section class="evento-detalhes-section">
+
+                <div class="evento-detalhes-section-title">
+                    <i class="material-icons">
+                        subject
+                    </i>
+
+                    <div>
+                        <span>Sobre o evento</span>
+                        <small>
+                            Informações e descrição
+                        </small>
+                    </div>
+                </div>
+
+                <p class="evento-detalhes-descricao">
+                    ${this.escaparHtmlDestaque(
+                evento.descricao ||
+                'Nenhuma descrição foi adicionada para este evento.'
+            )}
+                </p>
+
+            </section>
+
+
+            <section class="evento-detalhes-section">
+
+                <div class="evento-detalhes-section-title">
+                    <i class="material-icons">
+                        info
+                    </i>
+
+                    <div>
+                        <span>Informações adicionais</span>
+                        <small>
+                            Participação e acesso
+                        </small>
+                    </div>
+                </div>
+
+                <div class="evento-detalhes-adicionais">
+
+                    ${nomeComunidade
+                ? `
+                            <div class="evento-detalhe-linha">
+                                <i class="material-icons">
+                                    forum
+                                </i>
+
+                                <div>
+                                    <span>Comunidade</span>
+                                    <strong>
+                                        ${this.escaparHtmlDestaque(nomeComunidade)}
+                                    </strong>
+                                </div>
+                            </div>
+                        `
+                : ''
+            }
+
+                    <div class="evento-detalhe-linha">
+                        <i class="material-icons">
+                            confirmation_number
+                        </i>
+
+                        <div>
+                            <span>Controle de entrada</span>
+                            <strong>
+                                ${evento.exigeCheckin
+                ? 'Check-in obrigatório pelo aplicativo'
+                : 'Check-in não obrigatório'
+            }
+                            </strong>
+                        </div>
+                    </div>
+
+
+                    <div class="evento-detalhe-linha">
+                        <i class="material-icons">
+                            event_busy
+                        </i>
+
+                        <div>
+                            <span>Inscrições até</span>
+                            <strong>
+                                ${limiteInscricaoFormatado}
+                            </strong>
+                        </div>
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <footer class="evento-detalhes-footer">
+
+                <div class="evento-detalhes-footer-texto">
+                    <span>Participação</span>
+
+                    <strong>
+                        ${eventoCancelado
+                ? 'Este evento foi cancelado'
+                : eventoEncerrado
+                    ? 'Este evento já foi encerrado'
+                    : usuarioParticipa
+                        ? 'Você está participando deste evento'
+                        : 'Garanta sua participação'
+            }
+                    </strong>
+                </div>
+
+
+                <div class="evento-detalhes-actions">
+
+                    ${!eventoCancelado &&
                 !eventoEncerrado &&
                 idUsuarioLogado &&
                 !ehCriador
                 ? usuarioParticipa
                     ? `
-                <button
-                    class="btn-secondary"
-                    onclick="app.sairDoEvento(${idEvento})">
-                    Sair do evento
-                </button>
-            `
+                                <button
+                                    type="button"
+                                    class="evento-action-secondary"
+                                    onclick="app.sairDoEvento(${idEvento})"
+                                >
+                                    <i class="material-icons">
+                                        logout
+                                    </i>
+
+                                    Sair do evento
+                                </button>
+                            `
                     : inscricoesEncerradas
                         ? `
-                    <button
-                        class="btn-secondary"
-                        disabled>
-                        Inscrições encerradas
-                    </button>
-                `
+                                    <button
+                                        type="button"
+                                        class="evento-action-disabled"
+                                        disabled
+                                    >
+                                        Inscrições encerradas
+                                    </button>
+                                `
                         : eventoLotado
                             ? `
-                        <button
-                            class="btn-secondary"
-                            disabled>
-                            Evento lotado
-                        </button>
-                    `
+                                        <button
+                                            type="button"
+                                            class="evento-action-disabled"
+                                            disabled
+                                        >
+                                            Evento lotado
+                                        </button>
+                                    `
                             : `
-                        <button
-                            class="btn-primary"
-                            onclick="app.participarEvento(${idEvento})">
-                            Participar
-                        </button>
-                    `
-                :
-                ''
-
+                                       <button
+    type="button"
+    class="btn-primary evento-participar-btn"
+  onclick="app.acaoIngressoEvento(${idEvento})">
+    <i class="material-icons">person_add_alt</i>
+   ${eventoPago
+    ? `Comprar ingresso — ${precoFormatado}`
+    : 'Participar gratuitamente'}
+</button>
+                                    `
+                : ''
             }
 
-                ${ehCriador
+
+                    ${ehCriador
                 ? `
                             <button
-                                class="btn-primary"
-                                onclick="app.gerenciarEvento(${idEvento})">
+                                type="button"
+                                class="evento-action-primary"
+                                onclick="app.gerenciarEvento(${idEvento})"
+                            >
+                                <i class="material-icons">
+                                    settings
+                                </i>
+
                                 Gerenciar evento
                             </button>
                         `
                 : ''
             }
 
-            </div>
-        </div>
-    `;
+                </div>
 
+            </footer>
+
+        </div>
+
+    </article>
+`;
         document.querySelectorAll('.view-section')
             .forEach(el => el.classList.remove('active'));
 
@@ -3006,28 +5237,13 @@ ${ApiService.getIdUsuarioLogado() ? `
     }
 
     voltarParaEventos() {
-
-        document.querySelectorAll('.view-section')
-            .forEach(el => el.classList.remove('active'));
-
-        document.getElementById('view-eventos')
-            .classList.add('active');
-
-        document.querySelectorAll('.nav-btn')
-            .forEach(el => el.classList.remove('active'));
-
-        const botaoEventos =
-            document.getElementById('tab-eventos');
-
-        if (botaoEventos) {
-            botaoEventos.classList.add('active');
-        }
+        this.mudarAba('eventos');
     }
 
     async abrirPerfil(idUsuario) {
 
         this.salvarViewAtual('perfil');
-        localStorage.setItem(
+        sessionStorage.setItem(
             'perfilUsuarioId',
             idUsuario
         );
@@ -3042,11 +5258,81 @@ ${ApiService.getIdUsuarioLogado() ? `
                     viewAtual.id.replace('view-', '');
             }
 
-            const usuario =
-                await ApiService.buscarUsuarioPorId(idUsuario);
+            let usuario = null;
+            let postsUsuario = [];
 
-            const postsUsuario =
-                await ApiService.listarPostsPorUsuario(idUsuario);
+
+            // =========================
+            // USUÁRIO
+            // =========================
+
+            try {
+
+                usuario =
+                    await ApiService.buscarUsuarioPorId(
+                        idUsuario
+                    );
+
+            } catch (erro) {
+
+                console.warn(
+                    'Falha ao buscar usuário diretamente:',
+                    erro
+                );
+
+                // Tenta usar os usuários já carregados
+                usuario =
+                    (this.listaUsuariosCompleta || [])
+                        .find(usuario => {
+
+                            const id =
+                                usuario.idUsuario ||
+                                usuario.id;
+
+                            return String(id) ===
+                                String(idUsuario);
+                        });
+            }
+
+
+            if (!usuario) {
+                throw new Error(
+                    'Usuário não encontrado'
+                );
+            }
+
+
+            // =========================
+            // POSTS
+            // =========================
+
+            try {
+
+                postsUsuario =
+                    await ApiService.listarPostsPorUsuario(
+                        idUsuario
+                    );
+
+            } catch (erro) {
+
+                console.warn(
+                    'Falha ao buscar posts do perfil:',
+                    erro
+                );
+
+                // Fallback usando os posts já carregados
+                postsUsuario =
+                    (this.posts || [])
+                        .filter(post => {
+
+                            const idAutor =
+                                post.idUsuario ||
+                                post.id_usuario;
+
+                            return String(idAutor) ===
+                                String(idUsuario);
+                        });
+            }
 
             const idLogado =
                 ApiService.getIdUsuarioLogado();
@@ -3061,23 +5347,40 @@ ${ApiService.getIdUsuarioLogado() ? `
 
             const container =
                 document.getElementById('perfil-conteudo');
-            const comunidadesUsuario = this.listaComunidades.filter(comunidade => (comunidade.membros || []).some(membro => (membro.idUsuario || membro.id) == idUsuario));
-            const eventosUsuario = this.listaEventos.filter(evento => evento.criadorId == idUsuario);
+            const comunidadesUsuario =
+                (this.listaComunidades || [])
+                    .filter(comunidade =>
+                        (comunidade.membros || [])
+                            .some(membro =>
+                                (
+                                    membro.idUsuario ||
+                                    membro.id
+                                ) == idUsuario
+                            )
+                    );
+
+            const eventosUsuario =
+                (this.listaEventos || [])
+                    .filter(evento =>
+                        evento.criadorId == idUsuario
+                    );
+            if (!container) {
+                throw new Error(
+                    'Container do perfil não encontrado'
+                );
+            }
 
             container.innerHTML = `
     <div class="card perfil-hero">
 
-        <div style="
-            display:flex;
-            align-items:center;
-            gap:16px;
-            margin-bottom:24px;
-        ">
+      <div class="perfil-header">
+
+    <div class="perfil-identidade">
 
            ${(() => {
-                const fotoUrl = ApiService.formatarUrlFotoPerfil(usuario.fotoPerfil);
-                return fotoUrl
-                    ? `
+                    const fotoUrl = ApiService.formatarUrlFotoPerfil(usuario.fotoPerfil);
+                    return fotoUrl
+                        ? `
         <img
             src="${fotoUrl}?v=${Date.now()}"
             alt="Foto de perfil"
@@ -3100,7 +5403,7 @@ ${ApiService.getIdUsuarioLogado() ? `
             ${inicial}
         </div>
       `
-                    : `
+                        : `
         <div class="avatar"
              style="
                 width:72px;
@@ -3110,30 +5413,52 @@ ${ApiService.getIdUsuarioLogado() ? `
             ${inicial}
         </div>
       `;
-            })()
+                })()
                 }
 
-            <div>
-                <h2 style="margin:0;">
-                    ${usuario.nome}
-                </h2>
+          <div>
+    <h2 style="margin:0;">
+        ${usuario.nome}
+    </h2>
 
-                <p class="perfil-username"
-                   style="
-                       margin:4px 0 0 0;
-                       color:var(--text-muted);
-                   ">
-                    @${usuario.username}
-                </p>
-            </div>
+    <p class="perfil-username"
+       style="
+           margin:4px 0 0 0;
+           color:var(--text-muted);
+       ">
+        @${usuario.username}
+    </p>
+</div>
 
-        </div>
+</div> <!-- fecha perfil-identidade -->
 
-        <div class="perfil-stats">
-            <div><strong>${postsUsuario.length}</strong><span>Publicações</span></div>
-            <div><strong>${comunidadesUsuario.length}</strong><span>Comunidades</span></div>
-            <div><strong>${eventosUsuario.length}</strong><span>Eventos</span></div>
-        </div>
+<div class="perfil-header-acao">
+
+    ${ehProprioPerfil ? `
+        <button
+            type="button"
+            class="btn-perfil-acao btn-perfil-editar"
+            onclick="app.abrirEdicaoPerfil()"
+        >
+            <i class="material-icons">edit</i>
+            Editar perfil
+        </button>
+    ` : idLogado ? `
+        <button
+            type="button"
+            class="btn-perfil-acao btn-perfil-mensagem"
+            onclick="app.iniciarConversa(${idUsuario})"
+        >
+            <i class="material-icons">chat_bubble_outline</i>
+            Mensagem
+        </button>
+    ` : ''}
+
+</div>
+
+</div> <!-- fecha perfil-header -->
+
+</div>
 
         <div style="
             border-top:1px solid var(--border-color);
@@ -3156,46 +5481,38 @@ ${ApiService.getIdUsuarioLogado() ? `
 
         </div>
 
-       ${ehProprioPerfil ? `
-    <button onclick="app.abrirEdicaoPerfil()">
-        Editar perfil
-    </button>
-` : idLogado ? `
-    <button
-        type="button"
-        class="btn-message-profile"
-        onclick="app.iniciarConversa(${idUsuario})"
+   
+    </div>
+<div class="perfil-tabs">
+
+    <div
+        class="perfil-tab active"
+        id="perfil-tab-publicacoes"
+        onclick="app.mostrarAbaPerfil('publicacoes', ${idUsuario})"
     >
-        Mensagem
-    </button>
-` : ''}
-
+        <span>Publicações</span>
+        <strong>${postsUsuario.length}</strong>
     </div>
 
-    <div class="perfil-tabs">
-
-        <div
-            class="perfil-tab active"
-            id="perfil-tab-publicacoes"
-            onclick="app.mostrarAbaPerfil('publicacoes', ${idUsuario})">
-            Publicações
-        </div>
-
-        <div
-            class="perfil-tab"
-            id="perfil-tab-comunidades"
-            onclick="app.mostrarAbaPerfil('comunidades', ${idUsuario})">
-            Comunidades
-        </div>
-
-        <div
-            class="perfil-tab"
-            id="perfil-tab-eventos"
-            onclick="app.mostrarAbaPerfil('eventos', ${idUsuario})">
-            Eventos
-        </div>
-
+    <div
+        class="perfil-tab"
+        id="perfil-tab-comunidades"
+        onclick="app.mostrarAbaPerfil('comunidades', ${idUsuario})"
+    >
+        <span>Comunidades</span>
+        <strong>${comunidadesUsuario.length}</strong>
     </div>
+
+    <div
+        class="perfil-tab"
+        id="perfil-tab-eventos"
+        onclick="app.mostrarAbaPerfil('eventos', ${idUsuario})"
+    >
+        <span>Eventos</span>
+        <strong>${eventosUsuario.length}</strong>
+    </div>
+
+</div>
 
     <div id="perfil-conteudo-abas"></div>
 `;
@@ -3384,10 +5701,18 @@ ${ApiService.getIdUsuarioLogado() ? `
 
         if (!posts || posts.length === 0) {
             container.innerHTML = `
-            <p style="color:var(--text-muted);">
-                Este usuário ainda não publicou nada.
-            </p>
-        `;
+        <div class="perfil-empty">
+            <div class="perfil-empty-icon">
+                <i class="material-icons">article</i>
+            </div>
+
+            <strong>Nenhuma publicação ainda</strong>
+
+            <span>
+                As publicações deste usuário aparecerão aqui.
+            </span>
+        </div>
+    `;
             return;
         }
 
@@ -3440,10 +5765,18 @@ ${ApiService.getIdUsuarioLogado() ? `
 
         if (!comunidades || comunidades.length === 0) {
             container.innerHTML = `
-            <p style="color:var(--text-muted);">
-                Este usuário ainda não participa de nenhuma comunidade.
-            </p>
-        `;
+        <div class="perfil-empty">
+            <div class="perfil-empty-icon">
+                <i class="material-icons">groups</i>
+            </div>
+
+            <strong>Nenhuma comunidade ainda</strong>
+
+            <span>
+                As comunidades deste usuário aparecerão aqui.
+            </span>
+        </div>
+    `;
             return;
         }
 
@@ -3518,6 +5851,186 @@ ${ApiService.getIdUsuarioLogado() ? `
             container.appendChild(div);
         });
     }
+    renderizarEventoDestaque(evento) {
+        const container =
+            document.getElementById('evento-destaque');
+
+        if (!container) return;
+
+        if (!evento) {
+            container.innerHTML = `
+            <div class="evento-destaque-vazio">
+                Nenhum evento encontrado com esses filtros.
+            </div>
+        `;
+            return;
+        }
+
+        const data = evento.dataEvento
+            ? new Date(
+                `${evento.dataEvento}T00:00:00`
+            ).toLocaleDateString('pt-BR', {
+                day: '2-digit',
+                month: 'short'
+            }).replace('.', '')
+            : '--';
+
+        const horario =
+            evento.horarioInicio?.substring(0, 5) ||
+            '--:--';
+
+        const titulo =
+            this.escaparHtmlDestaque(
+                evento.titulo || 'Evento'
+            );
+
+        const descricao =
+            this.escaparHtmlDestaque(
+                evento.descricao ||
+                'Confira os detalhes deste evento.'
+            );
+
+        const local =
+            this.escaparHtmlDestaque(
+                evento.localEvento ||
+                'Local a confirmar'
+            );
+
+        const categoria =
+            this.escaparHtmlDestaque(
+                evento.categoria ||
+                'Evento'
+            );
+
+        const imagem = evento.imagemCapa
+            ? `
+            <div
+                class="evento-destaque-imagem"
+                style="
+                    background-image:
+                    url('${this.urlCapaEvento(evento.imagemCapa)}');
+                "
+            ></div>
+        `
+            : `
+            <div class="
+                evento-destaque-imagem
+                evento-destaque-imagem-vazia
+            ">
+                <i class="material-icons">
+                    event
+                </i>
+            </div>
+        `;
+
+        container.innerHTML = `
+        <div class="evento-destaque-container">
+
+            ${imagem}
+
+            <div class="evento-destaque-copy">
+
+                <div class="evento-destaque-topo">
+                    <span class="evento-destaque-badge">
+                        ${categoria}
+                    </span>
+
+                    <span class="evento-destaque-data">
+                        ${data}
+                    </span>
+                </div>
+
+                <h2 class="evento-destaque-titulo">
+                    ${titulo}
+                </h2>
+
+                <p class="evento-destaque-descricao">
+                    ${descricao}
+                </p>
+
+                <div class="evento-destaque-info">
+
+                    <span>
+                        <i class="material-icons">
+                            schedule
+                        </i>
+                        ${horario}
+                    </span>
+
+                    <span>
+                        <i class="material-icons">
+                            location_on
+                        </i>
+                        ${local}
+                    </span>
+
+                </div>
+
+                <button
+                    type="button"
+                    class="evento-destaque-btn"
+                    onclick="
+                        app.abrirDetalhesEvento(${evento.id})
+                    "
+                >
+                    Ver detalhes
+
+                    <i class="material-icons">
+                        arrow_forward
+                    </i>
+                </button>
+
+            </div>
+
+        </div>
+    `;
+    }
+
+    async carregarEventoDestaqueMaisPopular() {
+        try {
+            const resultado = await ApiService.buscarEventos({
+                page: 0,
+                size: 100
+            });
+
+            const eventos =
+                Array.isArray(resultado)
+                    ? resultado
+                    : (resultado.content || []);
+
+            if (!eventos.length) {
+                this.renderizarEventoDestaque(null);
+                return;
+            }
+
+            const eventoMaisPopular =
+                [...eventos].sort((a, b) => {
+                    const participantesA =
+                        Number(a.quantidadeParticipantes || 0);
+
+                    const participantesB =
+                        Number(b.quantidadeParticipantes || 0);
+
+                    return participantesB - participantesA;
+                })[0];
+
+            this.renderizarEventoDestaque(
+                eventoMaisPopular
+            );
+
+        } catch (erro) {
+            console.error(
+                'Erro ao carregar evento em destaque:',
+                erro
+            );
+
+            this.renderizarEventoDestaque(null);
+        }
+    }
+
+    async abrirEventoDoPerfil(idEvento) {
+        await this.abrirDetalhesEvento(idEvento);
+    }
 
     renderizarEventosPerfil(eventos) {
 
@@ -3530,10 +6043,18 @@ ${ApiService.getIdUsuarioLogado() ? `
 
         if (!eventos || eventos.length === 0) {
             container.innerHTML = `
-            <p style="color:var(--text-muted);">
-                Este usuário ainda não organizou nenhum evento.
-            </p>
-        `;
+        <div class="perfil-empty">
+            <div class="perfil-empty-icon">
+                <i class="material-icons">event</i>
+            </div>
+
+            <strong>Nenhum evento ainda</strong>
+
+            <span>
+                Os eventos deste usuário aparecerão aqui.
+            </span>
+        </div>
+    `;
             return;
         }
 
@@ -3544,70 +6065,70 @@ ${ApiService.getIdUsuarioLogado() ? `
             const idEvento =
                 evento.idEvento || evento.id;
 
-            const dataFormatada =
-                evento.dataEvento
-                    ? new Date(
-                        evento.dataEvento + 'T00:00:00'
-                    ).toLocaleDateString('pt-BR')
-                    : '';
+            const div =
+                document.createElement('div');
 
-            const horarioInicio =
-                evento.horarioInicio
-                    ? evento.horarioInicio.substring(0, 5)
-                    : '';
+            div.className = 'list-item';
 
-            const horarioFim =
-                evento.horarioFim
-                    ? evento.horarioFim.substring(0, 5)
-                    : '';
+            const dataEvento =
+                evento.dataEvento ||
+                evento.data ||
+                evento.dataInicio;
 
-            const div = document.createElement('div');
-            div.className = 'card';
+            let dataFormatada = '';
+
+            if (dataEvento) {
+
+                try {
+                    dataFormatada =
+                        new Date(dataEvento)
+                            .toLocaleDateString('pt-BR');
+                } catch (erro) {
+                    dataFormatada = dataEvento;
+                }
+
+            }
 
             div.innerHTML = `
-            <h3 style="margin-top:0;">
-                ${evento.titulo}
-            </h3>
+            <div class="list-item-info">
 
-            <p style="color:var(--text-muted);">
-                ${evento.descricao || 'Sem descrição.'}
-            </p>
+                <div style="
+                    display:flex;
+                    align-items:center;
+                    gap:8px;
+                    margin-bottom:4px;
+                ">
 
-            <div style="
-                display:flex;
-                gap:16px;
-                flex-wrap:wrap;
-                margin-top:12px;
-                font-size:14px;
-            ">
-                <span>
-                    📅 ${dataFormatada}
-                </span>
+                    <h3 style="margin:0;">
+                        ${evento.nome || evento.titulo || 'Evento'}
+                    </h3>
 
-                <span>
-                    🕒 ${horarioInicio} - ${horarioFim}
-                </span>
+                </div>
 
-                ${evento.localEvento
-                    ? `<span>📍 ${evento.localEvento}</span>`
-                    : ''
-                }
+                <p>
+                    ${evento.descricao || 'Sem descrição.'}
+                </p>
+
+                ${dataFormatada ? `
+                    <small style="color:var(--text-muted);">
+                        ${dataFormatada}
+                    </small>
+                ` : ''}
+
             </div>
 
             <button
                 class="btn-primary"
-                style="margin-top:16px;"
-                onclick="app.abrirEventoDoPerfil(${idEvento})">
-                Ver evento
+                onclick="app.abrirDetalhesEvento(${idEvento})"
+            >
+                Acessar
             </button>
         `;
 
             container.appendChild(div);
-        });
-    }
 
-    async abrirEventoDoPerfil(idEvento) {
-        await this.abrirDetalhesEvento(idEvento);
+        });
+
     }
 
     async mostrarAbaPerfil(aba, idUsuario) {
@@ -3766,11 +6287,11 @@ ${ApiService.getIdUsuarioLogado() ? `
     }
 
     salvarViewAtual(view) {
-        localStorage.setItem('viewAtual', view);
+        sessionStorage.setItem('viewAtual', view);
     }
 
     getViewSalva() {
-        return localStorage.getItem('viewAtual') || 'feed';
+        return sessionStorage.getItem('viewAtual') || 'feed';
     }
 
     async carregarConversas() {
@@ -4225,6 +6746,817 @@ ${ApiService.getIdUsuarioLogado() ? `
         }
 
     }
+
+    async abrirPostPeloLink() {
+
+        const parametros =
+            new URLSearchParams(
+                window.location.search
+            );
+
+        const idPost =
+            parametros.get('post');
+
+        if (!idPost) {
+            return false;
+        }
+
+        try {
+
+            this.esconderTelaBoasVindas();
+
+            await this.abrirDetalhesPost(idPost);
+
+            return true;
+
+        } catch (erro) {
+
+            console.error(
+                'Erro ao abrir publicação compartilhada:',
+                erro
+            );
+
+            return false;
+        }
+    }
+
+    popularComunidadesEdicaoEvento(selecionadaId = null) {
+
+        const select =
+            document.getElementById(
+                'editar-evento-comunidade'
+            );
+
+        if (!select) return;
+
+        select.innerHTML = `
+        <option value="">
+            Nenhuma (Evento aberto / Global)
+        </option>
+    `;
+
+        if (Array.isArray(this.listaComunidades)) {
+
+            this.listaComunidades.forEach(
+                comunidade => {
+
+                    const id =
+                        comunidade.idComunidade ||
+                        comunidade.id;
+
+                    const nome =
+                        comunidade.nome ||
+                        'Comunidade';
+
+                    select.innerHTML += `
+                    <option value="${id}">
+                        ${this.escaparHtmlDestaque(nome)}
+                    </option>
+                `;
+                }
+            );
+        }
+
+        if (selecionadaId) {
+            select.value = String(selecionadaId);
+        }
+    }
+
+    obterIdsMinhasComunidades() {
+
+        return new Set(
+            this.obterMinhasComunidades()
+                .map(comunidade =>
+                    String(
+                        comunidade.idComunidade ||
+                        comunidade.id
+                    )
+                )
+        );
+    }
+
+    renderizarFiltrosComunidadesFeed() {
+
+        const container =
+            document.getElementById(
+                'feed-comunidades-filtros'
+            );
+
+        if (!container) return;
+
+        if (this.filtroFeed !== 'comunidades') {
+            container.innerHTML = '';
+            container.classList.remove('active');
+            return;
+        }
+
+        const comunidades =
+            this.obterMinhasComunidades();
+
+        container.classList.add('active');
+
+        if (!comunidades.length) {
+            container.innerHTML = '';
+            return;
+        }
+
+        const botaoTodas = `
+        <button
+            type="button"
+            class="
+                feed-comunidade-chip
+                ${this.comunidadeFeedSelecionada === null
+                ? 'active'
+                : ''
+            }
+            "
+            onclick="
+                app.selecionarComunidadeFeed(null)
+            "
+        >
+            Todas
+        </button>
+    `;
+
+        const botoesComunidades =
+            comunidades
+                .map(comunidade => {
+
+                    const id =
+                        comunidade.idComunidade ||
+                        comunidade.id;
+
+                    const selecionada =
+                        String(
+                            this.comunidadeFeedSelecionada
+                        ) === String(id);
+
+                    return `
+                    <button
+                        type="button"
+                        class="
+                            feed-comunidade-chip
+                            ${selecionada ? 'active' : ''}
+                        "
+                        onclick="
+                            app.selecionarComunidadeFeed(${id})
+                        "
+                    >
+                        ${this.escaparHtmlDestaque(
+                        comunidade.nome || 'Comunidade'
+                    )}
+                    </button>
+                `;
+                })
+                .join('');
+
+        container.innerHTML =
+            botaoTodas +
+            botoesComunidades;
+    }
+
+    selecionarComunidadeFeed(idComunidade) {
+
+        this.comunidadeFeedSelecionada =
+            idComunidade === null
+                ? null
+                : String(idComunidade);
+
+        this.renderizarFeedGeral();
+    }
+
+    abrirComunidadeDoFeed(idComunidade) {
+
+        const comunidade =
+            (this.listaComunidades || [])
+                .find(c =>
+                    (
+                        c.idComunidade ||
+                        c.id
+                    ) == idComunidade
+                );
+
+        if (!comunidade) {
+            return;
+        }
+
+        this.entrarSubreddit(
+            idComunidade,
+            comunidade.nome,
+            comunidade.descricao
+        );
+    }
+
+    atualizarSidebarFeed() {
+
+        const kicker =
+            document.getElementById(
+                'feed-sidebar-recomendado-kicker'
+            );
+
+        const titulo =
+            document.getElementById(
+                'feed-sidebar-recomendado-titulo'
+            );
+
+        const container =
+            document.getElementById(
+                'feed-recomendados'
+            );
+
+        if (
+            !kicker ||
+            !titulo ||
+            !container
+        ) {
+            return;
+        }
+
+
+        if (this.filtroFeed === 'comunidades') {
+
+            kicker.innerText =
+                'Sua rede';
+
+            titulo.innerText =
+                'Suas comunidades';
+
+            const comunidades =
+                this.obterMinhasComunidades();
+
+            if (!comunidades.length) {
+
+                container.innerHTML = `
+                <p class="feed-sidebar-empty">
+                    Participe de comunidades para
+                    acompanhar suas conversas aqui.
+                </p>
+
+                <button
+                    type="button"
+                    class="feed-sidebar-link"
+                    onclick="
+                        app.mudarAba('comunidades')
+                    "
+                >
+                    Explorar comunidades
+
+                    <i class="material-icons">
+                        arrow_forward
+                    </i>
+                </button>
+            `;
+
+                return;
+            }
+
+
+            container.innerHTML =
+                comunidades
+                    .slice(0, 5)
+                    .map(comunidade => {
+
+                        const id =
+                            comunidade.idComunidade ||
+                            comunidade.id;
+
+                        const membros =
+                            comunidade.membros?.length ||
+                            0;
+
+                        return `
+                        <button
+                            type="button"
+                            class="
+                                feed-minha-comunidade
+                            "
+                            onclick="
+                                app.abrirComunidadeDoFeed(
+                                    ${id}
+                                )
+                            "
+                        >
+
+                            <span
+                                class="
+                                    feed-minha-comunidade-avatar
+                                "
+                            >
+                                ${this.escaparHtmlDestaque(
+                            (
+                                comunidade.nome ||
+                                'C'
+                            )
+                                .charAt(0)
+                                .toUpperCase()
+                        )}
+                            </span>
+
+                            <span
+                                class="
+                                    feed-minha-comunidade-info
+                                "
+                            >
+                                <strong>
+                                    ${this.escaparHtmlDestaque(
+                            comunidade.nome ||
+                            'Comunidade'
+                        )}
+                                </strong>
+
+                                <small>
+                                    ${membros}
+                                    membro(s)
+                                </small>
+                            </span>
+
+                            <i class="material-icons">
+                                chevron_right
+                            </i>
+
+                        </button>
+                    `;
+                    })
+                    .join('');
+
+            return;
+        }
+
+
+        // Feed normal
+        kicker.innerText =
+            'Para você';
+
+        titulo.innerText =
+            'Recomendado';
+
+        this.renderizarRecomendacoes();
+    }
+
+    mudarFiltroComunidades(filtro) {
+
+        this.filtroComunidades = filtro;
+
+        document
+            .querySelectorAll('.comunidades-tab')
+            .forEach(tab =>
+                tab.classList.remove('active')
+            );
+
+        document
+            .getElementById(
+                `comunidades-tab-${filtro}`
+            )
+            ?.classList.add('active');
+
+        this.filtrarComunidades();
+    }
+
+    obterComunidadesDoUsuario(idUsuario) {
+
+        if (!idUsuario) {
+            return [];
+        }
+
+        return (this.listaComunidades || [])
+            .filter(comunidade => {
+
+                const idCriador =
+                    comunidade.criador?.idUsuario ||
+                    comunidade.criador?.id;
+
+                const ehCriador =
+                    String(idCriador) ===
+                    String(idUsuario);
+
+                const ehMembro =
+                    (comunidade.membros || [])
+                        .some(membro => {
+
+                            const idMembro =
+                                membro.idUsuario ||
+                                membro.id;
+
+                            return String(idMembro) ===
+                                String(idUsuario);
+                        });
+
+                return ehCriador || ehMembro;
+            });
+    }
+
+    obterComunidadesEmComum(idOutroUsuario) {
+
+        const idUsuarioLogado =
+            ApiService.getIdUsuarioLogado();
+
+        if (!idUsuarioLogado) {
+            return [];
+        }
+
+        const minhas =
+            this.obterComunidadesDoUsuario(
+                idUsuarioLogado
+            );
+
+        const idsOutroUsuario =
+            new Set(
+                this.obterComunidadesDoUsuario(
+                    idOutroUsuario
+                )
+                    .map(comunidade =>
+                        String(
+                            comunidade.idComunidade ||
+                            comunidade.id
+                        )
+                    )
+            );
+
+        return minhas.filter(comunidade => {
+
+            const id =
+                comunidade.idComunidade ||
+                comunidade.id;
+
+            return idsOutroUsuario.has(
+                String(id)
+            );
+        });
+    }
+
+    renderizarEventosComunidade() {
+
+        const container =
+            document.getElementById(
+                'subreddit-feed-container'
+            );
+
+        if (!container) return;
+
+
+        const eventos =
+            (this.listaEventos || [])
+                .filter(evento =>
+                    evento.comunidadeId ==
+                    this.comunidadeAtivaId
+                );
+
+
+        if (!eventos.length) {
+
+            container.innerHTML = `
+            <div class="comunidade-aba-empty">
+
+                <i class="material-icons">
+                    event_busy
+                </i>
+
+                <h3>
+                    Nenhum evento por enquanto
+                </h3>
+
+                <p>
+                    Esta comunidade ainda não
+                    possui eventos cadastrados.
+                </p>
+
+            </div>
+        `;
+
+            return;
+        }
+
+
+        container.innerHTML = `
+        <div class="comunidade-eventos-lista">
+
+            ${eventos.map(evento => {
+
+            const idEvento =
+                evento.idEvento ||
+                evento.id;
+
+            const data =
+                evento.dataEvento
+                    ? new Date(
+                        `${evento.dataEvento}T00:00:00`
+                    )
+                        .toLocaleDateString(
+                            'pt-BR',
+                            {
+                                day: '2-digit',
+                                month: 'short'
+                            }
+                        )
+                        .replace('.', '')
+                    : '--';
+
+            const horario =
+                evento.horarioInicio
+                    ?.substring(0, 5) ||
+                '--:--';
+
+            return `
+                    <article
+                        class="comunidade-evento-card"
+                        onclick="
+                            app.abrirDetalhesEvento(
+                                ${idEvento}
+                            )
+                        "
+                    >
+
+                        <div class="
+                            comunidade-evento-data
+                        ">
+                            <strong>
+                                ${data}
+                            </strong>
+
+                            <span>
+                                ${horario}
+                            </span>
+                        </div>
+
+
+                        <div class="
+                            comunidade-evento-conteudo
+                        ">
+
+                            <span class="
+                                comunidade-evento-categoria
+                            ">
+                                ${this.escaparHtmlDestaque(
+                evento.categoria ||
+                'Evento'
+            )}
+                            </span>
+
+                            <h3>
+                                ${this.escaparHtmlDestaque(
+                evento.titulo ||
+                'Evento'
+            )}
+                            </h3>
+
+                            <p>
+                                <i class="material-icons">
+                                    place
+                                </i>
+
+                                ${this.escaparHtmlDestaque(
+                evento.localEvento ||
+                'Local a confirmar'
+            )}
+                            </p>
+
+                        </div>
+
+
+                        <i class="
+                            material-icons
+                            comunidade-evento-arrow
+                        ">
+                            arrow_forward
+                        </i>
+
+                    </article>
+                `;
+        }).join('')}
+
+        </div>
+    `;
+    }
+
+    abrirItensSalvos() {
+
+        const idUsuario =
+            ApiService.getIdUsuarioLogado();
+
+        if (!idUsuario) {
+            return;
+        }
+
+
+        // Fecha menu da conta
+        document
+            .querySelector('.account-menu')
+            ?.classList.remove('open');
+
+
+        document
+            .querySelectorAll('.view-section')
+            .forEach(view =>
+                view.classList.remove('active')
+            );
+
+
+        document
+            .querySelectorAll('.nav-btn')
+            .forEach(botao =>
+                botao.classList.remove('active')
+            );
+
+
+        document
+            .getElementById('view-salvos')
+            ?.classList.add('active');
+
+
+        this.salvarViewAtual('salvos');
+
+        this.renderizarItensSalvos();
+    }
+
+    renderizarItensSalvos() {
+
+        const container =
+            document.getElementById(
+                'salvos-container'
+            );
+
+        if (!container) {
+            return;
+        }
+
+
+        const idUsuario =
+            ApiService.getIdUsuarioLogado();
+
+
+        const idsSalvos =
+            new Set(
+                (this.postsSalvos || [])
+                    .filter(item =>
+                        String(item.idUsuario) ===
+                        String(idUsuario)
+                    )
+                    .map(item =>
+                        String(item.idPost)
+                    )
+            );
+
+
+        const posts =
+            (this.posts || [])
+                .filter(post => {
+
+                    const idPost =
+                        post.idPost ||
+                        post.id;
+
+                    return idsSalvos.has(
+                        String(idPost)
+                    );
+                });
+
+
+        if (!posts.length) {
+
+            container.innerHTML = `
+            <div class="salvos-empty">
+
+                <div class="salvos-empty-icon">
+                    <i class="material-icons">
+                        bookmark_border
+                    </i>
+                </div>
+
+                <h3>
+                    Nenhuma publicação salva
+                </h3>
+
+                <p>
+                    Quando você salvar uma publicação,
+                    ela aparecerá aqui.
+                </p>
+
+                <button
+                    type="button"
+                    class="btn-primary"
+                    onclick="app.mudarAba('feed')"
+                >
+                    Explorar publicações
+                </button>
+
+            </div>
+        `;
+
+            return;
+        }
+
+
+        this.montarCardsPosts(
+            posts,
+            'salvos-container',
+            true
+        );
+    }
+
+    abrirConfiguracoes() {
+
+        document
+            .querySelector('.account-menu')
+            ?.classList.remove('open');
+
+        this.abrirModal(
+            'configuracoes-modal'
+        );
+    }
+
+    abrirEdicaoPerfilPelasConfiguracoes() {
+
+        this.fecharModal(
+            'configuracoes-modal'
+        );
+
+        this.abrirEdicaoPerfil();
+    }
+
+    abrirMeuPerfilPelasConfiguracoes() {
+
+        this.fecharModal(
+            'configuracoes-modal'
+        );
+
+        this.abrirMeuPerfil();
+    }
+
+ async acaoIngressoEvento(idEvento) {
+
+    let evento = this.listaEventos.find(
+        e => (e.idEvento || e.id) == idEvento
+    );
+
+    if (!evento) {
+        try {
+            evento = await ApiService.buscarEventoPorId(idEvento);
+        } catch (erro) {
+            console.error(erro);
+            return alert(
+                "Não foi possível carregar os dados do evento."
+            );
+        }
+    }
+
+    const preco = Number(evento.precoIngresso || 0);
+
+    if (preco <= 0) {
+        await this.participarEvento(idEvento);
+        return;
+    }
+
+    this.eventoCompraId = idEvento;
+
+    const precoFormatado =
+        preco.toLocaleString('pt-BR', {
+            style: 'currency',
+            currency: 'BRL'
+        });
+
+    document.getElementById(
+        'compra-ingresso-evento-nome'
+    ).textContent = evento.titulo || 'Evento';
+
+    document.getElementById(
+        'compra-ingresso-preco'
+    ).textContent = precoFormatado;
+
+    this.abrirModal('compra-ingresso-modal');
+}
+
+async confirmarCompraIngresso() {
+
+    if (!this.eventoCompraId) {
+        return;
+    }
+
+    const idEvento = this.eventoCompraId;
+
+    this.fecharModal('compra-ingresso-modal');
+
+    try {
+
+        await this.participarEvento(idEvento);
+
+        this.eventoCompraId = null;
+
+        alert(
+            "Compra simulada concluída! Seu ingresso foi registrado."
+        );
+
+    } catch (erro) {
+
+        console.error(
+            "Erro ao concluir compra:",
+            erro
+        );
+
+        alert(
+            "Não foi possível concluir a compra do ingresso."
+        );
+    }
+}
 }
 
 

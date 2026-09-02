@@ -70,6 +70,13 @@ public class EventoService {
             throw new RuntimeException("O evento precisa ter um criador");
         }
 
+        if (evento.getPrecoIngresso() != null
+        && evento.getPrecoIngresso().signum() < 0) {
+    throw new RuntimeException(
+            "O preço do ingresso não pode ser negativo"
+    );
+}
+
         if (evento.getLimiteParticipantes() != null
                 && evento.getLimiteParticipantes() <= 0) {
             throw new RuntimeException(
@@ -116,6 +123,13 @@ public class EventoService {
             );
         }
 
+        if (evento.getPrecoIngresso() != null
+        && evento.getPrecoIngresso().signum() < 0) {
+    throw new RuntimeException(
+            "O preço do ingresso não pode ser negativo"
+    );
+}
+
         if (novo.getLimiteParticipantes() != null
                 && novo.getLimiteParticipantes() <= 0) {
             throw new RuntimeException(
@@ -125,6 +139,7 @@ public class EventoService {
 
         evento.setTitulo(novo.getTitulo());
         evento.setDescricao(novo.getDescricao());
+        evento.setCategoria(novo.getCategoria());
         evento.setDataEvento(novo.getDataEvento());
         evento.setHorarioInicio(novo.getHorarioInicio());
         evento.setHorarioFim(novo.getHorarioFim());
@@ -134,6 +149,7 @@ public class EventoService {
         evento.setLimiteParticipantes(novo.getLimiteParticipantes());
         evento.setExigeCheckin(novo.getExigeCheckin());
         validarDadosEvento(evento, false);
+        evento.setPrecoIngresso(novo.getPrecoIngresso());
 
         return eventoRepository.save(evento);
     }
@@ -172,6 +188,10 @@ public class EventoService {
             status = null;
         }
 
+        if (categoria != null && categoria.trim().isEmpty()) {
+            categoria = null;
+        }
+
         Pageable pageable = PageRequest.of(
                 pagina,
                 tamanho,
@@ -180,7 +200,6 @@ public class EventoService {
                         .and(Sort.by("horarioInicio").ascending())
         );
 
-        // 1. Busca normalmente os eventos daquela página
         Page<Evento> paginaEventos
                 = eventoRepository.buscarComFiltros(
                         texto,
@@ -192,10 +211,11 @@ public class EventoService {
                         pageable
                 );
 
-        // 2. Pega somente os IDs dos eventos encontrados
+        List<Evento> eventosFiltrados = paginaEventos.getContent();
+
+
         List<Long> idsEventos
-                = paginaEventos.getContent()
-                        .stream()
+                = eventosFiltrados.stream()
                         .map(Evento::getId)
                         .collect(Collectors.toList());
 
@@ -227,8 +247,7 @@ public class EventoService {
 
         // 5. Transforma cada Evento em EventoResumoDTO
         List<EventoResumoDTO> eventosDTO
-                = paginaEventos.getContent()
-                        .stream()
+                = eventosFiltrados.stream()
                         .map(evento
                                 -> new EventoResumoDTO(
                                 evento.getId(),
@@ -243,6 +262,7 @@ public class EventoService {
                                 evento.getComunidadeId(),
                                 evento.getCriadorId(),
                                 evento.getLimiteParticipantes(),
+                                evento.getPrecoIngresso(),
                                 evento.getExigeCheckin(),
                                 evento.getStatus(),
                                 evento.getEncerramentoInscricoes(),
@@ -254,11 +274,10 @@ public class EventoService {
                         )
                         .collect(Collectors.toList());
 
-        // 6. Mantém a paginação original
         return new PageImpl<>(
                 eventosDTO,
                 pageable,
-                paginaEventos.getTotalElements()
+                eventosFiltrados.size()
         );
     }
 
