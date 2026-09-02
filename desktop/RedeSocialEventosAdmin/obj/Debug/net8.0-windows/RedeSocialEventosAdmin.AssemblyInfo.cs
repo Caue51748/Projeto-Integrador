@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("RedeSocialEventosAdmin")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5f2485d4c47222db0cc7367b9c7427b332be049c")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+bc5ce7e5024f6c5afc0a9594392369cf14641e4f")]
 [assembly: System.Reflection.AssemblyProductAttribute("RedeSocialEventosAdmin")]
 [assembly: System.Reflection.AssemblyTitleAttribute("RedeSocialEventosAdmin")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
