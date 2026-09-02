@@ -359,49 +359,178 @@
 
 
 
-                <div id="view-subreddit" class="view-section">
-                    <div class="page-header">
-                        <div>
-                            <button class="detail-back-button" onclick="app.mudarAba('comunidades')"><i
-                                    class="material-icons">arrow_back</i> Voltar</button>
-                            <div class="comunidade-header-title">
-                                <div id="sub-community-visual" class="comunidade-mark">C</div>
-                                <div>
-                                    <h1 id="sub-titulo">Nome da Comunidade</h1>
-                                    <p id="sub-desc" style="color: var(--text-muted); margin: 4px 0 0 0;">Descrição</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div>
-                            <button class="btn-primary" id="btn-participar" style="margin-right:8px;"
-                                onclick="app.participarComunidade()">Entrar</button>
-                            <button class="btn-primary" onclick="app.abrirModalPost()">Postar Aqui</button>
-                        </div>
-                    </div>
-                    <div class="comunidade-tabs"><button class="comunidade-tab active" id="comunidade-tab-posts"
-                            onclick="app.mudarAbaComunidade('posts')">Posts</button><button class="comunidade-tab"
-                            id="comunidade-tab-eventos"
-                            onclick="app.mudarAbaComunidade('eventos')">Eventos</button><button class="comunidade-tab"
-                            id="comunidade-tab-membros" onclick="app.mudarAbaComunidade('membros')">Membros</button>
-                    </div>
-                    <div id="subreddit-feed-container"></div>
-                </div>
+             <div id="view-subreddit" class="view-section">
 
-                <div id="view-perfil" class="view-section">
+    <button
+        class="detail-back-button"
+        onclick="app.mudarAba('comunidades')"
+    >
+        <i class="material-icons">arrow_back</i>
+        Voltar
+    </button>
 
-                    <button onclick="app.voltarDoPerfil()" style="
-            background:none;
-            border:none;
-            cursor:pointer;
-            color:var(--text-muted);
-            margin-bottom:16px;
-        ">
-                        ← Voltar
-                    </button>
 
-                    <div id="perfil-conteudo"></div>
+    <section class="comunidade-detalhe-header">
+
+        <div class="comunidade-detalhe-principal">
+
+            <div
+                id="sub-community-visual"
+                class="comunidade-detalhe-avatar"
+            >
+                C
+            </div>
+
+
+            <div class="comunidade-detalhe-identidade">
+
+                <div class="comunidade-detalhe-titulo-linha">
+
+                    <h1 id="sub-titulo">
+                        Nome da Comunidade
+                    </h1>
+
+                    <span
+                        id="sub-status"
+                        class="comunidade-detalhe-status"
+                    >
+                    </span>
 
                 </div>
+
+
+                <p id="sub-desc">
+                    Descrição
+                </p>
+
+
+                <div class="comunidade-detalhe-meta">
+
+                    <span id="sub-categoria">
+                        Geral
+                    </span>
+
+                    <span class="comunidade-meta-separador">
+                        •
+                    </span>
+
+                    <span>
+                        <i class="material-icons">group</i>
+                        <strong id="sub-total-membros">
+                            0
+                        </strong>
+                        membros
+                    </span>
+
+                    <span class="comunidade-meta-separador">
+                        •
+                    </span>
+
+                    <span>
+                        <i class="material-icons">event</i>
+                        <strong id="sub-total-eventos">
+                            0
+                        </strong>
+                        eventos
+                    </span>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="comunidade-detalhe-acoes">
+
+            <button
+                type="button"
+                id="btn-gerenciar-comunidade"
+                class="comunidade-btn-secundario"
+                style="display:none;"
+                onclick="
+                    app.gerenciarComunidade(
+                        app.comunidadeAtivaId
+                    )
+                "
+            >
+                <i class="material-icons">
+                    settings
+                </i>
+
+                Gerenciar
+            </button>
+
+
+            <button
+                type="button"
+                id="btn-participar"
+                class="comunidade-btn-secundario"
+                onclick="app.participarComunidade()"
+            >
+                Entrar
+            </button>
+
+
+            <button
+                type="button"
+                id="btn-postar-comunidade"
+                class="comunidade-btn-postar"
+                onclick="app.abrirModalPost()"
+            >
+                <i class="material-icons">
+                    add
+                </i>
+
+                Postar aqui
+            </button>
+
+        </div>
+
+    </section>
+
+
+    <div class="comunidade-tabs">
+
+        <button
+            class="comunidade-tab active"
+            id="comunidade-tab-posts"
+            onclick="app.mudarAbaComunidade('posts')"
+        >
+            Posts
+            <span id="comunidade-tab-posts-count">
+                0
+            </span>
+        </button>
+
+        <button
+            class="comunidade-tab"
+            id="comunidade-tab-eventos"
+            onclick="app.mudarAbaComunidade('eventos')"
+        >
+            Eventos
+            <span id="comunidade-tab-eventos-count">
+                0
+            </span>
+        </button>
+
+        <button
+            class="comunidade-tab"
+            id="comunidade-tab-membros"
+            onclick="app.mudarAbaComunidade('membros')"
+        >
+            Membros
+            <span id="comunidade-tab-membros-count">
+                0
+            </span>
+        </button>
+
+    </div>
+
+
+    <div id="subreddit-feed-container"></div>
+
+</div>
 
                 <div id="view-evento-detalhes" class="view-section">
 
