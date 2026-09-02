@@ -299,7 +299,7 @@ class _CommunitiesPageState extends State<CommunitiesPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F8FA),
+      backgroundColor: const Color(0xFFF5F7FF),
       body: RefreshIndicator(
         onRefresh: _carregarComunidades,
         color: const Color(0xFFEA3F74),

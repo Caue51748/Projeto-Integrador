@@ -27,7 +27,6 @@ class MyApp extends StatelessWidget {
     const Color textMain = Color(0xFF202124);
     const Color textMuted = Color(0xFF6B7280);
     const Color borderColor = Color(0xFFE5E7EB);
-    const Color bgLight = Color(0xFFF7F8FA);
 
     return MaterialApp(
       debugShowCheckedModeBanner: false,
@@ -35,7 +34,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         useMaterial3: true,
         primaryColor: primaryPink,
-        scaffoldBackgroundColor: bgLight,
+        scaffoldBackgroundColor: const Color(0xFFF5F7FF),
         textTheme: baseTextTheme.copyWith(
           displayLarge: baseTextTheme.displayLarge?.copyWith(color: textMain, fontWeight: FontWeight.w800),
           displayMedium: baseTextTheme.displayMedium?.copyWith(color: textMain, fontWeight: FontWeight.w800),
@@ -60,6 +59,7 @@ class MyApp extends StatelessWidget {
           surface: Colors.white,
           onPrimary: Colors.white,
           onSurface: textMain,
+          tertiary: const Color(0xFF6C63FF),
         ),
         appBarTheme: AppBarTheme(
           backgroundColor: Colors.white,
@@ -80,7 +80,7 @@ class MyApp extends StatelessWidget {
         cardTheme: CardThemeData(
           elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(18),
             side: const BorderSide(color: borderColor, width: 1),
           ),
           color: Colors.white,
@@ -92,23 +92,23 @@ class MyApp extends StatelessWidget {
           fillColor: Colors.white,
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(12),
             borderSide: const BorderSide(color: borderColor, width: 1),
           ),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(12),
             borderSide: const BorderSide(color: borderColor, width: 1),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(12),
             borderSide: const BorderSide(color: primaryPink, width: 1.5),
           ),
           errorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(12),
             borderSide: const BorderSide(color: Color(0xFFC93659), width: 1),
           ),
           focusedErrorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(12),
             borderSide: const BorderSide(color: Color(0xFFC93659), width: 1.5),
           ),
           hintStyle: GoogleFonts.manrope(color: textMuted, fontSize: 14),
@@ -121,7 +121,7 @@ class MyApp extends StatelessWidget {
             elevation: 0,
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(12),
             ),
             textStyle: GoogleFonts.manrope(
               fontSize: 14,
@@ -135,7 +135,7 @@ class MyApp extends StatelessWidget {
             side: const BorderSide(color: secondaryPink, width: 1),
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(12),
             ),
             textStyle: GoogleFonts.manrope(
               fontSize: 14,
@@ -168,17 +168,21 @@ class MyApp extends StatelessWidget {
         bottomSheetTheme: const BottomSheetThemeData(
           backgroundColor: Colors.white,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
           ),
           surfaceTintColor: Colors.transparent,
         ),
         dialogTheme: DialogThemeData(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
           surfaceTintColor: Colors.transparent,
         ),
         snackBarTheme: SnackBarThemeData(
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+        floatingActionButtonTheme: const FloatingActionButtonThemeData(
+          backgroundColor: primaryPink,
+          foregroundColor: Colors.white,
         ),
       ),
       home: const HomeScreen(),

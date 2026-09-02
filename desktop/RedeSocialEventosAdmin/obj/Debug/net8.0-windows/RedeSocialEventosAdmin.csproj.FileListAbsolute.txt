@@ -125,3 +125,8 @@ C:\Geral 2026\Projetos\VS Code\-\SocialJoin\Projeto-Integrador\desktop\RedeSocia
 C:\Geral 2026\Projetos\VS Code\-\SocialJoin\Projeto-Integrador\desktop\RedeSocialEventosAdmin\obj\Debug\net8.0-windows\RedeSocialEventosAdmin.pdb
 C:\Geral 2026\Projetos\VS Code\-\SocialJoin\Projeto-Integrador\desktop\RedeSocialEventosAdmin\obj\Debug\net8.0-windows\RedeSocialEventosAdmin.genruntimeconfig.cache
 C:\Geral 2026\Projetos\VS Code\-\SocialJoin\Projeto-Integrador\desktop\RedeSocialEventosAdmin\obj\Debug\net8.0-windows\ref\RedeSocialEventosAdmin.dll
+C:\Geral 2026\Projetos\VS Code\-\SocialJoin\Projeto-Integrador\desktop\RedeSocialEventosAdmin\obj\Debug\net8.0-windows\RedeSocialEventosAdmin.Forms.FrmComunidadeModal.resources
+C:\Geral 2026\Projetos\VS Code\-\SocialJoin\Projeto-Integrador\desktop\RedeSocialEventosAdmin\obj\Debug\net8.0-windows\RedeSocialEventosAdmin.Forms.FrmComunidades.resources
+C:\Geral 2026\Projetos\VS Code\-\SocialJoin\Projeto-Integrador\desktop\RedeSocialEventosAdmin\obj\Debug\net8.0-windows\RedeSocialEventosAdmin.Forms.FrmEventoModal.resources
+C:\Geral 2026\Projetos\VS Code\-\SocialJoin\Projeto-Integrador\desktop\RedeSocialEventosAdmin\obj\Debug\net8.0-windows\RedeSocialEventosAdmin.Forms.FrmEventos.resources
+C:\Geral 2026\Projetos\VS Code\-\SocialJoin\Projeto-Integrador\desktop\RedeSocialEventosAdmin\obj\Debug\net8.0-windows\RedeSocialEventosAdmin.Forms.FrmModeracao.resources

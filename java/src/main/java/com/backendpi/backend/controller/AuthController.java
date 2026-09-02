@@ -1,36 +1,26 @@
 package com.backendpi.backend.controller;
 
 import com.backendpi.backend.model.Usuario;
-import com.backendpi.backend.repository.UsuarioRepository;
+import com.backendpi.backend.service.UsuarioService;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/auth")
-
 @CrossOrigin("*")
 public class AuthController {
 
-    @Autowired
-    private UsuarioRepository repository;
+    private final UsuarioService usuarioService;
+
+    public AuthController(UsuarioService usuarioService) {
+        this.usuarioService = usuarioService;
+    }
 
     @PostMapping("/login")
     public Usuario login(@RequestBody Usuario usuario) {
-
-        Usuario usuarioEncontrado =
-                repository.findByEmail(usuario.getEmail());
-
-        if (usuarioEncontrado == null) {
+        if (usuario == null) {
             return null;
         }
-
-        if (!usuarioEncontrado.getSenha()
-                .equals(usuario.getSenha())) {
-
-            return null;
-        }
-
-        return usuarioEncontrado;
+        return usuarioService.login(usuario.getEmail(), usuario.getTelefone(), usuario.getSenha());
     }
 }

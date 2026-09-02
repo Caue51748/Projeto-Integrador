@@ -25,294 +25,329 @@
       base.Dispose(disposing);
     }
 
-    private void InitializeComponent()
-    {
-      System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle1 = new System.Windows.Forms.DataGridViewCellStyle();
-      System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle2 = new System.Windows.Forms.DataGridViewCellStyle();
-      System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle3 = new System.Windows.Forms.DataGridViewCellStyle();
-      this.txtPesquisa = new Guna.UI2.WinForms.Guna2TextBox();
-      this.btnNovo = new Guna.UI2.WinForms.Guna2Button();
-      this.btnEditar = new Guna.UI2.WinForms.Guna2Button();
-      this.btnStatusToggle = new Guna.UI2.WinForms.Guna2Button();
-      this.btnExcluir = new Guna.UI2.WinForms.Guna2Button();
-      this.btnRefresh = new Guna.UI2.WinForms.Guna2Button();
-      this.cmbFiltroRole = new Guna.UI2.WinForms.Guna2ComboBox();
-      this.cmbFiltroStatus = new Guna.UI2.WinForms.Guna2ComboBox();
-      this.dgvUsuarios = new Guna.UI2.WinForms.Guna2DataGridView();
-      this.lblHeaderTitle = new System.Windows.Forms.Label();
-      this.lblTotalRegistros = new System.Windows.Forms.Label();
-      this.pnlFiltros = new Guna.UI2.WinForms.Guna2Panel();
-      this.pnlFiltros.SuspendLayout();
-      ((System.ComponentModel.ISupportInitialize)(this.dgvUsuarios)).BeginInit();
-      this.SuspendLayout();
-      // 
-      // lblHeaderTitle
-      // 
-      this.lblHeaderTitle.AutoSize = true;
-      this.lblHeaderTitle.Font = new System.Drawing.Font("Segoe UI", 16F, System.Drawing.FontStyle.Bold);
-      this.lblHeaderTitle.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(15)))), ((int)(((byte)(23)))), ((int)(((byte)(42)))));
-      this.lblHeaderTitle.Location = new System.Drawing.Point(25, 20);
-      this.lblHeaderTitle.Name = "lblHeaderTitle";
-      this.lblHeaderTitle.Size = new System.Drawing.Size(282, 30);
-      this.lblHeaderTitle.TabIndex = 0;
-      this.lblHeaderTitle.Text = "Usuários e Permissões";
-      // 
-      // lblTotalRegistros
-      // 
-      this.lblTotalRegistros.AutoSize = true;
-      this.lblTotalRegistros.Font = new System.Drawing.Font("Segoe UI", 9.5F);
-      this.lblTotalRegistros.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(100)))), ((int)(((byte)(116)))), ((int)(((byte)(139)))));
-      this.lblTotalRegistros.Location = new System.Drawing.Point(27, 52);
-      this.lblTotalRegistros.Name = "lblTotalRegistros";
-      this.lblTotalRegistros.Size = new System.Drawing.Size(193, 17);
-      this.lblTotalRegistros.TabIndex = 1;
-      this.lblTotalRegistros.Text = "Carregando total de contas...";
-      // 
-      // pnlFiltros
-      // 
-      this.pnlFiltros.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-      | System.Windows.Forms.AnchorStyles.Right)));
-      this.pnlFiltros.BackColor = System.Drawing.Color.Transparent;
-      this.pnlFiltros.Controls.Add(this.btnRefresh);
-      this.pnlFiltros.Controls.Add(this.btnExcluir);
-      this.pnlFiltros.Controls.Add(this.btnStatusToggle);
-      this.pnlFiltros.Controls.Add(this.btnEditar);
-      this.pnlFiltros.Controls.Add(this.btnNovo);
-      this.pnlFiltros.Controls.Add(this.cmbFiltroStatus);
-      this.pnlFiltros.Controls.Add(this.cmbFiltroRole);
-      this.pnlFiltros.Controls.Add(this.txtPesquisa);
-      this.pnlFiltros.Location = new System.Drawing.Point(25, 80);
-      this.pnlFiltros.Name = "pnlFiltros";
-      this.pnlFiltros.Size = new System.Drawing.Size(990, 50);
-      this.pnlFiltros.TabIndex = 2;
-      // 
-      // txtPesquisa
-      // 
-      this.txtPesquisa.BorderColor = System.Drawing.Color.FromArgb(((int)(((byte)(226)))), ((int)(((byte)(232)))), ((int)(((byte)(240)))));
-      this.txtPesquisa.BorderRadius = 8;
-      this.txtPesquisa.Cursor = System.Windows.Forms.Cursors.IBeam;
-      this.txtPesquisa.DefaultText = "";
-      this.txtPesquisa.FocusedState.BorderColor = System.Drawing.Color.FromArgb(((int)(((byte)(99)))), ((int)(((byte)(102)))), ((int)(((byte)(241)))));
-      this.txtPesquisa.Font = new System.Drawing.Font("Segoe UI", 9.5F);
-      this.txtPesquisa.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(30)))), ((int)(((byte)(41)))), ((int)(((byte)(59)))));
-      this.txtPesquisa.HoverState.BorderColor = System.Drawing.Color.FromArgb(((int)(((byte)(79)))), ((int)(((byte)(70)))), ((int)(((byte)(229)))));
-      this.txtPesquisa.Location = new System.Drawing.Point(0, 5);
-      this.txtPesquisa.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
-      this.txtPesquisa.Name = "txtPesquisa";
-      this.txtPesquisa.PlaceholderText = " Buscar por nome, email ou username...";
-      this.txtPesquisa.SelectedText = "";
-      this.txtPesquisa.Size = new System.Drawing.Size(260, 38);
-      this.txtPesquisa.TabIndex = 0;
-      this.txtPesquisa.TextChanged += new System.EventHandler(this.txtPesquisa_TextChanged);
-      // 
-      // cmbFiltroRole
-      // 
-      this.cmbFiltroRole.BackColor = System.Drawing.Color.Transparent;
-      this.cmbFiltroRole.BorderColor = System.Drawing.Color.FromArgb(((int)(((byte)(226)))), ((int)(((byte)(232)))), ((int)(((byte)(240)))));
-      this.cmbFiltroRole.BorderRadius = 8;
-      this.cmbFiltroRole.DrawMode = System.Windows.Forms.DrawMode.OwnerDrawFixed;
-      this.cmbFiltroRole.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-      this.cmbFiltroRole.FocusedColor = System.Drawing.Color.FromArgb(((int)(((byte)(99)))), ((int)(((byte)(102)))), ((int)(((byte)(241)))));
-      this.cmbFiltroRole.FocusedState.BorderColor = System.Drawing.Color.FromArgb(((int)(((byte)(99)))), ((int)(((byte)(102)))), ((int)(((byte)(241)))));
-      this.cmbFiltroRole.Font = new System.Drawing.Font("Segoe UI", 9F);
-      this.cmbFiltroRole.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(30)))), ((int)(((byte)(41)))), ((int)(((byte)(59)))));
-      this.cmbFiltroRole.ItemHeight = 32;
-      this.cmbFiltroRole.Items.AddRange(new object[] {
-      "Role: TODAS",
-      "admin",
-      "moderator",
-      "premium",
-      "tester",
-      "betatester",
-      "user"});
-      this.cmbFiltroRole.Location = new System.Drawing.Point(270, 5);
-      this.cmbFiltroRole.Name = "cmbFiltroRole";
-      this.cmbFiltroRole.Size = new System.Drawing.Size(130, 38);
-      this.cmbFiltroRole.StartIndex = 0;
-      this.cmbFiltroRole.TabIndex = 1;
-      this.cmbFiltroRole.SelectedIndexChanged += new System.EventHandler(this.Filtros_Changed);
-      // 
-      // cmbFiltroStatus
-      // 
-      this.cmbFiltroStatus.BackColor = System.Drawing.Color.Transparent;
-      this.cmbFiltroStatus.BorderColor = System.Drawing.Color.FromArgb(((int)(((byte)(226)))), ((int)(((byte)(232)))), ((int)(((byte)(240)))));
-      this.cmbFiltroStatus.BorderRadius = 8;
-      this.cmbFiltroStatus.DrawMode = System.Windows.Forms.DrawMode.OwnerDrawFixed;
-      this.cmbFiltroStatus.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-      this.cmbFiltroStatus.FocusedColor = System.Drawing.Color.FromArgb(((int)(((byte)(99)))), ((int)(((byte)(102)))), ((int)(((byte)(241)))));
-      this.cmbFiltroStatus.FocusedState.BorderColor = System.Drawing.Color.FromArgb(((int)(((byte)(99)))), ((int)(((byte)(102)))), ((int)(((byte)(241)))));
-      this.cmbFiltroStatus.Font = new System.Drawing.Font("Segoe UI", 9F);
-      this.cmbFiltroStatus.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(30)))), ((int)(((byte)(41)))), ((int)(((byte)(59)))));
-      this.cmbFiltroStatus.ItemHeight = 32;
-      this.cmbFiltroStatus.Items.AddRange(new object[] {
-      "Status: TODOS",
-      "ativo",
-      "suspenso",
-      "inativo"});
-      this.cmbFiltroStatus.Location = new System.Drawing.Point(410, 5);
-      this.cmbFiltroStatus.Name = "cmbFiltroStatus";
-      this.cmbFiltroStatus.Size = new System.Drawing.Size(130, 38);
-      this.cmbFiltroStatus.StartIndex = 0;
-      this.cmbFiltroStatus.TabIndex = 2;
-      this.cmbFiltroStatus.SelectedIndexChanged += new System.EventHandler(this.Filtros_Changed);
-      // 
-      // btnNovo
-      // 
-      this.btnNovo.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-      this.btnNovo.BorderRadius = 8;
-      this.btnNovo.Cursor = System.Windows.Forms.Cursors.Hand;
-      this.btnNovo.FillColor = System.Drawing.Color.FromArgb(((int)(((byte)(79)))), ((int)(((byte)(70)))), ((int)(((byte)(229)))));
-      this.btnNovo.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
-      this.btnNovo.ForeColor = System.Drawing.Color.White;
-      this.btnNovo.HoverState.FillColor = System.Drawing.Color.FromArgb(((int)(((byte)(67)))), ((int)(((byte)(56)))), ((int)(((byte)(202)))));
-      this.btnNovo.Location = new System.Drawing.Point(555, 5);
-      this.btnNovo.Name = "btnNovo";
-      this.btnNovo.Size = new System.Drawing.Size(100, 38);
-      this.btnNovo.TabIndex = 3;
-      this.btnNovo.Text = "+ Novo";
-      this.btnNovo.Click += new System.EventHandler(this.btnNovo_Click);
-      // 
-      // btnEditar
-      // 
-      this.btnEditar.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-      this.btnEditar.BorderRadius = 8;
-      this.btnEditar.Cursor = System.Windows.Forms.Cursors.Hand;
-      this.btnEditar.FillColor = System.Drawing.Color.FromArgb(((int)(((byte)(241)))), ((int)(((byte)(245)))), ((int)(((byte)(249)))));
-      this.btnEditar.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
-      this.btnEditar.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(51)))), ((int)(((byte)(65)))), ((int)(((byte)(85)))));
-      this.btnEditar.HoverState.FillColor = System.Drawing.Color.FromArgb(((int)(((byte)(226)))), ((int)(((byte)(232)))), ((int)(((byte)(240)))));
-      this.btnEditar.Location = new System.Drawing.Point(665, 5);
-      this.btnEditar.Name = "btnEditar";
-      this.btnEditar.Size = new System.Drawing.Size(95, 38);
-      this.btnEditar.TabIndex = 4;
-      this.btnEditar.Text = "âœ Editar";
-      this.btnEditar.Click += new System.EventHandler(this.btnEditar_Click);
-      // 
-      // btnStatusToggle
-      // 
-      this.btnStatusToggle.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-      this.btnStatusToggle.BorderRadius = 8;
-      this.btnStatusToggle.Cursor = System.Windows.Forms.Cursors.Hand;
-      this.btnStatusToggle.FillColor = System.Drawing.Color.FromArgb(((int)(((byte)(254)))), ((int)(((byte)(243)))), ((int)(((byte)(199)))));
-      this.btnStatusToggle.Font = new System.Drawing.Font("Segoe UI", 8.5F, System.Drawing.FontStyle.Bold);
-      this.btnStatusToggle.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(180)))), ((int)(((byte)(83)))), ((int)(((byte)(9)))));
-      this.btnStatusToggle.HoverState.FillColor = System.Drawing.Color.FromArgb(((int)(((byte)(253)))), ((int)(((byte)(230)))), ((int)(((byte)(138)))));
-      this.btnStatusToggle.Location = new System.Drawing.Point(768, 5);
-      this.btnStatusToggle.Name = "btnStatusToggle";
-      this.btnStatusToggle.Size = new System.Drawing.Size(105, 38);
-      this.btnStatusToggle.TabIndex = 5;
-      this.btnStatusToggle.Text = " Suspender";
-      this.btnStatusToggle.Click += new System.EventHandler(this.btnStatusToggle_Click);
-      // 
-      // btnExcluir
-      // 
-      this.btnExcluir.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-      this.btnExcluir.BorderRadius = 8;
-      this.btnExcluir.Cursor = System.Windows.Forms.Cursors.Hand;
-      this.btnExcluir.FillColor = System.Drawing.Color.FromArgb(((int)(((byte)(254)))), ((int)(((byte)(226)))), ((int)(((byte)(226)))));
-      this.btnExcluir.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
-      this.btnExcluir.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(220)))), ((int)(((byte)(38)))), ((int)(((byte)(38)))));
-      this.btnExcluir.HoverState.FillColor = System.Drawing.Color.FromArgb(((int)(((byte)(254)))), ((int)(((byte)(202)))), ((int)(((byte)(202)))));
-      this.btnExcluir.Location = new System.Drawing.Point(880, 5);
-      this.btnExcluir.Name = "btnExcluir";
-      this.btnExcluir.Size = new System.Drawing.Size(70, 38);
-      this.btnExcluir.TabIndex = 6;
-      this.btnExcluir.Text = "";
-      this.btnExcluir.Click += new System.EventHandler(this.btnExcluir_Click);
-      // 
-      // btnRefresh
-      // 
-      this.btnRefresh.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-      this.btnRefresh.BorderRadius = 8;
-      this.btnRefresh.Cursor = System.Windows.Forms.Cursors.Hand;
-      this.btnRefresh.FillColor = System.Drawing.Color.FromArgb(((int)(((byte)(241)))), ((int)(((byte)(245)))), ((int)(((byte)(249)))));
-      this.btnRefresh.Font = new System.Drawing.Font("Segoe UI", 10F);
-      this.btnRefresh.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(51)))), ((int)(((byte)(65)))), ((int)(((byte)(85)))));
-      this.btnRefresh.HoverState.FillColor = System.Drawing.Color.FromArgb(((int)(((byte)(226)))), ((int)(((byte)(232)))), ((int)(((byte)(240)))));
-      this.btnRefresh.Location = new System.Drawing.Point(955, 5);
-      this.btnRefresh.Name = "btnRefresh";
-      this.btnRefresh.Size = new System.Drawing.Size(35, 38);
-      this.btnRefresh.TabIndex = 7;
-      this.btnRefresh.Text = "";
-      this.btnRefresh.Click += new System.EventHandler(this.btnRefresh_Click);
-      // 
-      // dgvUsuarios
-      // 
-      this.dgvUsuarios.AllowUserToAddRows = false;
-      this.dgvUsuarios.AllowUserToDeleteRows = false;
-      this.dgvUsuarios.AllowUserToResizeRows = false;
-      dataGridViewCellStyle1.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(248)))), ((int)(((byte)(250)))), ((int)(((byte)(252)))));
-      this.dgvUsuarios.AlternatingRowsDefaultCellStyle = dataGridViewCellStyle1;
-      this.dgvUsuarios.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-      | System.Windows.Forms.AnchorStyles.Left) 
-      | System.Windows.Forms.AnchorStyles.Right)));
-      this.dgvUsuarios.AutoSizeColumnsMode = System.Windows.Forms.DataGridViewAutoSizeColumnsMode.Fill;
-      this.dgvUsuarios.BackgroundColor = System.Drawing.Color.White;
-      this.dgvUsuarios.BorderStyle = System.Windows.Forms.BorderStyle.None;
-      this.dgvUsuarios.CellBorderStyle = System.Windows.Forms.DataGridViewCellBorderStyle.SingleHorizontal;
-      this.dgvUsuarios.ColumnHeadersBorderStyle = System.Windows.Forms.DataGridViewHeaderBorderStyle.None;
-      dataGridViewCellStyle2.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
-      dataGridViewCellStyle2.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(15)))), ((int)(((byte)(23)))), ((int)(((byte)(42)))));
-      dataGridViewCellStyle2.Font = new System.Drawing.Font("Segoe UI", 9.5F, System.Drawing.FontStyle.Bold);
-      dataGridViewCellStyle2.ForeColor = System.Drawing.Color.White;
-      dataGridViewCellStyle2.SelectionBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(15)))), ((int)(((byte)(23)))), ((int)(((byte)(42)))));
-      dataGridViewCellStyle2.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
-      dataGridViewCellStyle2.WrapMode = System.Windows.Forms.DataGridViewTriState.True;
-      this.dgvUsuarios.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle2;
-      this.dgvUsuarios.ColumnHeadersHeight = 42;
-      dataGridViewCellStyle3.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
-      dataGridViewCellStyle3.BackColor = System.Drawing.Color.White;
-      dataGridViewCellStyle3.Font = new System.Drawing.Font("Segoe UI", 9.5F);
-      dataGridViewCellStyle3.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(30)))), ((int)(((byte)(41)))), ((int)(((byte)(59)))));
-      dataGridViewCellStyle3.SelectionBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(238)))), ((int)(((byte)(242)))), ((int)(((byte)(255)))));
-      dataGridViewCellStyle3.SelectionForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(79)))), ((int)(((byte)(70)))), ((int)(((byte)(229)))));
-      dataGridViewCellStyle3.WrapMode = System.Windows.Forms.DataGridViewTriState.False;
-      this.dgvUsuarios.DefaultCellStyle = dataGridViewCellStyle3;
-      this.dgvUsuarios.EnableHeadersVisualStyles = false;
-      this.dgvUsuarios.GridColor = System.Drawing.Color.FromArgb(((int)(((byte)(241)))), ((int)(((byte)(245)))), ((int)(((byte)(249)))));
-      this.dgvUsuarios.Location = new System.Drawing.Point(25, 140);
-      this.dgvUsuarios.MultiSelect = false;
-      this.dgvUsuarios.Name = "dgvUsuarios";
-      this.dgvUsuarios.ReadOnly = true;
-      this.dgvUsuarios.RowHeadersVisible = false;
-      this.dgvUsuarios.RowTemplate.Height = 36;
-      this.dgvUsuarios.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
-      this.dgvUsuarios.Size = new System.Drawing.Size(990, 470);
-      this.dgvUsuarios.TabIndex = 3;
-      this.dgvUsuarios.ThemeStyle.AlternatingRowsStyle.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(248)))), ((int)(((byte)(250)))), ((int)(((byte)(252)))));
-      this.dgvUsuarios.ThemeStyle.BackColor = System.Drawing.Color.White;
-      this.dgvUsuarios.ThemeStyle.GridColor = System.Drawing.Color.FromArgb(((int)(((byte)(241)))), ((int)(((byte)(245)))), ((int)(((byte)(249)))));
-      this.dgvUsuarios.ThemeStyle.HeaderStyle.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(15)))), ((int)(((byte)(23)))), ((int)(((byte)(42)))));
-      this.dgvUsuarios.ThemeStyle.HeaderStyle.BorderStyle = System.Windows.Forms.DataGridViewHeaderBorderStyle.None;
-      this.dgvUsuarios.ThemeStyle.HeaderStyle.Font = new System.Drawing.Font("Segoe UI", 9.5F, System.Drawing.FontStyle.Bold);
-      this.dgvUsuarios.ThemeStyle.HeaderStyle.ForeColor = System.Drawing.Color.White;
-      this.dgvUsuarios.ThemeStyle.ReadOnly = true;
-      this.dgvUsuarios.ThemeStyle.RowsStyle.BackColor = System.Drawing.Color.White;
-      this.dgvUsuarios.ThemeStyle.RowsStyle.BorderStyle = System.Windows.Forms.DataGridViewCellBorderStyle.SingleHorizontal;
-      this.dgvUsuarios.ThemeStyle.RowsStyle.Font = new System.Drawing.Font("Segoe UI", 9.5F);
-      this.dgvUsuarios.ThemeStyle.RowsStyle.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(30)))), ((int)(((byte)(41)))), ((int)(((byte)(59)))));
-      this.dgvUsuarios.ThemeStyle.RowsStyle.SelectionBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(238)))), ((int)(((byte)(242)))), ((int)(((byte)(255)))));
-      this.dgvUsuarios.ThemeStyle.RowsStyle.SelectionForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(79)))), ((int)(((byte)(70)))), ((int)(((byte)(229)))));
-      this.dgvUsuarios.DoubleClick += new System.EventHandler(this.btnEditar_Click);
-      // 
-      // FrmUsuarios
-      // 
-      this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
-      this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-      this.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(248)))), ((int)(((byte)(250)))), ((int)(((byte)(252)))));
-      this.ClientSize = new System.Drawing.Size(1040, 640);
-      this.Controls.Add(this.dgvUsuarios);
-      this.Controls.Add(this.pnlFiltros);
-      this.Controls.Add(this.lblTotalRegistros);
-      this.Controls.Add(this.lblHeaderTitle);
-      this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.None;
-      this.Name = "FrmUsuarios";
-      this.Text = "Gerenciamento de Usuários";
-      this.Load += new System.EventHandler(this.FrmUsuarios_Load);
-      this.pnlFiltros.ResumeLayout(false);
-      ((System.ComponentModel.ISupportInitialize)(this.dgvUsuarios)).EndInit();
-      this.ResumeLayout(false);
-      this.PerformLayout();
+        private void InitializeComponent()
+        {
+            Guna.UI2.WinForms.Suite.CustomizableEdges customizableEdges1 = new Guna.UI2.WinForms.Suite.CustomizableEdges();
+            Guna.UI2.WinForms.Suite.CustomizableEdges customizableEdges2 = new Guna.UI2.WinForms.Suite.CustomizableEdges();
+            Guna.UI2.WinForms.Suite.CustomizableEdges customizableEdges3 = new Guna.UI2.WinForms.Suite.CustomizableEdges();
+            Guna.UI2.WinForms.Suite.CustomizableEdges customizableEdges4 = new Guna.UI2.WinForms.Suite.CustomizableEdges();
+            Guna.UI2.WinForms.Suite.CustomizableEdges customizableEdges5 = new Guna.UI2.WinForms.Suite.CustomizableEdges();
+            Guna.UI2.WinForms.Suite.CustomizableEdges customizableEdges6 = new Guna.UI2.WinForms.Suite.CustomizableEdges();
+            Guna.UI2.WinForms.Suite.CustomizableEdges customizableEdges7 = new Guna.UI2.WinForms.Suite.CustomizableEdges();
+            Guna.UI2.WinForms.Suite.CustomizableEdges customizableEdges8 = new Guna.UI2.WinForms.Suite.CustomizableEdges();
+            Guna.UI2.WinForms.Suite.CustomizableEdges customizableEdges9 = new Guna.UI2.WinForms.Suite.CustomizableEdges();
+            Guna.UI2.WinForms.Suite.CustomizableEdges customizableEdges10 = new Guna.UI2.WinForms.Suite.CustomizableEdges();
+            Guna.UI2.WinForms.Suite.CustomizableEdges customizableEdges11 = new Guna.UI2.WinForms.Suite.CustomizableEdges();
+            Guna.UI2.WinForms.Suite.CustomizableEdges customizableEdges12 = new Guna.UI2.WinForms.Suite.CustomizableEdges();
+            Guna.UI2.WinForms.Suite.CustomizableEdges customizableEdges13 = new Guna.UI2.WinForms.Suite.CustomizableEdges();
+            Guna.UI2.WinForms.Suite.CustomizableEdges customizableEdges14 = new Guna.UI2.WinForms.Suite.CustomizableEdges();
+            Guna.UI2.WinForms.Suite.CustomizableEdges customizableEdges15 = new Guna.UI2.WinForms.Suite.CustomizableEdges();
+            Guna.UI2.WinForms.Suite.CustomizableEdges customizableEdges16 = new Guna.UI2.WinForms.Suite.CustomizableEdges();
+            DataGridViewCellStyle dataGridViewCellStyle1 = new DataGridViewCellStyle();
+            DataGridViewCellStyle dataGridViewCellStyle2 = new DataGridViewCellStyle();
+            DataGridViewCellStyle dataGridViewCellStyle3 = new DataGridViewCellStyle();
+            Guna.UI2.WinForms.Suite.CustomizableEdges customizableEdges17 = new Guna.UI2.WinForms.Suite.CustomizableEdges();
+            Guna.UI2.WinForms.Suite.CustomizableEdges customizableEdges18 = new Guna.UI2.WinForms.Suite.CustomizableEdges();
+            txtPesquisa = new Guna.UI2.WinForms.Guna2TextBox();
+            btnNovo = new Guna.UI2.WinForms.Guna2Button();
+            btnEditar = new Guna.UI2.WinForms.Guna2Button();
+            btnStatusToggle = new Guna.UI2.WinForms.Guna2Button();
+            btnExcluir = new Guna.UI2.WinForms.Guna2Button();
+            btnRefresh = new Guna.UI2.WinForms.Guna2Button();
+            cmbFiltroRole = new Guna.UI2.WinForms.Guna2ComboBox();
+            cmbFiltroStatus = new Guna.UI2.WinForms.Guna2ComboBox();
+            dgvUsuarios = new Guna.UI2.WinForms.Guna2DataGridView();
+            lblHeaderTitle = new Label();
+            lblTotalRegistros = new Label();
+            pnlFiltros = new Guna.UI2.WinForms.Guna2Panel();
+            ((System.ComponentModel.ISupportInitialize)dgvUsuarios).BeginInit();
+            pnlFiltros.SuspendLayout();
+            SuspendLayout();
+            // 
+            // txtPesquisa
+            // 
+            txtPesquisa.BorderColor = Color.FromArgb(226, 232, 240);
+            txtPesquisa.BorderRadius = 8;
+            txtPesquisa.Cursor = Cursors.IBeam;
+            txtPesquisa.CustomizableEdges = customizableEdges1;
+            txtPesquisa.DefaultText = "";
+            txtPesquisa.FocusedState.BorderColor = Color.FromArgb(99, 102, 241);
+            txtPesquisa.Font = new Font("Segoe UI", 9.5F);
+            txtPesquisa.ForeColor = Color.FromArgb(30, 41, 59);
+            txtPesquisa.HoverState.BorderColor = Color.FromArgb(79, 70, 229);
+            txtPesquisa.Location = new Point(0, 6);
+            txtPesquisa.Margin = new Padding(4, 5, 4, 5);
+            txtPesquisa.Name = "txtPesquisa";
+            txtPesquisa.PasswordChar = '\0';
+            txtPesquisa.PlaceholderText = " Buscar por nome, email ou username...";
+            txtPesquisa.SelectedText = "";
+            txtPesquisa.ShadowDecoration.CustomizableEdges = customizableEdges2;
+            txtPesquisa.Size = new Size(303, 44);
+            txtPesquisa.TabIndex = 0;
+            txtPesquisa.TextChanged += txtPesquisa_TextChanged;
+            // 
+            // btnNovo
+            // 
+            btnNovo.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            btnNovo.BorderRadius = 8;
+            btnNovo.Cursor = Cursors.Hand;
+            btnNovo.CustomizableEdges = customizableEdges3;
+            btnNovo.FillColor = Color.FromArgb(79, 70, 229);
+            btnNovo.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            btnNovo.ForeColor = Color.White;
+            btnNovo.HoverState.FillColor = Color.FromArgb(67, 56, 202);
+            btnNovo.Location = new Point(648, 6);
+            btnNovo.Margin = new Padding(4, 3, 4, 3);
+            btnNovo.Name = "btnNovo";
+            btnNovo.ShadowDecoration.CustomizableEdges = customizableEdges4;
+            btnNovo.Size = new Size(117, 44);
+            btnNovo.TabIndex = 3;
+            btnNovo.Text = "+ Novo";
+            btnNovo.Click += btnNovo_Click;
+            // 
+            // btnEditar
+            // 
+            btnEditar.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            btnEditar.BorderRadius = 8;
+            btnEditar.Cursor = Cursors.Hand;
+            btnEditar.CustomizableEdges = customizableEdges5;
+            btnEditar.FillColor = Color.FromArgb(241, 245, 249);
+            btnEditar.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            btnEditar.ForeColor = Color.FromArgb(51, 65, 85);
+            btnEditar.HoverState.FillColor = Color.FromArgb(226, 232, 240);
+            btnEditar.Location = new Point(776, 6);
+            btnEditar.Margin = new Padding(4, 3, 4, 3);
+            btnEditar.Name = "btnEditar";
+            btnEditar.ShadowDecoration.CustomizableEdges = customizableEdges6;
+            btnEditar.Size = new Size(111, 44);
+            btnEditar.TabIndex = 4;
+            btnEditar.Text = "Editar";
+            btnEditar.Click += btnEditar_Click;
+            // 
+            // btnStatusToggle
+            // 
+            btnStatusToggle.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            btnStatusToggle.BorderRadius = 8;
+            btnStatusToggle.Cursor = Cursors.Hand;
+            btnStatusToggle.CustomizableEdges = customizableEdges7;
+            btnStatusToggle.FillColor = Color.FromArgb(254, 243, 199);
+            btnStatusToggle.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
+            btnStatusToggle.ForeColor = Color.FromArgb(180, 83, 9);
+            btnStatusToggle.HoverState.FillColor = Color.FromArgb(253, 230, 138);
+            btnStatusToggle.Location = new Point(896, 6);
+            btnStatusToggle.Margin = new Padding(4, 3, 4, 3);
+            btnStatusToggle.Name = "btnStatusToggle";
+            btnStatusToggle.ShadowDecoration.CustomizableEdges = customizableEdges8;
+            btnStatusToggle.Size = new Size(122, 44);
+            btnStatusToggle.TabIndex = 5;
+            btnStatusToggle.Text = " Suspender";
+            btnStatusToggle.Click += btnStatusToggle_Click;
+            // 
+            // btnExcluir
+            // 
+            btnExcluir.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            btnExcluir.BorderRadius = 8;
+            btnExcluir.Cursor = Cursors.Hand;
+            btnExcluir.CustomizableEdges = customizableEdges9;
+            btnExcluir.FillColor = Color.FromArgb(254, 226, 226);
+            btnExcluir.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            btnExcluir.ForeColor = Color.FromArgb(220, 38, 38);
+            btnExcluir.HoverState.FillColor = Color.FromArgb(254, 202, 202);
+            btnExcluir.Location = new Point(1027, 6);
+            btnExcluir.Margin = new Padding(4, 3, 4, 3);
+            btnExcluir.Name = "btnExcluir";
+            btnExcluir.ShadowDecoration.CustomizableEdges = customizableEdges10;
+            btnExcluir.Size = new Size(82, 44);
+            btnExcluir.TabIndex = 6;
+            btnExcluir.Text = "Excluir";
+            btnExcluir.Click += btnExcluir_Click;
+            // 
+            // btnRefresh
+            // 
+            btnRefresh.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            btnRefresh.BorderRadius = 8;
+            btnRefresh.Cursor = Cursors.Hand;
+            btnRefresh.CustomizableEdges = customizableEdges11;
+            btnRefresh.FillColor = Color.FromArgb(241, 245, 249);
+            btnRefresh.Font = new Font("Segoe UI", 10F);
+            btnRefresh.ForeColor = Color.FromArgb(51, 65, 85);
+            btnRefresh.HoverState.FillColor = Color.FromArgb(226, 232, 240);
+            btnRefresh.Location = new Point(1114, 6);
+            btnRefresh.Margin = new Padding(4, 3, 4, 3);
+            btnRefresh.Name = "btnRefresh";
+            btnRefresh.ShadowDecoration.CustomizableEdges = customizableEdges12;
+            btnRefresh.Size = new Size(41, 44);
+            btnRefresh.TabIndex = 7;
+            btnRefresh.Text = "🔄";
+            btnRefresh.Click += btnRefresh_Click;
+            // 
+            // cmbFiltroRole
+            // 
+            cmbFiltroRole.BackColor = Color.Transparent;
+            cmbFiltroRole.BorderColor = Color.FromArgb(226, 232, 240);
+            cmbFiltroRole.BorderRadius = 8;
+            cmbFiltroRole.CustomizableEdges = customizableEdges13;
+            cmbFiltroRole.DrawMode = DrawMode.OwnerDrawFixed;
+            cmbFiltroRole.DropDownStyle = ComboBoxStyle.DropDownList;
+            cmbFiltroRole.FocusedColor = Color.FromArgb(99, 102, 241);
+            cmbFiltroRole.FocusedState.BorderColor = Color.FromArgb(99, 102, 241);
+            cmbFiltroRole.Font = new Font("Segoe UI", 9F);
+            cmbFiltroRole.ForeColor = Color.FromArgb(30, 41, 59);
+            cmbFiltroRole.ItemHeight = 32;
+            cmbFiltroRole.Items.AddRange(new object[] { "Role: TODAS", "admin", "moderator", "premium", "tester", "betatester", "user" });
+            cmbFiltroRole.Location = new Point(315, 6);
+            cmbFiltroRole.Margin = new Padding(4, 3, 4, 3);
+            cmbFiltroRole.Name = "cmbFiltroRole";
+            cmbFiltroRole.ShadowDecoration.CustomizableEdges = customizableEdges14;
+            cmbFiltroRole.Size = new Size(151, 38);
+            cmbFiltroRole.StartIndex = 0;
+            cmbFiltroRole.TabIndex = 1;
+            cmbFiltroRole.SelectedIndexChanged += Filtros_Changed;
+            // 
+            // cmbFiltroStatus
+            // 
+            cmbFiltroStatus.BackColor = Color.Transparent;
+            cmbFiltroStatus.BorderColor = Color.FromArgb(226, 232, 240);
+            cmbFiltroStatus.BorderRadius = 8;
+            cmbFiltroStatus.CustomizableEdges = customizableEdges15;
+            cmbFiltroStatus.DrawMode = DrawMode.OwnerDrawFixed;
+            cmbFiltroStatus.DropDownStyle = ComboBoxStyle.DropDownList;
+            cmbFiltroStatus.FocusedColor = Color.FromArgb(99, 102, 241);
+            cmbFiltroStatus.FocusedState.BorderColor = Color.FromArgb(99, 102, 241);
+            cmbFiltroStatus.Font = new Font("Segoe UI", 9F);
+            cmbFiltroStatus.ForeColor = Color.FromArgb(30, 41, 59);
+            cmbFiltroStatus.ItemHeight = 32;
+            cmbFiltroStatus.Items.AddRange(new object[] { "Status: TODOS", "ativo", "suspenso", "inativo" });
+            cmbFiltroStatus.Location = new Point(478, 6);
+            cmbFiltroStatus.Margin = new Padding(4, 3, 4, 3);
+            cmbFiltroStatus.Name = "cmbFiltroStatus";
+            cmbFiltroStatus.ShadowDecoration.CustomizableEdges = customizableEdges16;
+            cmbFiltroStatus.Size = new Size(151, 38);
+            cmbFiltroStatus.StartIndex = 0;
+            cmbFiltroStatus.TabIndex = 2;
+            cmbFiltroStatus.SelectedIndexChanged += Filtros_Changed;
+            // 
+            // dgvUsuarios
+            // 
+            dgvUsuarios.AllowUserToAddRows = false;
+            dgvUsuarios.AllowUserToDeleteRows = false;
+            dgvUsuarios.AllowUserToResizeRows = false;
+            dataGridViewCellStyle1.BackColor = Color.FromArgb(248, 250, 252);
+            dgvUsuarios.AlternatingRowsDefaultCellStyle = dataGridViewCellStyle1;
+            dgvUsuarios.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            dataGridViewCellStyle2.Alignment = DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle2.BackColor = Color.FromArgb(15, 23, 42);
+            dataGridViewCellStyle2.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+            dataGridViewCellStyle2.ForeColor = Color.White;
+            dataGridViewCellStyle2.SelectionBackColor = Color.FromArgb(15, 23, 42);
+            dataGridViewCellStyle2.SelectionForeColor = SystemColors.HighlightText;
+            dataGridViewCellStyle2.WrapMode = DataGridViewTriState.True;
+            dgvUsuarios.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle2;
+            dgvUsuarios.ColumnHeadersHeight = 42;
+            dataGridViewCellStyle3.Alignment = DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle3.BackColor = Color.White;
+            dataGridViewCellStyle3.Font = new Font("Segoe UI", 9.5F);
+            dataGridViewCellStyle3.ForeColor = Color.FromArgb(30, 41, 59);
+            dataGridViewCellStyle3.SelectionBackColor = Color.FromArgb(238, 242, 255);
+            dataGridViewCellStyle3.SelectionForeColor = Color.FromArgb(79, 70, 229);
+            dataGridViewCellStyle3.WrapMode = DataGridViewTriState.False;
+            dgvUsuarios.DefaultCellStyle = dataGridViewCellStyle3;
+            dgvUsuarios.GridColor = Color.FromArgb(241, 245, 249);
+            dgvUsuarios.Location = new Point(29, 162);
+            dgvUsuarios.Margin = new Padding(4, 3, 4, 3);
+            dgvUsuarios.MultiSelect = false;
+            dgvUsuarios.Name = "dgvUsuarios";
+            dgvUsuarios.ReadOnly = true;
+            dgvUsuarios.RowHeadersVisible = false;
+            dgvUsuarios.RowTemplate.Height = 36;
+            dgvUsuarios.Size = new Size(1155, 542);
+            dgvUsuarios.TabIndex = 3;
+            dgvUsuarios.ThemeStyle.AlternatingRowsStyle.BackColor = Color.FromArgb(248, 250, 252);
+            dgvUsuarios.ThemeStyle.AlternatingRowsStyle.Font = null;
+            dgvUsuarios.ThemeStyle.AlternatingRowsStyle.ForeColor = Color.Empty;
+            dgvUsuarios.ThemeStyle.AlternatingRowsStyle.SelectionBackColor = Color.Empty;
+            dgvUsuarios.ThemeStyle.AlternatingRowsStyle.SelectionForeColor = Color.Empty;
+            dgvUsuarios.ThemeStyle.BackColor = Color.White;
+            dgvUsuarios.ThemeStyle.GridColor = Color.FromArgb(241, 245, 249);
+            dgvUsuarios.ThemeStyle.HeaderStyle.BackColor = Color.FromArgb(15, 23, 42);
+            dgvUsuarios.ThemeStyle.HeaderStyle.BorderStyle = DataGridViewHeaderBorderStyle.None;
+            dgvUsuarios.ThemeStyle.HeaderStyle.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+            dgvUsuarios.ThemeStyle.HeaderStyle.ForeColor = Color.White;
+            dgvUsuarios.ThemeStyle.HeaderStyle.HeaightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
+            dgvUsuarios.ThemeStyle.HeaderStyle.Height = 42;
+            dgvUsuarios.ThemeStyle.ReadOnly = true;
+            dgvUsuarios.ThemeStyle.RowsStyle.BackColor = Color.White;
+            dgvUsuarios.ThemeStyle.RowsStyle.BorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
+            dgvUsuarios.ThemeStyle.RowsStyle.Font = new Font("Segoe UI", 9.5F);
+            dgvUsuarios.ThemeStyle.RowsStyle.ForeColor = Color.FromArgb(30, 41, 59);
+            dgvUsuarios.ThemeStyle.RowsStyle.Height = 36;
+            dgvUsuarios.ThemeStyle.RowsStyle.SelectionBackColor = Color.FromArgb(238, 242, 255);
+            dgvUsuarios.ThemeStyle.RowsStyle.SelectionForeColor = Color.FromArgb(79, 70, 229);
+            dgvUsuarios.DoubleClick += btnEditar_Click;
+            // 
+            // lblHeaderTitle
+            // 
+            lblHeaderTitle.AutoSize = true;
+            lblHeaderTitle.Font = new Font("Segoe UI", 16F, FontStyle.Bold);
+            lblHeaderTitle.ForeColor = Color.FromArgb(15, 23, 42);
+            lblHeaderTitle.Location = new Point(29, 23);
+            lblHeaderTitle.Margin = new Padding(4, 0, 4, 0);
+            lblHeaderTitle.Name = "lblHeaderTitle";
+            lblHeaderTitle.Size = new Size(241, 30);
+            lblHeaderTitle.TabIndex = 0;
+            lblHeaderTitle.Text = "Usuários e Permissões";
+            // 
+            // lblTotalRegistros
+            // 
+            lblTotalRegistros.AutoSize = true;
+            lblTotalRegistros.Font = new Font("Segoe UI", 9.5F);
+            lblTotalRegistros.ForeColor = Color.FromArgb(100, 116, 139);
+            lblTotalRegistros.Location = new Point(31, 60);
+            lblTotalRegistros.Margin = new Padding(4, 0, 4, 0);
+            lblTotalRegistros.Name = "lblTotalRegistros";
+            lblTotalRegistros.Size = new Size(178, 17);
+            lblTotalRegistros.TabIndex = 1;
+            lblTotalRegistros.Text = "Carregando total de contas...";
+            // 
+            // pnlFiltros
+            // 
+            pnlFiltros.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            pnlFiltros.BackColor = Color.Transparent;
+            pnlFiltros.Controls.Add(btnRefresh);
+            pnlFiltros.Controls.Add(btnExcluir);
+            pnlFiltros.Controls.Add(btnStatusToggle);
+            pnlFiltros.Controls.Add(btnEditar);
+            pnlFiltros.Controls.Add(btnNovo);
+            pnlFiltros.Controls.Add(cmbFiltroStatus);
+            pnlFiltros.Controls.Add(cmbFiltroRole);
+            pnlFiltros.Controls.Add(txtPesquisa);
+            pnlFiltros.CustomizableEdges = customizableEdges17;
+            pnlFiltros.Location = new Point(29, 92);
+            pnlFiltros.Margin = new Padding(4, 3, 4, 3);
+            pnlFiltros.Name = "pnlFiltros";
+            pnlFiltros.ShadowDecoration.CustomizableEdges = customizableEdges18;
+            pnlFiltros.Size = new Size(1155, 58);
+            pnlFiltros.TabIndex = 2;
+            // 
+            // FrmUsuarios
+            // 
+            AutoScaleDimensions = new SizeF(7F, 15F);
+            AutoScaleMode = AutoScaleMode.Font;
+            BackColor = Color.FromArgb(248, 250, 252);
+            ClientSize = new Size(1213, 738);
+            Controls.Add(dgvUsuarios);
+            Controls.Add(pnlFiltros);
+            Controls.Add(lblTotalRegistros);
+            Controls.Add(lblHeaderTitle);
+            FormBorderStyle = FormBorderStyle.None;
+            Margin = new Padding(4, 3, 4, 3);
+            Name = "FrmUsuarios";
+            Text = "Gerenciamento de Usuários";
+            Load += FrmUsuarios_Load;
+            ((System.ComponentModel.ISupportInitialize)dgvUsuarios).EndInit();
+            pnlFiltros.ResumeLayout(false);
+            ResumeLayout(false);
+            PerformLayout();
+        }
     }
-  }
 }
