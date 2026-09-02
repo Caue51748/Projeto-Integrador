@@ -4314,6 +4314,8 @@ button:disabled {
         justify-content: center;
     }
 
+}
+
     /* ============================================================
    DETALHES DO EVENTO
    ============================================================ */
@@ -4973,5 +4975,104 @@ button:disabled {
     transform: translateY(0);
 }
 
-    
+/* ============================================================
+   MENU DE OPÇÕES DO POST
+   ============================================================ */
+
+.post-menu-wrapper {
+    position: relative;
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+.post-menu-wrapper .post-more {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 34px;
+    height: 34px;
+
+    margin: 0;
+    padding: 0;
+
+    border: none;
+    border-radius: 8px;
+
+    background: transparent;
+    color: var(--text-muted);
+
+    cursor: pointer;
+}
+
+.post-menu-wrapper .post-more:hover {
+    background: var(--bg-light);
+    color: var(--text-main);
+}
+
+.post-menu-wrapper .post-more .material-icons {
+    font-size: 20px;
+}
+
+
+/* ESCONDIDO */
+.post-menu {
+    display: none;
+
+    position: absolute;
+    top: 38px;
+    right: 0;
+
+    min-width: 190px;
+    padding: 6px;
+
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+
+    background: #ffffff;
+
+    box-shadow:
+        0 10px 30px rgba(17, 24, 39, 0.12);
+
+    z-index: 100;
+}
+
+
+/* ABERTO */
+.post-menu.open {
+    display: block;
+}
+
+
+/* BOTÃO EXCLUIR */
+.post-menu-delete {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    width: 100%;
+
+    padding: 10px;
+
+    border: none;
+    border-radius: 7px;
+
+    background: transparent;
+    color: var(--danger);
+
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+
+    text-align: left;
+
+    cursor: pointer;
+}
+
+.post-menu-delete:hover {
+    background: #fff1f2;
+}
+
+.post-menu-delete .material-icons {
+    font-size: 18px;
 }

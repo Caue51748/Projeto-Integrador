@@ -1632,7 +1632,36 @@ class AppController {
                         <span class="post-author">${this.escaparHtmlDestaque(nomeAutor)}</span>
                         <div class="post-meta">${mostrarTagComunidade && nomeComunidade ? `em c/${this.escaparHtmlDestaque(nomeComunidade)}` : 'Feed global'} · ${dataPostagem}</div>
                     </div>
-                    <button class="post-more" aria-label="Mais opções"><i class="material-icons">more_horiz</i></button>
+                   ${podeExcluir ? `
+    <div class="post-menu-wrapper">
+
+        <button
+            type="button"
+            class="post-more"
+            aria-label="Mais opções"
+            onclick="app.alternarMenuPost(event, ${idPost})"
+        >
+            <i class="material-icons">more_horiz</i>
+        </button>
+<div
+    id="post-menu-${idPost}"
+    class="post-menu"
+>
+    <button
+        type="button"
+        class="post-menu-delete"
+        onclick="
+            event.stopPropagation();
+            app.excluirPost(${idPost});
+        "
+    >
+        <i class="material-icons">delete_outline</i>
+        Excluir publicação
+    </button>
+</div>
+
+    </div>
+` : ''}
                 </div>
                 <div class="post-title">${this.escaparHtmlDestaque(post.titulo)}</div>
                <div class="post-body">${this.escaparHtmlDestaque(post.conteudo)}</div>
@@ -1643,16 +1672,6 @@ class AppController {
                     <button class="post-action" onclick="document.getElementById('comentario-${idPost}').focus()"><i class="material-icons">chat_bubble_outline</i><span>${comentarios.length}</span></button>
                     <button class="post-action ${salvo ? 'active' : ''}" onclick="app.alternarPostSalvo(${idPost})"><i class="material-icons">${salvo ? 'bookmark' : 'bookmark_border'}</i></button>
                 </div>
-
-${podeExcluir ? `
-    <div style="margin-top: 10px;">
-        <button
-            class="btn-secondary"
-            onclick="app.excluirPost(${idPost})">
-            Excluir
-        </button>
-    </div>
-` : ''}
 
 ${ApiService.getIdUsuarioLogado() ? `
                     <div class="comment-input-container">
@@ -2307,6 +2326,28 @@ ${ApiService.getIdUsuarioLogado() ? `
             alert("Você não tem permissão para remover este membro.");
         }
     }
+    alternarMenuPost(evento, idPost) {
+
+        evento.stopPropagation();
+
+        const menu =
+            document.getElementById(
+                `post-menu-${idPost}`
+            );
+
+        if (!menu) return;
+
+        document
+            .querySelectorAll('.post-menu.open')
+            .forEach(outroMenu => {
+
+                if (outroMenu !== menu) {
+                    outroMenu.classList.remove('open');
+                }
+            });
+
+        menu.classList.toggle('open');
+    }
 
     async excluirPost(idPost) {
 
@@ -2324,7 +2365,7 @@ ${ApiService.getIdUsuarioLogado() ? `
                 this.renderizarSubreddit(this.comunidadeAtivaId);
             }
         } else {
-            alert("Você não tem permissão para excluir esta publicaçãox.");
+            alert("Você não tem permissão para excluir esta publicação.");
         }
     }
 
