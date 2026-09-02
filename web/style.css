@@ -5334,3 +5334,20 @@ button:disabled {
     font-size: 13px;
     line-height: 1.5;
 }
+
+/* Remove controles nativos de exibição de senha
+   para usar somente nosso botão personalizado */
+
+.auth-input-wrap input[type="password"]::-ms-reveal,
+.auth-input-wrap input[type="password"]::-ms-clear {
+    display: none;
+}
+
+.auth-input-wrap input[type="password"]::-webkit-credentials-auto-fill-button,
+.auth-input-wrap input[type="password"]::-webkit-contacts-auto-fill-button {
+    visibility: hidden;
+    display: none !important;
+    pointer-events: none;
+    position: absolute;
+    right: 0;
+}
