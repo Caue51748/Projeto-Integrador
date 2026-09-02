@@ -590,33 +590,134 @@ class AppController {
     fecharModal(id) { document.getElementById(id).style.display = 'none'; }
 
     abrirModalPost() {
-        if (!ApiService.getUsuarioLogado()) {
+
+        const idUsuario =
+            ApiService.getIdUsuarioLogado();
+
+        if (!idUsuario) {
             return alert("Faça login primeiro.");
         }
 
-        // Se estiver dentro de uma comunidade, precisa ser membro
-        if (this.comunidadeAtivaId && !this.usuarioParticipaDaComunidade) {
-            return alert("Você precisa entrar na comunidade antes de publicar.");
+
+        // Se estiver dentro de uma comunidade,
+        // só permite publicar se participar dela.
+        if (
+            this.comunidadeAtivaId &&
+            !this.usuarioParticipaDaComunidade
+        ) {
+            return alert(
+                "Você precisa entrar na comunidade antes de publicar."
+            );
         }
 
-        const tituloEl = document.getElementById('modal-post-title');
+
+        const tituloEl =
+            document.getElementById('modal-post-title');
 
         if (this.comunidadeAtivaId) {
+
             tituloEl.innerText =
-                `Postar em: ${this.comunidadesMap[this.comunidadeAtivaId]}`;
+                `Postar em: ${this.comunidadesMap[
+                this.comunidadeAtivaId
+                ]
+                }`;
+
         } else {
-            tituloEl.innerText = "Nova Publicação Global";
+
+            tituloEl.innerText =
+                "Nova Publicação Global";
         }
 
-        const seletorComunidade = document.getElementById('post-comunidade-id');
+
+        const seletorComunidade =
+            document.getElementById(
+                'post-comunidade-id'
+            );
+
+
         if (seletorComunidade) {
-            seletorComunidade.innerHTML = '<option value="">Publicar no feed global</option>';
-            this.listaComunidades.forEach(comunidade => {
-                const id = comunidade.idComunidade || comunidade.id;
-                seletorComunidade.innerHTML += `<option value="${id}">${this.escaparHtmlDestaque(comunidade.nome)}</option>`;
-            });
-            if (this.comunidadeAtivaId) seletorComunidade.value = this.comunidadeAtivaId;
+
+            seletorComunidade.innerHTML = `
+            <option value="">
+                Publicar no feed global
+            </option>
+        `;
+
+
+            /*
+             * Mostra somente comunidades
+             * das quais o usuário participa.
+             */
+            const comunidadesPermitidas =
+                this.listaComunidades.filter(
+                    comunidade => {
+
+                        const membros =
+                            comunidade.membros || [];
+
+                        const usuarioEhMembro =
+                            membros.some(
+                                membro =>
+                                    String(
+                                        membro.idUsuario ||
+                                        membro.id
+                                    ) ===
+                                    String(idUsuario)
+                            );
+
+
+                        /*
+                         * Também permite ao criador
+                         * publicar na própria comunidade.
+                         */
+                        const idCriador =
+                            comunidade.criador?.idUsuario ||
+                            comunidade.criador?.id;
+
+                        const usuarioEhCriador =
+                            String(idCriador) ===
+                            String(idUsuario);
+
+
+                        return (
+                            usuarioEhMembro ||
+                            usuarioEhCriador
+                        );
+                    }
+                );
+
+
+            comunidadesPermitidas.forEach(
+                comunidade => {
+
+                    const id =
+                        comunidade.idComunidade ||
+                        comunidade.id;
+
+                    seletorComunidade.innerHTML += `
+                    <option value="${id}">
+                        ${this.escaparHtmlDestaque(
+                        comunidade.nome
+                    )
+                        }
+                    </option>
+                `;
+                }
+            );
+
+
+            /*
+             * Se o usuário abriu o modal
+             * de dentro de uma comunidade,
+             * ela já fica selecionada.
+             */
+            if (this.comunidadeAtivaId) {
+
+                seletorComunidade.value =
+                    this.comunidadeAtivaId;
+            }
         }
+
 
         this.abrirModal('post-modal');
     }
@@ -2953,155 +3054,364 @@ ${ApiService.getIdUsuarioLogado() ? `
         const container =
             document.getElementById('evento-detalhes-conteudo');
 
-        container.innerHTML = `
-        <div class="card">
+        const statusClasse =
+            situacaoEvento === 'CANCELADO'
+                ? 'cancelado'
+                : situacaoEvento === 'ENCERRADO'
+                    ? 'encerrado'
+                    : situacaoEvento === 'ACONTECENDO_AGORA'
+                        ? 'agora'
+                        : 'agendado';
 
-            <div style="
-                display:flex;
-                justify-content:space-between;
-                gap:16px;
-                align-items:flex-start;
-            ">
-                <div>
-                    <h1 style="margin-top:0;">
-                        ${evento.titulo}
-                    </h1>
-
-                    <p style="
-                        color:var(--text-muted);
-                        margin-top:6px;
-                    ">
-                        Organizado por ${nomeCriador}
-                    </p>
-
-                    ${evento.categoria ? `<span class="evento-detalhe-categoria">${evento.categoria}</span>` : ''}
-                </div>
-
-                <span style="
-    font-size:13px;
-    font-weight:700;
-">
-    ${situacaoEventoExibida}
-</span>
-            </div>
-
-            ${evento.imagemCapa ? `<div class="evento-detalhe-capa" style="background-image:url('${this.urlCapaEvento(evento.imagemCapa)}')"></div>` : ''}
-
-            <p style="
-                font-size:15px;
-                line-height:1.6;
-                margin:24px 0;
-            ">
-                ${evento.descricao || 'Sem descrição informada.'}
-            </p>
-
-            <div style="
-                border-top:1px solid var(--border-color);
-                padding-top:20px;
-                display:grid;
-                gap:10px;
-            ">
-                <div>📅 <b>Data:</b> ${dataFormatada}</div>
-
-                <div>⏰ <b>Horário:</b> ${horarioInicioFormatado} às ${horarioFimFormatado}</div>
-
-                <div>📍 <b>Local:</b> ${evento.localEvento}</div>
-
-                ${nomeComunidade ? `
-                    <div>
-                        💬 <b>Comunidade:</b> ${nomeComunidade}
-                    </div>
-                ` : ''}
-
-                <div>
-                    👥 <b>Participantes:</b>
-                    ${evento.limiteParticipantes
+        const limiteParticipantesTexto =
+            evento.limiteParticipantes
                 ? `${quantidadeParticipantes} de ${evento.limiteParticipantes}`
-                : quantidadeParticipantes
-            }
-                </div>
+                : `${quantidadeParticipantes}`;
 
-                <div>
-                    🎟 <b>Controle de entrada:</b>
-                    ${evento.exigeCheckin ? 'Obrigatório pelo aplicativo mobile' : 'Não obrigatório'}
-                </div>
-            </div>
-
-            <div style="
-    margin-top:20px;
-    text-align:right;
-    color:var(--text-muted);
-    font-size:13px;
-">
-    <b>Inscrições até:</b><br>
-    ${limiteInscricao.toLocaleString('pt-BR', {
+        const limiteInscricaoFormatado =
+            limiteInscricao.toLocaleString('pt-BR', {
                 dateStyle: 'short',
                 timeStyle: 'short'
-            })}
-</div>
+            });
 
-            <div style="
-                display:flex;
-                gap:10px;
-                flex-wrap:wrap;
-                margin-top:24px;
-            ">
+        container.innerHTML = `
+    <article class="evento-detalhes-card">
 
-              ${!eventoCancelado &&
+        ${evento.imagemCapa
+                ? `
+                <div
+                    class="evento-detalhes-hero"
+                    style="
+                        background-image:
+                        url('${this.urlCapaEvento(evento.imagemCapa)}');
+                    "
+                >
+                    <div class="evento-detalhes-hero-overlay"></div>
+
+                    ${evento.categoria
+                    ? `
+                            <span class="evento-detalhes-categoria">
+                                ${this.escaparHtmlDestaque(evento.categoria)}
+                            </span>
+                        `
+                    : ''
+                }
+                </div>
+            `
+                : `
+                <div class="evento-detalhes-hero evento-detalhes-hero-vazio">
+                    <i class="material-icons">event</i>
+
+                    ${evento.categoria
+                    ? `
+                            <span class="evento-detalhes-categoria">
+                                ${this.escaparHtmlDestaque(evento.categoria)}
+                            </span>
+                        `
+                    : ''
+                }
+                </div>
+            `
+            }
+
+        <div class="evento-detalhes-conteudo">
+
+            <header class="evento-detalhes-header">
+
+                <div class="evento-detalhes-titulo-area">
+
+                    <span class="evento-detalhes-kicker">
+                        <i class="material-icons">event_available</i>
+                        Evento
+                    </span>
+
+                    <h1>
+                        ${this.escaparHtmlDestaque(evento.titulo || 'Evento')}
+                    </h1>
+
+                    <p class="evento-detalhes-organizador">
+                        Organizado por
+                        <strong>
+                            ${this.escaparHtmlDestaque(nomeCriador)}
+                        </strong>
+                    </p>
+
+                </div>
+
+                <span class="
+                    evento-status-badge
+                    ${statusClasse}
+                ">
+                    ${situacaoEventoExibida}
+                </span>
+
+            </header>
+
+
+            <section class="evento-detalhes-resumo">
+
+                <div class="evento-info-card">
+                    <div class="evento-info-icon">
+                        <i class="material-icons">
+                            calendar_today
+                        </i>
+                    </div>
+
+                    <div>
+                        <span>Data</span>
+                        <strong>
+                            ${dataFormatada || 'A confirmar'}
+                        </strong>
+                    </div>
+                </div>
+
+
+                <div class="evento-info-card">
+                    <div class="evento-info-icon">
+                        <i class="material-icons">
+                            schedule
+                        </i>
+                    </div>
+
+                    <div>
+                        <span>Horário</span>
+                        <strong>
+                            ${horarioInicioFormatado}
+                            às
+                            ${horarioFimFormatado}
+                        </strong>
+                    </div>
+                </div>
+
+
+                <div class="evento-info-card">
+                    <div class="evento-info-icon">
+                        <i class="material-icons">
+                            place
+                        </i>
+                    </div>
+
+                    <div>
+                        <span>Local</span>
+                        <strong>
+                            ${this.escaparHtmlDestaque(
+                evento.localEvento ||
+                'A confirmar'
+            )}
+                        </strong>
+                    </div>
+                </div>
+
+
+                <div class="evento-info-card">
+                    <div class="evento-info-icon">
+                        <i class="material-icons">
+                            groups
+                        </i>
+                    </div>
+
+                    <div>
+                        <span>Participantes</span>
+                        <strong>
+                            ${limiteParticipantesTexto}
+                        </strong>
+                    </div>
+                </div>
+
+            </section>
+
+
+            <section class="evento-detalhes-section">
+
+                <div class="evento-detalhes-section-title">
+                    <i class="material-icons">
+                        subject
+                    </i>
+
+                    <div>
+                        <span>Sobre o evento</span>
+                        <small>
+                            Informações e descrição
+                        </small>
+                    </div>
+                </div>
+
+                <p class="evento-detalhes-descricao">
+                    ${this.escaparHtmlDestaque(
+                evento.descricao ||
+                'Nenhuma descrição foi adicionada para este evento.'
+            )}
+                </p>
+
+            </section>
+
+
+            <section class="evento-detalhes-section">
+
+                <div class="evento-detalhes-section-title">
+                    <i class="material-icons">
+                        info
+                    </i>
+
+                    <div>
+                        <span>Informações adicionais</span>
+                        <small>
+                            Participação e acesso
+                        </small>
+                    </div>
+                </div>
+
+                <div class="evento-detalhes-adicionais">
+
+                    ${nomeComunidade
+                ? `
+                            <div class="evento-detalhe-linha">
+                                <i class="material-icons">
+                                    forum
+                                </i>
+
+                                <div>
+                                    <span>Comunidade</span>
+                                    <strong>
+                                        ${this.escaparHtmlDestaque(nomeComunidade)}
+                                    </strong>
+                                </div>
+                            </div>
+                        `
+                : ''
+            }
+
+                    <div class="evento-detalhe-linha">
+                        <i class="material-icons">
+                            confirmation_number
+                        </i>
+
+                        <div>
+                            <span>Controle de entrada</span>
+                            <strong>
+                                ${evento.exigeCheckin
+                ? 'Check-in obrigatório pelo aplicativo'
+                : 'Check-in não obrigatório'
+            }
+                            </strong>
+                        </div>
+                    </div>
+
+
+                    <div class="evento-detalhe-linha">
+                        <i class="material-icons">
+                            event_busy
+                        </i>
+
+                        <div>
+                            <span>Inscrições até</span>
+                            <strong>
+                                ${limiteInscricaoFormatado}
+                            </strong>
+                        </div>
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <footer class="evento-detalhes-footer">
+
+                <div class="evento-detalhes-footer-texto">
+                    <span>Participação</span>
+
+                    <strong>
+                        ${eventoCancelado
+                ? 'Este evento foi cancelado'
+                : eventoEncerrado
+                    ? 'Este evento já foi encerrado'
+                    : usuarioParticipa
+                        ? 'Você está participando deste evento'
+                        : 'Garanta sua participação'
+            }
+                    </strong>
+                </div>
+
+
+                <div class="evento-detalhes-actions">
+
+                    ${!eventoCancelado &&
                 !eventoEncerrado &&
                 idUsuarioLogado &&
                 !ehCriador
                 ? usuarioParticipa
                     ? `
-                <button
-                    class="btn-secondary"
-                    onclick="app.sairDoEvento(${idEvento})">
-                    Sair do evento
-                </button>
-            `
+                                <button
+                                    type="button"
+                                    class="evento-action-secondary"
+                                    onclick="app.sairDoEvento(${idEvento})"
+                                >
+                                    <i class="material-icons">
+                                        logout
+                                    </i>
+
+                                    Sair do evento
+                                </button>
+                            `
                     : inscricoesEncerradas
                         ? `
-                    <button
-                        class="btn-secondary"
-                        disabled>
-                        Inscrições encerradas
-                    </button>
-                `
+                                    <button
+                                        type="button"
+                                        class="evento-action-disabled"
+                                        disabled
+                                    >
+                                        Inscrições encerradas
+                                    </button>
+                                `
                         : eventoLotado
                             ? `
-                        <button
-                            class="btn-secondary"
-                            disabled>
-                            Evento lotado
-                        </button>
-                    `
+                                        <button
+                                            type="button"
+                                            class="evento-action-disabled"
+                                            disabled
+                                        >
+                                            Evento lotado
+                                        </button>
+                                    `
                             : `
-                        <button
-                            class="btn-primary"
-                            onclick="app.participarEvento(${idEvento})">
-                            Participar
-                        </button>
-                    `
-                :
-                ''
-
+                                       <button
+    type="button"
+    class="btn-primary evento-participar-btn"
+    onclick="app.participarEvento(${idEvento})">
+    <i class="material-icons">person_add_alt</i>
+    <span>Participar</span>
+</button>
+                                    `
+                : ''
             }
 
-                ${ehCriador
+
+                    ${ehCriador
                 ? `
                             <button
-                                class="btn-primary"
-                                onclick="app.gerenciarEvento(${idEvento})">
+                                type="button"
+                                class="evento-action-primary"
+                                onclick="app.gerenciarEvento(${idEvento})"
+                            >
+                                <i class="material-icons">
+                                    settings
+                                </i>
+
                                 Gerenciar evento
                             </button>
                         `
                 : ''
             }
 
-            </div>
-        </div>
-    `;
+                </div>
 
+            </footer>
+
+        </div>
+
+    </article>
+`;
         document.querySelectorAll('.view-section')
             .forEach(el => el.classList.remove('active'));
 
@@ -3245,9 +3555,14 @@ ${ApiService.getIdUsuarioLogado() ? `
 
         </div>
 
-       ${ehProprioPerfil ? `
-    <button onclick="app.abrirEdicaoPerfil()">
-        Editar perfil
+      ${ehProprioPerfil ? `
+    <button
+        type="button"
+        class="btn-primary btn-editar-perfil"
+        onclick="app.abrirEdicaoPerfil()"
+    >
+        <i class="material-icons">edit</i>
+        <span>Editar perfil</span>
     </button>
 ` : idLogado ? `
     <button
