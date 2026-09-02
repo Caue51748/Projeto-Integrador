@@ -1648,7 +1648,7 @@ this.mostrarTelaBoasVindas();
                     ${avatarHtml}
                     <div>
                         <span class="post-author">${this.escaparHtmlDestaque(nomeAutor)}</span>
-                        <div class="post-meta">${mostrarTagComunidade && nomeComunidade ? `em c/${this.escaparHtmlDestaque(nomeComunidade)}` : 'Feed global'} · ${dataPostagem}</div>
+                        <div class="post-meta">${mostrarTagComunidade && nomeComunidade ? `em ${this.escaparHtmlDestaque(nomeComunidade)}` : 'Feed global'} · ${dataPostagem}</div>
                     </div>
                  <div class="post-menu-wrapper">
 
@@ -1798,7 +1798,7 @@ const podeExcluir =
         <span>
             ${
                 nomeComunidade
-                    ? `em c/${this.escaparHtmlDestaque(nomeComunidade)}`
+                    ? `em ${this.escaparHtmlDestaque(nomeComunidade)}`
                     : 'Feed global'
             }
             · ${dataPostagem}
