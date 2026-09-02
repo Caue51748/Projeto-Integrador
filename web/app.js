@@ -2560,8 +2560,9 @@ const podeExcluir =
         document.getElementById('editar-evento-local').value =
             evento.localEvento || '';
 
-        document.getElementById('editar-evento-comunidade').value =
-            evento.comunidadeId || '';
+       this.popularComunidadesEdicaoEvento(
+    evento.comunidadeId
+);
 
         document.getElementById('editar-evento-limite').value =
             evento.limiteParticipantes || '';
@@ -4943,6 +4944,48 @@ const podeExcluir =
         return false;
     }
 }
+
+popularComunidadesEdicaoEvento(selecionadaId = null) {
+
+    const select =
+        document.getElementById(
+            'editar-evento-comunidade'
+        );
+
+    if (!select) return;
+
+    select.innerHTML = `
+        <option value="">
+            Nenhuma (Evento aberto / Global)
+        </option>
+    `;
+
+    if (Array.isArray(this.listaComunidades)) {
+
+        this.listaComunidades.forEach(
+            comunidade => {
+
+                const id =
+                    comunidade.idComunidade ||
+                    comunidade.id;
+
+                const nome =
+                    comunidade.nome ||
+                    'Comunidade';
+
+                select.innerHTML += `
+                    <option value="${id}">
+                        ${this.escaparHtmlDestaque(nome)}
+                    </option>
+                `;
+            }
+        );
+    }
+
+    if (selecionadaId) {
+        select.value = String(selecionadaId);
+    }
+}   
 }
 
 
