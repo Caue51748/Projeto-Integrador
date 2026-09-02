@@ -5076,3 +5076,47 @@ button:disabled {
 .post-menu-delete .material-icons {
     font-size: 18px;
 }
+
+.post-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    width: 100%;
+
+    padding: 10px;
+
+    border: none;
+    border-radius: 7px;
+
+    background: transparent;
+    color: var(--text-main);
+
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+
+    text-align: left;
+    cursor: pointer;
+}
+
+.post-menu-item:hover {
+    background: var(--bg-light);
+}
+
+.post-menu-item .material-icons {
+    font-size: 18px;
+    color: var(--text-muted);
+}
+
+.post-menu-delete {
+    color: var(--danger);
+}
+
+.post-menu-delete:hover {
+    background: #fff1f2;
+}
+
+.post-menu-delete .material-icons {
+    color: var(--danger);
+}

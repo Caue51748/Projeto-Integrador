@@ -141,6 +141,7 @@ class AppController {
             try {
                 await this.carregarDadosGlobais();
                 await this.carregarConversas();
+                await this.abrirPostPeloLink();
             } catch (erro) {
                 console.error(
                     "Erro ao carregar dados iniciais:",
@@ -152,7 +153,24 @@ class AppController {
         }
 
 
-        this.mostrarTelaBoasVindas();
+        const parametros =
+    new URLSearchParams(
+        window.location.search
+    );
+
+const postCompartilhado =
+    parametros.get('post');
+
+if (postCompartilhado) {
+
+    this.esconderTelaBoasVindas();
+
+    await this.abrirPostPeloLink();
+
+    return;
+}
+
+this.mostrarTelaBoasVindas();
     }
 
     fecharConversa() {
@@ -1632,36 +1650,51 @@ class AppController {
                         <span class="post-author">${this.escaparHtmlDestaque(nomeAutor)}</span>
                         <div class="post-meta">${mostrarTagComunidade && nomeComunidade ? `em c/${this.escaparHtmlDestaque(nomeComunidade)}` : 'Feed global'} · ${dataPostagem}</div>
                     </div>
-                   ${podeExcluir ? `
-    <div class="post-menu-wrapper">
+                 <div class="post-menu-wrapper">
+
+    <button
+        type="button"
+        class="post-more"
+        aria-label="Mais opções"
+        onclick="app.alternarMenuPost(event, ${idPost})"
+    >
+        <i class="material-icons">more_horiz</i>
+    </button>
+
+    <div
+        id="post-menu-${idPost}"
+        class="post-menu"
+    >
 
         <button
             type="button"
-            class="post-more"
-            aria-label="Mais opções"
-            onclick="app.alternarMenuPost(event, ${idPost})"
+            class="post-menu-item"
+            onclick="
+                event.stopPropagation();
+                app.compartilharPost(${idPost});
+            "
         >
-            <i class="material-icons">more_horiz</i>
+            <i class="material-icons">link</i>
+            <span>Copiar link</span>
         </button>
-<div
-    id="post-menu-${idPost}"
-    class="post-menu"
->
-    <button
-        type="button"
-        class="post-menu-delete"
-        onclick="
-            event.stopPropagation();
-            app.excluirPost(${idPost});
-        "
-    >
-        <i class="material-icons">delete_outline</i>
-        Excluir publicação
-    </button>
-</div>
+
+        ${podeExcluir ? `
+            <button
+                type="button"
+                class="post-menu-item post-menu-delete"
+                onclick="
+                    event.stopPropagation();
+                    app.excluirPost(${idPost});
+                "
+            >
+                <i class="material-icons">delete_outline</i>
+                <span>Excluir publicação</span>
+            </button>
+        ` : ''}
 
     </div>
-` : ''}
+
+</div>
                 </div>
                 <div class="post-title">${this.escaparHtmlDestaque(post.titulo)}</div>
                <div class="post-body">${this.escaparHtmlDestaque(post.conteudo)}</div>
@@ -2348,6 +2381,34 @@ ${ApiService.getIdUsuarioLogado() ? `
 
         menu.classList.toggle('open');
     }
+
+    async compartilharPost(idPost) {
+
+    const url = new URL(window.location.href);
+
+    url.searchParams.set('post', idPost);
+
+    const link = url.toString();
+
+    try {
+
+        await navigator.clipboard.writeText(link);
+
+        alert('Link da publicação copiado!');
+
+    } catch (erro) {
+
+        console.error(
+            'Não foi possível copiar automaticamente:',
+            erro
+        );
+
+        prompt(
+            'Copie o link da publicação:',
+            link
+        );
+    }
+}
 
     async excluirPost(idPost) {
 
@@ -4759,6 +4820,39 @@ ${ApiService.getIdUsuarioLogado() ? `
         }
 
     }
+
+    async abrirPostPeloLink() {
+
+    const parametros =
+        new URLSearchParams(
+            window.location.search
+        );
+
+    const idPost =
+        parametros.get('post');
+
+    if (!idPost) {
+        return false;
+    }
+
+    try {
+
+        this.esconderTelaBoasVindas();
+
+        await this.abrirDetalhesPost(idPost);
+
+        return true;
+
+    } catch (erro) {
+
+        console.error(
+            'Erro ao abrir publicação compartilhada:',
+            erro
+        );
+
+        return false;
+    }
+}
 }
 
 
