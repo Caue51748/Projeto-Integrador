@@ -903,49 +903,279 @@
         </div>
     </div>
 
-    <div class="modal-overlay" id="gerenciar-comunidade-modal">
-        <div class="modal">
-            <h2>Gerenciar Comunidade</h2>
+   <div
+    class="modal-overlay"
+    id="gerenciar-comunidade-modal"
+>
 
-            <input type="text" id="editar-comunidade-nome" placeholder="Nome da comunidade">
+    <div class="modal comunidade-gerenciar-modal">
 
-            <textarea id="editar-comunidade-desc" placeholder="Descrição"></textarea>
-            <select id="editar-comunidade-categoria">
-                <option value="">Categoria</option>
-                <option>Tecnologia</option>
-                <option>Arte</option>
-                <option>Música</option>
-                <option>Esportes</option>
-                <option>Educação</option>
-                <option>Networking</option>
-                <option>Cultura</option>
-            </select>
-            <label for="editar-comunidade-cor">Cor da comunidade</label>
-            <input type="color" id="editar-comunidade-cor" value="#EA3F74">
-            <label for="editar-comunidade-imagem">Imagem da comunidade (opcional)</label>
-            <input type="file" id="editar-comunidade-imagem" accept="image/*">
+        <div class="comunidade-modal-header">
 
-            <div style="display:flex; gap:10px; margin-top:20px; flex-wrap: wrap;">
-                <button class="btn-primary" onclick="app.salvarEdicaoComunidade()">
-                    Salvar
-                </button>
+            <div>
+                <span class="section-kicker">
+                    Administração
+                </span>
 
-                <button class="btn-primary" onclick="app.abrirGerenciarMembros()">
-                    Gerenciar membros
-                </button>
+                <h2>Gerenciar comunidade</h2>
 
-                <button class="btn-danger" onclick="app.excluirComunidade()">
-                    Excluir comunidade
-                </button>
+                <p>
+                    Atualize as informações e
+                    configurações da comunidade.
+                </p>
+            </div>
 
-                <button class="btn-secondary" onclick="app.fecharModal('gerenciar-comunidade-modal')">
-                    Cancelar
-                </button>
+            <button
+                type="button"
+                class="modal-close"
+                onclick="
+                    app.fecharModal(
+                        'gerenciar-comunidade-modal'
+                    )
+                "
+                aria-label="Fechar"
+            >
+                <i class="material-icons">
+                    close
+                </i>
+            </button>
 
+        </div>
+
+
+        <div class="comunidade-modal-section">
+
+            <div class="comunidade-modal-section-title">
+                <i class="material-icons">
+                    edit
+                </i>
+
+                <div>
+                    <strong>
+                        Informações básicas
+                    </strong>
+
+                    <span>
+                        Nome, descrição e categoria.
+                    </span>
+                </div>
+            </div>
+
+
+            <div class="form-group">
+                <label for="editar-comunidade-nome">
+                    Nome da comunidade
+                </label>
+
+                <input
+                    id="editar-comunidade-nome"
+                    type="text"
+                    placeholder="Nome da comunidade"
+                >
+            </div>
+
+
+            <div class="form-group">
+                <label for="editar-comunidade-desc">
+                    Descrição
+                </label>
+
+                <textarea
+                    id="editar-comunidade-desc"
+                    rows="4"
+                    placeholder="Descreva a comunidade..."
+                ></textarea>
+            </div>
+
+
+            <div class="comunidade-modal-grid">
+
+                <div class="form-group">
+                    <label for="editar-comunidade-categoria">
+                        Categoria
+                    </label>
+
+                    <select
+                        id="editar-comunidade-categoria"
+                    >
+                        <!-- mantenha suas options atuais -->
+                    </select>
+                </div>
+
+
+                <div class="form-group">
+                    <label for="editar-comunidade-cor">
+                        Cor da comunidade
+                    </label>
+
+                    <div class="comunidade-cor-field">
+
+                        <input
+                            type="color"
+                            id="editar-comunidade-cor"
+                        >
+
+                        <span>
+                            Cor de destaque
+                        </span>
+
+                    </div>
+                </div>
 
             </div>
+
         </div>
+
+
+        <div class="comunidade-modal-section">
+
+            <div class="comunidade-modal-section-title">
+                <i class="material-icons">
+                    image
+                </i>
+
+                <div>
+                    <strong>
+                        Aparência
+                    </strong>
+
+                    <span>
+                        Imagem usada nos cards e
+                        no cabeçalho da comunidade.
+                    </span>
+                </div>
+            </div>
+
+
+            <label
+                class="comunidade-upload"
+                for="editar-comunidade-imagem"
+            >
+                <i class="material-icons">
+                    add_photo_alternate
+                </i>
+
+                <div>
+                    <strong>
+                        Escolher nova imagem
+                    </strong>
+
+                    <span>
+                        JPG, PNG ou WEBP
+                    </span>
+                </div>
+
+                <span class="comunidade-upload-action">
+                    Selecionar
+                </span>
+            </label>
+
+            <input
+                type="file"
+                id="editar-comunidade-imagem"
+                accept="image/*"
+                hidden
+            >
+
+        </div>
+
+
+        <div class="comunidade-modal-section">
+
+            <div class="comunidade-modal-section-title">
+                <i class="material-icons">
+                    admin_panel_settings
+                </i>
+
+                <div>
+                    <strong>
+                        Administração
+                    </strong>
+
+                    <span>
+                        Controle quem participa
+                        desta comunidade.
+                    </span>
+                </div>
+            </div>
+
+
+            <button
+                type="button"
+                class="comunidade-admin-action"
+                onclick="app.abrirGerenciarMembros()"
+            >
+                <span>
+                    <i class="material-icons">
+                        group
+                    </i>
+
+                    Gerenciar membros
+                </span>
+
+                <i class="material-icons">
+                    chevron_right
+                </i>
+            </button>
+
+        </div>
+
+
+        <div class="comunidade-danger-zone">
+
+            <div>
+                <strong>
+                    Excluir comunidade
+                </strong>
+
+                <span>
+                    Esta ação remove permanentemente
+                    a comunidade.
+                </span>
+            </div>
+
+            <button
+                type="button"
+                class="comunidade-delete-btn"
+                onclick="app.excluirComunidade()"
+            >
+                <i class="material-icons">
+                    delete_outline
+                </i>
+
+                Excluir
+            </button>
+
+        </div>
+
+
+        <div class="comunidade-modal-footer">
+
+            <button
+                type="button"
+                class="btn-secondary"
+                onclick="
+                    app.fecharModal(
+                        'gerenciar-comunidade-modal'
+                    )
+                "
+            >
+                Cancelar
+            </button>
+
+            <button
+                type="button"
+                class="btn-primary"
+                onclick="app.salvarEdicaoComunidade()"
+            >
+                Salvar alterações
+            </button>
+
+        </div>
+
     </div>
+
+</div>
 
     <div id="gerenciar-membros-modal" class="modal-overlay">
         <div class="modal">
