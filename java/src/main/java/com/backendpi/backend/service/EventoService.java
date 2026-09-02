@@ -70,6 +70,13 @@ public class EventoService {
             throw new RuntimeException("O evento precisa ter um criador");
         }
 
+        if (evento.getPrecoIngresso() != null
+        && evento.getPrecoIngresso().signum() < 0) {
+    throw new RuntimeException(
+            "O preço do ingresso não pode ser negativo"
+    );
+}
+
         if (evento.getLimiteParticipantes() != null
                 && evento.getLimiteParticipantes() <= 0) {
             throw new RuntimeException(
@@ -116,6 +123,13 @@ public class EventoService {
             );
         }
 
+        if (evento.getPrecoIngresso() != null
+        && evento.getPrecoIngresso().signum() < 0) {
+    throw new RuntimeException(
+            "O preço do ingresso não pode ser negativo"
+    );
+}
+
         if (novo.getLimiteParticipantes() != null
                 && novo.getLimiteParticipantes() <= 0) {
             throw new RuntimeException(
@@ -135,6 +149,7 @@ public class EventoService {
         evento.setLimiteParticipantes(novo.getLimiteParticipantes());
         evento.setExigeCheckin(novo.getExigeCheckin());
         validarDadosEvento(evento, false);
+        evento.setPrecoIngresso(novo.getPrecoIngresso());
 
         return eventoRepository.save(evento);
     }
@@ -247,6 +262,7 @@ public class EventoService {
                                 evento.getComunidadeId(),
                                 evento.getCriadorId(),
                                 evento.getLimiteParticipantes(),
+                                evento.getPrecoIngresso(),
                                 evento.getExigeCheckin(),
                                 evento.getStatus(),
                                 evento.getEncerramentoInscricoes(),
