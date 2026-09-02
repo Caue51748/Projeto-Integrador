@@ -56,8 +56,7 @@ public class UsuarioController {
             @PathVariable Long id,
             @RequestBody Usuario usuario
     ) {
-        usuario.setIdUsuario(id);
-        return usuarioRepository.save(usuario);
+        return usuarioService.atualizar(id, usuario);
     }
 
     @DeleteMapping("/{id}")
@@ -191,7 +190,6 @@ public class UsuarioController {
         String tipo = foto.getContentType();
         System.out.println("TIPO RECEBIDO: " + tipo);
 
-        String tipo = foto.getContentType();
         if (tipo == null || !tipo.startsWith("image/")) {
             return ResponseEntity
                     .badRequest()

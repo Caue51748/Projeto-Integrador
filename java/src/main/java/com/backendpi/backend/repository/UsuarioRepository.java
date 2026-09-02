@@ -11,6 +11,8 @@ public interface UsuarioRepository
 
     Usuario findByEmail(String email);
 
+    Usuario findByTelefone(String telefone);
+
     Usuario findByEmailAndSenha(
             String email,
             String senha
