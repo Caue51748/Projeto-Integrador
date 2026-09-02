@@ -1656,7 +1656,7 @@ this.mostrarTelaBoasVindas();
         type="button"
         class="post-more"
         aria-label="Mais opções"
-        onclick="app.alternarMenuPost(event, ${idPost})"
+        onclick="app.alternarMenuPost(event)"
     >
         <i class="material-icons">more_horiz</i>
     </button>
@@ -1758,6 +1758,25 @@ ${ApiService.getIdUsuarioLogado() ? `
 
         const idComunidade = post.idComunidade || post.id_comunidade;
         const nomeComunidade = this.comunidadesMap[idComunidade];
+        const idUsuarioLogado =
+    ApiService.getIdUsuarioLogado();
+
+const comunidade =
+    (this.listaComunidades || []).find(
+        c =>
+            (c.idComunidade || c.id) == idComunidade
+    );
+
+const idAdministrador =
+    comunidade?.criador?.idUsuario ||
+    comunidade?.criador?.id;
+
+const podeExcluir =
+    idUsuarioLogado &&
+    (
+        idUsuarioLogado == idAutor ||
+        idUsuarioLogado == idAdministrador
+    );
         const comentarios = this.comentariosPorPost[idPost] || [];
         const curtido = this.votoDoUsuario(idPost);
         const salvo = this.postEstaSalvo(idPost);
@@ -1767,10 +1786,77 @@ ${ApiService.getIdUsuarioLogado() ? `
 
         container.innerHTML = `
             <article class="post-detail-card">
-                <div class="post-detail-header">
-                    ${avatarHeaderHtml}
-                    <div><strong>${this.escaparHtmlDestaque(nomeAutor)}</strong><span>${nomeComunidade ? `em c/${this.escaparHtmlDestaque(nomeComunidade)}` : 'Feed global'} · ${dataPostagem}</span></div>
-                </div>
+              <div class="post-detail-header">
+
+    ${avatarHeaderHtml}
+
+    <div class="post-detail-author-info">
+        <strong>
+            ${this.escaparHtmlDestaque(nomeAutor)}
+        </strong>
+
+        <span>
+            ${
+                nomeComunidade
+                    ? `em c/${this.escaparHtmlDestaque(nomeComunidade)}`
+                    : 'Feed global'
+            }
+            · ${dataPostagem}
+        </span>
+    </div>
+
+
+    <div class="post-menu-wrapper">
+
+        <button
+            type="button"
+            class="post-more"
+            aria-label="Mais opções"
+           onclick="app.alternarMenuPost(event)"
+        >
+            <i class="material-icons">more_horiz</i>
+        </button>
+
+        <div
+            class="post-menu"
+        >
+
+            <button
+                type="button"
+                class="post-menu-item"
+                onclick="
+                    event.stopPropagation();
+                    app.compartilharPost(${idPost});
+                "
+            >
+                <i class="material-icons">link</i>
+                <span>Copiar link</span>
+            </button>
+
+            ${podeExcluir ? `
+                <button
+                    type="button"
+                    class="post-menu-item post-menu-delete"
+                    onclick="
+                        event.stopPropagation();
+                        app.excluirPost(${idPost});
+                    "
+                >
+                    <i class="material-icons">
+                        delete_outline
+                    </i>
+
+                    <span>
+                        Excluir publicação
+                    </span>
+                </button>
+            ` : ''}
+
+        </div>
+
+    </div>
+
+</div>
                 <h1>${this.escaparHtmlDestaque(post.titulo)}</h1>
                 <div class="post-detail-body">${this.escaparHtmlDestaque(post.conteudo)}</div>
                 <div class="post-actions post-detail-actions">
@@ -2359,28 +2445,32 @@ ${ApiService.getIdUsuarioLogado() ? `
             alert("Você não tem permissão para remover este membro.");
         }
     }
-    alternarMenuPost(evento, idPost) {
+   alternarMenuPost(evento) {
 
-        evento.stopPropagation();
+    evento.stopPropagation();
 
-        const menu =
-            document.getElementById(
-                `post-menu-${idPost}`
-            );
+    const botao = evento.currentTarget;
 
-        if (!menu) return;
+    const wrapper =
+        botao.closest('.post-menu-wrapper');
 
-        document
-            .querySelectorAll('.post-menu.open')
-            .forEach(outroMenu => {
+    const menu =
+        wrapper?.querySelector('.post-menu');
 
-                if (outroMenu !== menu) {
-                    outroMenu.classList.remove('open');
-                }
-            });
+    if (!menu) return;
 
-        menu.classList.toggle('open');
-    }
+    document
+        .querySelectorAll('.post-menu.open')
+        .forEach(outroMenu => {
+
+            if (outroMenu !== menu) {
+                outroMenu.classList.remove('open');
+            }
+
+        });
+
+    menu.classList.toggle('open');
+}
 
     async compartilharPost(idPost) {
 
