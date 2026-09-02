@@ -1,5 +1,6 @@
 package com.backendpi.backend.dto;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -22,6 +23,7 @@ public class EventoResumoDTO {
     private String status;
     private LocalDateTime encerramentoInscricoes;
     private Long quantidadeParticipantes;
+    private BigDecimal precoIngresso;
 
     public EventoResumoDTO(
             Long id,
@@ -36,6 +38,7 @@ public class EventoResumoDTO {
             Long comunidadeId,
             Long criadorId,
             Integer limiteParticipantes,
+            BigDecimal precoIngresso,
             Boolean exigeCheckin,
             String status,
             LocalDateTime encerramentoInscricoes,
@@ -53,6 +56,7 @@ public class EventoResumoDTO {
         this.comunidadeId = comunidadeId;
         this.criadorId = criadorId;
         this.limiteParticipantes = limiteParticipantes;
+        this.precoIngresso = precoIngresso;
         this.exigeCheckin = exigeCheckin;
         this.status = status;
         this.encerramentoInscricoes = encerramentoInscricoes;
@@ -153,4 +157,12 @@ public class EventoResumoDTO {
 
         return "ENCERRADO";
     }
+
+    public BigDecimal getPrecoIngresso() {
+    return precoIngresso;
+}
+
+public void setPrecoIngresso(BigDecimal precoIngresso) {
+    this.precoIngresso = precoIngresso;
+}
 }

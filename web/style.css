@@ -7647,3 +7647,121 @@ button:disabled {
     background: rgba(234, 63, 116, 0.12);
     color: var(--primary-blue);
 }
+
+.compra-ingresso-modal {
+    width: min(480px, calc(100vw - 32px));
+    padding: 30px;
+    border-radius: 24px;
+}
+
+.compra-ingresso-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.compra-ingresso-header h2 {
+    margin: 4px 0;
+    font-size: 24px;
+}
+
+.compra-ingresso-header p {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 14px;
+}
+
+.compra-ingresso-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(234, 63, 116, 0.12);
+    flex-shrink: 0;
+}
+
+.compra-ingresso-icon i {
+    color: var(--primary-pink);
+    font-size: 27px;
+}
+
+.compra-ingresso-evento,
+.compra-ingresso-preco-area {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.compra-ingresso-evento span,
+.compra-ingresso-preco-area span {
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.compra-ingresso-evento strong {
+    font-size: 16px;
+}
+
+.compra-ingresso-preco-area strong {
+    font-size: 28px;
+    font-weight: 800;
+}
+
+.compra-ingresso-aviso {
+    display: flex;
+    gap: 12px;
+    margin-top: 20px;
+    padding: 14px;
+    border-radius: 14px;
+    background: rgba(234, 63, 116, 0.07);
+}
+
+.compra-ingresso-aviso i {
+    color: var(--primary-pink);
+}
+
+.compra-ingresso-aviso div {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.compra-ingresso-aviso strong {
+    font-size: 14px;
+}
+
+.compra-ingresso-aviso span {
+    color: var(--text-muted);
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.compra-ingresso-acoes {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 24px;
+}
+
+.compra-ingresso-acoes .btn-primary {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+@media (max-width: 520px) {
+    .compra-ingresso-acoes {
+        flex-direction: column-reverse;
+    }
+
+    .compra-ingresso-acoes button {
+        width: 100%;
+    }
+}

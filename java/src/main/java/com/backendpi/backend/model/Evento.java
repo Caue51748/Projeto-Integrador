@@ -1,5 +1,6 @@
 package com.backendpi.backend.model;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -226,5 +227,15 @@ public class Evento {
 
         return "ENCERRADO";
     }
+
+    private BigDecimal precoIngresso;
+
+    public BigDecimal getPrecoIngresso() {
+    return precoIngresso;
+}
+
+public void setPrecoIngresso(BigDecimal precoIngresso) {
+    this.precoIngresso = precoIngresso;
+}
 
 }

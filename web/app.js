@@ -626,9 +626,14 @@ class AppController {
         if (lim) lim.value = '';
         const check = document.getElementById('evento-checkin');
         if (check) check.checked = false;
-
         const capaInput = document.getElementById('evento-capa');
         if (capaInput) capaInput.value = '';
+        const preco =
+            document.getElementById('evento-preco');
+
+        if (preco) {
+            preco.value = '';
+        }
         this.atualizarPreviewCapaEvento(capaInput);
         this.mostrarEventoFeedback('');
     }
@@ -3623,6 +3628,15 @@ ${ApiService.getIdUsuarioLogado() ? `
                     const quantidadeParticipantes =
                         evento.quantidadeParticipantes || 0;
                     const eventoLotado = evento.limiteParticipantes && quantidadeParticipantes >= evento.limiteParticipantes;
+                    const precoIngresso = Number(evento.precoIngresso || 0);
+
+                    const precoFormatado =
+                        precoIngresso > 0
+                            ? precoIngresso.toLocaleString('pt-BR', {
+                                style: 'currency',
+                                currency: 'BRL'
+                            })
+                            : 'Gratuito';
                     const idUsuario = ApiService.getIdUsuarioLogado();
                     const ehCriador = idUsuario && idUsuario == evento.criadorId;
                     const acao = ehCriador ? 'Organizador' : eventoLotado ? 'Evento lotado' : idUsuario ? 'Ver detalhes' : 'Entrar para participar';
@@ -3635,7 +3649,23 @@ ${ApiService.getIdUsuarioLogado() ? `
                         <div class="evento-card-meta"><span>${horarioInicioFormatado} - ${horarioFimFormatado}</span><b>${statusExibido}</b></div>
                         <h3>${evento.titulo}</h3>
                         <p>${evento.descricao || 'Sem descrição informada.'}</p>
-                        <div class="evento-card-info"><span>📍 ${evento.localEvento}</span><span>👥 ${evento.limiteParticipantes ? `${quantidadeParticipantes}/${evento.limiteParticipantes}` : `${quantidadeParticipantes}`} participantes</span></div>
+                       <div class="evento-card-info">
+
+    <span>
+        📍 ${evento.localEvento}
+    </span>
+
+    <span>
+        👥 ${evento.limiteParticipantes
+                            ? `${quantidadeParticipantes}/${evento.limiteParticipantes}`
+                            : `${quantidadeParticipantes}`} participantes
+    </span>
+
+    <span>
+        🎟 ${precoFormatado}
+    </span>
+
+</div>
                         <button class="btn-primary evento-card-action" onclick="app.abrirDetalhesEvento(${evento.id})">${acao}</button>
                     </div>
                 `;
@@ -3741,6 +3771,13 @@ ${ApiService.getIdUsuarioLogado() ? `
             document.getElementById('evento-comunidade-id').value;
         const limiteValor =
             document.getElementById('evento-limite').value;
+        const precoValor =
+            document.getElementById('evento-preco').value;
+
+        const precoIngresso =
+            precoValor
+                ? parseFloat(precoValor)
+                : 0;
         const exigeCheckin =
             document.getElementById('evento-checkin').checked;
 
@@ -3792,6 +3829,12 @@ ${ApiService.getIdUsuarioLogado() ? `
             );
         }
 
+        if (precoIngresso < 0) {
+            return this.mostrarEventoFeedback(
+                "O valor do ingresso não pode ser negativo."
+            );
+        }
+
         const novoEvento = {
             titulo,
             descricao,
@@ -3810,6 +3853,9 @@ ${ApiService.getIdUsuarioLogado() ? `
             limiteParticipantes: limiteValor
                 ? parseInt(limiteValor)
                 : null,
+
+            precoIngresso,
+
             exigeCheckin
         };
 
@@ -4773,6 +4819,18 @@ ${ApiService.getIdUsuarioLogado() ? `
 
         let limiteInscricao;
 
+        const precoIngresso = Number(evento.precoIngresso || 0);
+
+const eventoPago = precoIngresso > 0;
+
+const precoFormatado =
+    eventoPago
+        ? precoIngresso.toLocaleString('pt-BR', {
+            style: 'currency',
+            currency: 'BRL'
+        })
+        : 'Gratuito';
+
         if (evento.encerramentoInscricoes) {
             limiteInscricao = new Date(evento.encerramentoInscricoes);
         } else {
@@ -4964,6 +5022,17 @@ ${ApiService.getIdUsuarioLogado() ? `
                     </div>
                 </div>
 
+                <div class="evento-info-card">
+    <div class="evento-info-icon">
+        <i class="material-icons">confirmation_number</i>
+    </div>
+
+    <div>
+        <span>Ingresso</span>
+        <strong>${precoFormatado}</strong>
+    </div>
+</div>
+
             </section>
 
 
@@ -5124,9 +5193,11 @@ ${ApiService.getIdUsuarioLogado() ? `
                                        <button
     type="button"
     class="btn-primary evento-participar-btn"
-    onclick="app.participarEvento(${idEvento})">
+  onclick="app.acaoIngressoEvento(${idEvento})">
     <i class="material-icons">person_add_alt</i>
-    <span>Participar</span>
+   ${eventoPago
+    ? `Comprar ingresso — ${precoFormatado}`
+    : 'Participar gratuitamente'}
 </button>
                                     `
                 : ''
@@ -5628,8 +5699,8 @@ ${ApiService.getIdUsuarioLogado() ? `
             return;
         }
 
-      if (!posts || posts.length === 0) {
-    container.innerHTML = `
+        if (!posts || posts.length === 0) {
+            container.innerHTML = `
         <div class="perfil-empty">
             <div class="perfil-empty-icon">
                 <i class="material-icons">article</i>
@@ -5642,8 +5713,8 @@ ${ApiService.getIdUsuarioLogado() ? `
             </span>
         </div>
     `;
-    return;
-}
+            return;
+        }
 
         container.innerHTML = '';
 
@@ -5692,8 +5763,8 @@ ${ApiService.getIdUsuarioLogado() ? `
             return;
         }
 
-      if (!comunidades || comunidades.length === 0) {
-    container.innerHTML = `
+        if (!comunidades || comunidades.length === 0) {
+            container.innerHTML = `
         <div class="perfil-empty">
             <div class="perfil-empty-icon">
                 <i class="material-icons">groups</i>
@@ -5706,8 +5777,8 @@ ${ApiService.getIdUsuarioLogado() ? `
             </span>
         </div>
     `;
-    return;
-}
+            return;
+        }
 
         container.innerHTML = '';
 
@@ -5963,15 +6034,15 @@ ${ApiService.getIdUsuarioLogado() ? `
 
     renderizarEventosPerfil(eventos) {
 
-    const container =
-        document.getElementById('perfil-conteudo-abas');
+        const container =
+            document.getElementById('perfil-conteudo-abas');
 
-    if (!container) {
-        return;
-    }
+        if (!container) {
+            return;
+        }
 
-   if (!eventos || eventos.length === 0) {
-    container.innerHTML = `
+        if (!eventos || eventos.length === 0) {
+            container.innerHTML = `
         <div class="perfil-empty">
             <div class="perfil-empty-icon">
                 <i class="material-icons">event</i>
@@ -5984,41 +6055,41 @@ ${ApiService.getIdUsuarioLogado() ? `
             </span>
         </div>
     `;
-    return;
-}
-
-    container.innerHTML = '';
-
-    eventos.forEach(evento => {
-
-        const idEvento =
-            evento.idEvento || evento.id;
-
-        const div =
-            document.createElement('div');
-
-        div.className = 'list-item';
-
-        const dataEvento =
-            evento.dataEvento ||
-            evento.data ||
-            evento.dataInicio;
-
-        let dataFormatada = '';
-
-        if (dataEvento) {
-
-            try {
-                dataFormatada =
-                    new Date(dataEvento)
-                        .toLocaleDateString('pt-BR');
-            } catch (erro) {
-                dataFormatada = dataEvento;
-            }
-
+            return;
         }
 
-        div.innerHTML = `
+        container.innerHTML = '';
+
+        eventos.forEach(evento => {
+
+            const idEvento =
+                evento.idEvento || evento.id;
+
+            const div =
+                document.createElement('div');
+
+            div.className = 'list-item';
+
+            const dataEvento =
+                evento.dataEvento ||
+                evento.data ||
+                evento.dataInicio;
+
+            let dataFormatada = '';
+
+            if (dataEvento) {
+
+                try {
+                    dataFormatada =
+                        new Date(dataEvento)
+                            .toLocaleDateString('pt-BR');
+                } catch (erro) {
+                    dataFormatada = dataEvento;
+                }
+
+            }
+
+            div.innerHTML = `
             <div class="list-item-info">
 
                 <div style="
@@ -6054,11 +6125,11 @@ ${ApiService.getIdUsuarioLogado() ? `
             </button>
         `;
 
-        container.appendChild(div);
+            container.appendChild(div);
 
-    });
+        });
 
-}
+    }
 
     async mostrarAbaPerfil(aba, idUsuario) {
 
@@ -7410,6 +7481,82 @@ ${ApiService.getIdUsuarioLogado() ? `
 
         this.abrirMeuPerfil();
     }
+
+ async acaoIngressoEvento(idEvento) {
+
+    let evento = this.listaEventos.find(
+        e => (e.idEvento || e.id) == idEvento
+    );
+
+    if (!evento) {
+        try {
+            evento = await ApiService.buscarEventoPorId(idEvento);
+        } catch (erro) {
+            console.error(erro);
+            return alert(
+                "Não foi possível carregar os dados do evento."
+            );
+        }
+    }
+
+    const preco = Number(evento.precoIngresso || 0);
+
+    if (preco <= 0) {
+        await this.participarEvento(idEvento);
+        return;
+    }
+
+    this.eventoCompraId = idEvento;
+
+    const precoFormatado =
+        preco.toLocaleString('pt-BR', {
+            style: 'currency',
+            currency: 'BRL'
+        });
+
+    document.getElementById(
+        'compra-ingresso-evento-nome'
+    ).textContent = evento.titulo || 'Evento';
+
+    document.getElementById(
+        'compra-ingresso-preco'
+    ).textContent = precoFormatado;
+
+    this.abrirModal('compra-ingresso-modal');
+}
+
+async confirmarCompraIngresso() {
+
+    if (!this.eventoCompraId) {
+        return;
+    }
+
+    const idEvento = this.eventoCompraId;
+
+    this.fecharModal('compra-ingresso-modal');
+
+    try {
+
+        await this.participarEvento(idEvento);
+
+        this.eventoCompraId = null;
+
+        alert(
+            "Compra simulada concluída! Seu ingresso foi registrado."
+        );
+
+    } catch (erro) {
+
+        console.error(
+            "Erro ao concluir compra:",
+            erro
+        );
+
+        alert(
+            "Não foi possível concluir a compra do ingresso."
+        );
+    }
+}
 }
 
 
