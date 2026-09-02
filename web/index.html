@@ -350,7 +350,8 @@
                 <div id="view-evento-detalhes" class="view-section">
 
                     <button class="detail-back-button" onclick="app.voltarParaEventos()">
-                        <i class="material-icons">arrow_back</i> Voltar para eventos
+                        <i class="material-icons">arrow_back</i>
+                        Voltar para eventos
                     </button>
 
                     <div id="evento-detalhes-conteudo"></div>
@@ -531,7 +532,8 @@
 
     <div class="modal-overlay" id="evento-modal" role="dialog" aria-modal="true" aria-labelledby="evento-modal-title">
         <div class="modal evento-modal">
-            <button type="button" class="modal-close-btn" onclick="app.fecharModal('evento-modal')" aria-label="Fechar modal">
+            <button type="button" class="modal-close-btn" onclick="app.fecharModal('evento-modal')"
+                aria-label="Fechar modal">
                 <i class="material-icons">close</i>
             </button>
 
@@ -554,7 +556,9 @@
                         <label for="evento-titulo">Título do evento <span class="required">*</span></label>
                         <div class="form-input-wrap">
                             <i class="material-icons">title</i>
-                            <input type="text" id="evento-titulo" placeholder="Ex: Workshop de Java ou Encontro da Comunidade" required autocomplete="off">
+                            <input type="text" id="evento-titulo"
+                                placeholder="Ex: Workshop de Java ou Encontro da Comunidade" required
+                                autocomplete="off">
                         </div>
                     </div>
 
@@ -581,7 +585,8 @@
                         </div>
 
                         <div class="form-group">
-                            <label for="evento-comunidade-id">Comunidade vinculada <span class="optional">(opcional)</span></label>
+                            <label for="evento-comunidade-id">Comunidade vinculada <span
+                                    class="optional">(opcional)</span></label>
                             <div class="form-input-wrap">
                                 <i class="material-icons">groups</i>
                                 <select id="evento-comunidade-id">
@@ -593,7 +598,8 @@
 
                     <div class="form-group">
                         <label for="evento-desc">Descrição e detalhes <span class="optional">(opcional)</span></label>
-                        <textarea id="evento-desc" rows="3" placeholder="Explique a proposta do evento, programação, requisitos ou recados importantes..."></textarea>
+                        <textarea id="evento-desc" rows="3"
+                            placeholder="Explique a proposta do evento, programação, requisitos ou recados importantes..."></textarea>
                     </div>
                 </div>
 
@@ -630,12 +636,14 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="evento-encerramento-inscricoes">Encerramento das inscrições <span class="optional">(opcional)</span></label>
+                        <label for="evento-encerramento-inscricoes">Encerramento das inscrições <span
+                                class="optional">(opcional)</span></label>
                         <div class="form-input-wrap">
                             <i class="material-icons">event_busy</i>
                             <input type="datetime-local" id="evento-encerramento-inscricoes">
                         </div>
-                        <small class="form-hint">Deixe em branco para permitir inscrições até o início do evento.</small>
+                        <small class="form-hint">Deixe em branco para permitir inscrições até o início do
+                            evento.</small>
                     </div>
                 </div>
 
@@ -650,12 +658,14 @@
                             <label for="evento-local">Localização / Link <span class="required">*</span></label>
                             <div class="form-input-wrap">
                                 <i class="material-icons">place</i>
-                                <input type="text" id="evento-local" placeholder="Ex: Auditório Bloco A ou Link do Meet" required autocomplete="off">
+                                <input type="text" id="evento-local" placeholder="Ex: Auditório Bloco A ou Link do Meet"
+                                    required autocomplete="off">
                             </div>
                         </div>
 
                         <div class="form-group">
-                            <label for="evento-limite">Limite de participantes <span class="optional">(opcional)</span></label>
+                            <label for="evento-limite">Limite de participantes <span
+                                    class="optional">(opcional)</span></label>
                             <div class="form-input-wrap">
                                 <i class="material-icons">people</i>
                                 <input type="number" id="evento-limite" min="1" placeholder="Vazio = Sem limite">
@@ -673,7 +683,8 @@
                     <div class="form-group">
                         <label for="evento-capa">Imagem de capa <span class="optional">(opcional)</span></label>
                         <div class="custom-file-upload">
-                            <input type="file" id="evento-capa" accept="image/*" onchange="app.atualizarPreviewCapaEvento(this)">
+                            <input type="file" id="evento-capa" accept="image/*"
+                                onchange="app.atualizarPreviewCapaEvento(this)">
                             <div class="file-upload-visual" id="evento-capa-preview-box">
                                 <i class="material-icons">cloud_upload</i>
                                 <span id="evento-capa-nome">Clique para selecionar uma imagem</span>
@@ -688,7 +699,8 @@
                             <span class="checkbox-custom"></span>
                             <div class="checkbox-text">
                                 <strong>Exigir check-in dos participantes</strong>
-                                <span>A entrada e validação de ingressos serão realizadas pelo aplicativo mobile via QR Code.</span>
+                                <span>A entrada e validação de ingressos serão realizadas pelo aplicativo mobile via QR
+                                    Code.</span>
                             </div>
                         </label>
                     </div>
@@ -821,9 +833,11 @@
         </div>
     </div>
 
-    <div class="modal-overlay" id="gerenciar-evento-modal" role="dialog" aria-modal="true" aria-labelledby="gerenciar-evento-title">
+    <div class="modal-overlay" id="gerenciar-evento-modal" role="dialog" aria-modal="true"
+        aria-labelledby="gerenciar-evento-title">
         <div class="modal evento-modal">
-            <button type="button" class="modal-close-btn" onclick="app.fecharModal('gerenciar-evento-modal')" aria-label="Fechar modal">
+            <button type="button" class="modal-close-btn" onclick="app.fecharModal('gerenciar-evento-modal')"
+                aria-label="Fechar modal">
                 <i class="material-icons">close</i>
             </button>
 
@@ -845,7 +859,9 @@
                         <label for="editar-evento-titulo">Título do evento <span class="required">*</span></label>
                         <div class="form-input-wrap">
                             <i class="material-icons">title</i>
-                            <input type="text" id="editar-evento-titulo" placeholder="Ex: Workshop de Java ou Encontro da Comunidade" required autocomplete="off">
+                            <input type="text" id="editar-evento-titulo"
+                                placeholder="Ex: Workshop de Java ou Encontro da Comunidade" required
+                                autocomplete="off">
                         </div>
                     </div>
 
@@ -872,7 +888,8 @@
                         </div>
 
                         <div class="form-group">
-                            <label for="editar-evento-comunidade">Comunidade vinculada <span class="optional">(opcional)</span></label>
+                            <label for="editar-evento-comunidade">Comunidade vinculada <span
+                                    class="optional">(opcional)</span></label>
                             <div class="form-input-wrap">
                                 <i class="material-icons">groups</i>
                                 <select id="editar-evento-comunidade">
@@ -883,8 +900,10 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="editar-evento-descricao">Descrição e detalhes <span class="optional">(opcional)</span></label>
-                        <textarea id="editar-evento-descricao" rows="3" placeholder="Explique a proposta do evento, programação, requisitos ou recados importantes..."></textarea>
+                        <label for="editar-evento-descricao">Descrição e detalhes <span
+                                class="optional">(opcional)</span></label>
+                        <textarea id="editar-evento-descricao" rows="3"
+                            placeholder="Explique a proposta do evento, programação, requisitos ou recados importantes..."></textarea>
                     </div>
                 </div>
 
@@ -920,12 +939,14 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="editar-evento-encerramento-inscricoes">Encerramento das inscrições <span class="optional">(opcional)</span></label>
+                        <label for="editar-evento-encerramento-inscricoes">Encerramento das inscrições <span
+                                class="optional">(opcional)</span></label>
                         <div class="form-input-wrap">
                             <i class="material-icons">event_busy</i>
                             <input type="datetime-local" id="editar-evento-encerramento-inscricoes">
                         </div>
-                        <small class="form-hint">Deixe em branco para permitir inscrições até o início do evento.</small>
+                        <small class="form-hint">Deixe em branco para permitir inscrições até o início do
+                            evento.</small>
                     </div>
                 </div>
 
@@ -939,12 +960,14 @@
                             <label for="editar-evento-local">Localização / Link <span class="required">*</span></label>
                             <div class="form-input-wrap">
                                 <i class="material-icons">place</i>
-                                <input type="text" id="editar-evento-local" placeholder="Ex: Auditório Bloco A ou Link do Meet" required autocomplete="off">
+                                <input type="text" id="editar-evento-local"
+                                    placeholder="Ex: Auditório Bloco A ou Link do Meet" required autocomplete="off">
                             </div>
                         </div>
 
                         <div class="form-group">
-                            <label for="editar-evento-limite">Limite de participantes <span class="optional">(opcional)</span></label>
+                            <label for="editar-evento-limite">Limite de participantes <span
+                                    class="optional">(opcional)</span></label>
                             <div class="form-input-wrap">
                                 <i class="material-icons">people</i>
                                 <input type="number" id="editar-evento-limite" min="1" placeholder="Vazio = Sem limite">
@@ -964,7 +987,8 @@
                             <span class="checkbox-custom"></span>
                             <div class="checkbox-text">
                                 <strong>Exigir check-in dos participantes</strong>
-                                <span>A entrada e validação de ingressos serão realizadas pelo aplicativo mobile via QR Code.</span>
+                                <span>A entrada e validação de ingressos serão realizadas pelo aplicativo mobile via QR
+                                    Code.</span>
                             </div>
                         </label>
                     </div>
@@ -972,11 +996,13 @@
 
                 <div class="evento-gerenciar-actions">
                     <button type="submit" class="btn-primary btn-full" id="btn-salvar-edicao-evento">
-                        <i class="material-icons" style="font-size:18px; vertical-align:middle; margin-right:4px;">save</i> Salvar alterações
+                        <i class="material-icons"
+                            style="font-size:18px; vertical-align:middle; margin-right:4px;">save</i> Salvar alterações
                     </button>
 
                     <div class="evento-gerenciar-grid-btns">
-                        <button type="button" class="btn-secondary btn-icon-action" onclick="app.abrirParticipantesEvento()">
+                        <button type="button" class="btn-secondary btn-icon-action"
+                            onclick="app.abrirParticipantesEvento()">
                             <i class="material-icons">people</i> Participantes
                         </button>
 
@@ -997,9 +1023,11 @@
         </div>
     </div>
 
-    <div class="modal-overlay" id="participantes-evento-modal" role="dialog" aria-modal="true" aria-labelledby="participantes-modal-title">
+    <div class="modal-overlay" id="participantes-evento-modal" role="dialog" aria-modal="true"
+        aria-labelledby="participantes-modal-title">
         <div class="modal evento-modal" style="max-width: 520px;">
-            <button type="button" class="modal-close-btn" onclick="app.fecharModal('participantes-evento-modal')" aria-label="Fechar modal">
+            <button type="button" class="modal-close-btn" onclick="app.fecharModal('participantes-evento-modal')"
+                aria-label="Fechar modal">
                 <i class="material-icons">close</i>
             </button>
 
@@ -1014,7 +1042,8 @@
             </div>
 
             <div style="margin-top: 20px;">
-                <button type="button" class="btn-full btn-secondary" onclick="app.fecharModal('participantes-evento-modal')">
+                <button type="button" class="btn-full btn-secondary"
+                    onclick="app.fecharModal('participantes-evento-modal')">
                     Fechar
                 </button>
             </div>
