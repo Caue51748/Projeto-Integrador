@@ -280,17 +280,36 @@
                         <button class="btn-primary" onclick="app.abrirModal('comunidade-modal')">Nova
                             Comunidade</button>
                     </div>
+
+                    <div class="comunidades-tabs">
+                        <button id="comunidades-tab-todas" class="comunidades-tab active"
+                            onclick="app.mudarFiltroComunidades('todas')">
+                            Todas
+                        </button>
+
+                        <button id="comunidades-tab-minhas" class="comunidades-tab"
+                            onclick="app.mudarFiltroComunidades('minhas')">
+                            Minhas comunidades
+                        </button>
+
+                        <button id="comunidades-tab-criadas" class="comunidades-tab"
+                            onclick="app.mudarFiltroComunidades('criadas')">
+                            Criadas por mim
+                        </button>
+                    </div>
                     <div class="comunidades-toolbar">
                         <input class="search-bar" id="comunidades-search" type="search"
                             placeholder="Buscar por nome ou interesse..." oninput="app.filtrarComunidades()">
                         <select id="comunidades-ordenacao" onchange="app.filtrarComunidades()">
-                            <option value="relevantes">Mais relevantes</option>
-                            <option value="membros">Mais membros</option>
+                            <option value="membros">Mais populares</option>
                             <option value="recentes">Mais recentes</option>
+                            <option value="nome">Nome A-Z</option>
                         </select>
                     </div>
                     <div id="comunidades-container" class="comunidades-grid">Carregando comunidades...</div>
                 </div>
+
+
 
                 <div id="view-busca" class="view-section">
                     <div class="page-header">
