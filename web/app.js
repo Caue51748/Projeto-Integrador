@@ -18,6 +18,7 @@ class AppController {
         this.postsSalvos = [];
         this.filtroFeed = 'todos';
         this.ordenacaoFeed = 'recentes';
+        this.comunidadeFeedSelecionada = null;
         this.modoCadastro = false;
         this.telaBoasVindasVisivel = true;
         this.comunidadeAtivaId = null;
@@ -1468,25 +1469,240 @@ this.mostrarTelaBoasVindas();
         this.montarCardsPosts(postsDestaComunidade, 'subreddit-feed-container', false);
     }
 
-    renderizarFeedGeral() {
-        let posts = [...this.posts];
-        const idUsuario = ApiService.getIdUsuarioLogado();
-        const imagem = document.getElementById("editar-comunidade-imagem")?.files?.[0];
+    obterMinhasComunidades() {
 
-        if (this.filtroFeed === 'comunidades') posts = posts.filter(post => post.idComunidade || post.id_comunidade);
-        if (this.filtroFeed === 'meus') posts = posts.filter(post => (post.idUsuario || post.id_usuario) == idUsuario);
-        if (this.ordenacaoFeed === 'comentados') posts.sort((a, b) => (this.comentariosPorPost[b.idPost || b.id] || []).length - (this.comentariosPorPost[a.idPost || a.id] || []).length);
-        if (this.ordenacaoFeed === 'curtidos') posts.sort((a, b) => this.contarVotos(b.idPost || b.id) - this.contarVotos(a.idPost || a.id));
+    const idUsuario =
+        ApiService.getIdUsuarioLogado();
 
-        this.montarCardsPosts(posts, 'feed-container', true);
+    if (!idUsuario) {
+        return [];
     }
 
-    mudarFiltroFeed(filtro) {
-        this.filtroFeed = filtro;
-        document.querySelectorAll('.feed-tab').forEach(tab => tab.classList.remove('active'));
-        document.getElementById(`feed-tab-${filtro}`)?.classList.add('active');
-        this.renderizarFeedGeral();
+    return (this.listaComunidades || [])
+        .filter(comunidade => {
+
+            const membros =
+                comunidade.membros || [];
+
+            const ehMembro =
+                membros.some(membro => {
+
+                    const idMembro =
+                        membro.idUsuario ||
+                        membro.id;
+
+                    return String(idMembro) ===
+                        String(idUsuario);
+                });
+
+            const idCriador =
+                comunidade.criador?.idUsuario ||
+                comunidade.criador?.id;
+
+            const ehCriador =
+                String(idCriador) ===
+                String(idUsuario);
+
+            return ehMembro || ehCriador;
+        });
+}
+
+   renderizarFeedGeral() {
+
+    let posts = [...this.posts];
+
+    const idUsuario =
+        ApiService.getIdUsuarioLogado();
+
+
+    // =========================
+    // FILTRO DE COMUNIDADES
+    // =========================
+    if (this.filtroFeed === 'comunidades') {
+
+        const idsMinhasComunidades =
+            this.obterIdsMinhasComunidades();
+
+        posts = posts.filter(post => {
+
+            const idComunidade =
+                post.idComunidade ||
+                post.id_comunidade;
+
+            if (!idComunidade) {
+                return false;
+            }
+
+            // Só comunidades das quais participa
+            if (
+                !idsMinhasComunidades.has(
+                    String(idComunidade)
+                )
+            ) {
+                return false;
+            }
+
+            // Se escolheu um chip específico
+            if (
+                this.comunidadeFeedSelecionada !== null
+            ) {
+                return (
+                    String(idComunidade) ===
+                    String(
+                        this.comunidadeFeedSelecionada
+                    )
+                );
+            }
+
+            return true;
+        });
     }
+
+
+    // =========================
+    // MEUS POSTS
+    // =========================
+    if (this.filtroFeed === 'meus') {
+
+        posts = posts.filter(post =>
+            (
+                post.idUsuario ||
+                post.id_usuario
+            ) == idUsuario
+        );
+    }
+
+
+    // =========================
+    // ORDENAÇÃO
+    // =========================
+    if (
+        this.ordenacaoFeed === 'comentados'
+    ) {
+
+        posts.sort((a, b) => {
+
+            const idA =
+                a.idPost || a.id;
+
+            const idB =
+                b.idPost || b.id;
+
+            return (
+                (
+                    this.comentariosPorPost[idB] ||
+                    []
+                ).length
+                -
+                (
+                    this.comentariosPorPost[idA] ||
+                    []
+                ).length
+            );
+        });
+    }
+
+
+    if (
+        this.ordenacaoFeed === 'curtidos'
+    ) {
+
+        posts.sort((a, b) =>
+            this.contarVotos(
+                b.idPost || b.id
+            )
+            -
+            this.contarVotos(
+                a.idPost || a.id
+            )
+        );
+    }
+
+
+    // Atualiza elementos auxiliares
+    this.renderizarFiltrosComunidadesFeed();
+    this.atualizarSidebarFeed();
+
+
+    // Estado vazio especial
+    if (
+        this.filtroFeed === 'comunidades' &&
+        !this.obterMinhasComunidades().length
+    ) {
+
+        const container =
+            document.getElementById(
+                'feed-container'
+            );
+
+        if (container) {
+            container.innerHTML = `
+                <div class="feed-comunidades-empty">
+
+                    <div class="feed-empty-icon">
+                        <i class="material-icons">
+                            groups
+                        </i>
+                    </div>
+
+                    <h3>
+                        Encontre sua comunidade
+                    </h3>
+
+                    <p>
+                        Você ainda não participa de
+                        nenhuma comunidade.
+                    </p>
+
+                    <button
+                        type="button"
+                        class="btn-primary"
+                        onclick="
+                            app.mudarAba('comunidades')
+                        "
+                    >
+                        Explorar comunidades
+                    </button>
+
+                </div>
+            `;
+        }
+
+        return;
+    }
+
+
+    this.montarCardsPosts(
+        posts,
+        'feed-container',
+        true
+    );
+}
+
+   mudarFiltroFeed(filtro) {
+
+    this.filtroFeed = filtro;
+
+    // Ao sair da aba Comunidades,
+    // limpa o filtro interno.
+    if (filtro !== 'comunidades') {
+        this.comunidadeFeedSelecionada = null;
+    }
+
+    document
+        .querySelectorAll('.feed-tab')
+        .forEach(tab =>
+            tab.classList.remove('active')
+        );
+
+    document
+        .getElementById(
+            `feed-tab-${filtro}`
+        )
+        ?.classList.add('active');
+
+    this.renderizarFeedGeral();
+}
 
     mudarOrdenacaoFeed(ordenacao) {
         this.ordenacaoFeed = ordenacao;
@@ -1643,14 +1859,45 @@ this.mostrarTelaBoasVindas();
             const curtido = this.votoDoUsuario(idPost);
             const salvo = this.postEstaSalvo(idPost);
             const totalCurtidas = this.contarVotos(idPost);
+            const origemPostHtml =
+    idComunidade && nomeComunidade
+        ? (
+            mostrarTagComunidade
+                ? `
+                    em
+                    <button
+                        type="button"
+                        class="post-community-link"
+                        onclick="
+                            event.stopPropagation();
+                            app.abrirComunidadeDoFeed(
+                                ${idComunidade}
+                            );
+                        "
+                    >
+                        ${this.escaparHtmlDestaque(
+                            nomeComunidade
+                        )}
+                    </button>
+                `
+                : this.escaparHtmlDestaque(
+                    nomeComunidade
+                )
+        )
+        : 'Feed global';
             div.innerHTML = `
                 <div class="post-header-area">
                     ${avatarHtml}
                     <div>
                         <span class="post-author">${this.escaparHtmlDestaque(nomeAutor)}</span>
-                        <div class="post-meta">${mostrarTagComunidade && nomeComunidade ? `em ${this.escaparHtmlDestaque(nomeComunidade)}` : 'Feed global'} · ${dataPostagem}</div>
+                        <div class="post-meta">
+    ${origemPostHtml}
+    · ${dataPostagem}
+</div>
                     </div>
+                    
                  <div class="post-menu-wrapper">
+                 
 
     <button
         type="button"
@@ -4985,7 +5232,279 @@ popularComunidadesEdicaoEvento(selecionadaId = null) {
     if (selecionadaId) {
         select.value = String(selecionadaId);
     }
-}   
+}
+
+obterIdsMinhasComunidades() {
+
+    return new Set(
+        this.obterMinhasComunidades()
+            .map(comunidade =>
+                String(
+                    comunidade.idComunidade ||
+                    comunidade.id
+                )
+            )
+    );
+}
+
+renderizarFiltrosComunidadesFeed() {
+
+    const container =
+        document.getElementById(
+            'feed-comunidades-filtros'
+        );
+
+    if (!container) return;
+
+    if (this.filtroFeed !== 'comunidades') {
+        container.innerHTML = '';
+        container.classList.remove('active');
+        return;
+    }
+
+    const comunidades =
+        this.obterMinhasComunidades();
+
+    container.classList.add('active');
+
+    if (!comunidades.length) {
+        container.innerHTML = '';
+        return;
+    }
+
+    const botaoTodas = `
+        <button
+            type="button"
+            class="
+                feed-comunidade-chip
+                ${
+                    this.comunidadeFeedSelecionada === null
+                        ? 'active'
+                        : ''
+                }
+            "
+            onclick="
+                app.selecionarComunidadeFeed(null)
+            "
+        >
+            Todas
+        </button>
+    `;
+
+    const botoesComunidades =
+        comunidades
+            .map(comunidade => {
+
+                const id =
+                    comunidade.idComunidade ||
+                    comunidade.id;
+
+                const selecionada =
+                    String(
+                        this.comunidadeFeedSelecionada
+                    ) === String(id);
+
+                return `
+                    <button
+                        type="button"
+                        class="
+                            feed-comunidade-chip
+                            ${selecionada ? 'active' : ''}
+                        "
+                        onclick="
+                            app.selecionarComunidadeFeed(${id})
+                        "
+                    >
+                        ${this.escaparHtmlDestaque(
+                            comunidade.nome || 'Comunidade'
+                        )}
+                    </button>
+                `;
+            })
+            .join('');
+
+    container.innerHTML =
+        botaoTodas +
+        botoesComunidades;
+}
+
+selecionarComunidadeFeed(idComunidade) {
+
+    this.comunidadeFeedSelecionada =
+        idComunidade === null
+            ? null
+            : String(idComunidade);
+
+    this.renderizarFeedGeral();
+}
+
+abrirComunidadeDoFeed(idComunidade) {
+
+    const comunidade =
+        (this.listaComunidades || [])
+            .find(c =>
+                (
+                    c.idComunidade ||
+                    c.id
+                ) == idComunidade
+            );
+
+    if (!comunidade) {
+        return;
+    }
+
+    this.entrarSubreddit(
+        idComunidade,
+        comunidade.nome,
+        comunidade.descricao
+    );
+}
+
+atualizarSidebarFeed() {
+
+    const kicker =
+        document.getElementById(
+            'feed-sidebar-recomendado-kicker'
+        );
+
+    const titulo =
+        document.getElementById(
+            'feed-sidebar-recomendado-titulo'
+        );
+
+    const container =
+        document.getElementById(
+            'feed-recomendados'
+        );
+
+    if (
+        !kicker ||
+        !titulo ||
+        !container
+    ) {
+        return;
+    }
+
+
+    if (this.filtroFeed === 'comunidades') {
+
+        kicker.innerText =
+            'Sua rede';
+
+        titulo.innerText =
+            'Suas comunidades';
+
+        const comunidades =
+            this.obterMinhasComunidades();
+
+        if (!comunidades.length) {
+
+            container.innerHTML = `
+                <p class="feed-sidebar-empty">
+                    Participe de comunidades para
+                    acompanhar suas conversas aqui.
+                </p>
+
+                <button
+                    type="button"
+                    class="feed-sidebar-link"
+                    onclick="
+                        app.mudarAba('comunidades')
+                    "
+                >
+                    Explorar comunidades
+
+                    <i class="material-icons">
+                        arrow_forward
+                    </i>
+                </button>
+            `;
+
+            return;
+        }
+
+
+        container.innerHTML =
+            comunidades
+                .slice(0, 5)
+                .map(comunidade => {
+
+                    const id =
+                        comunidade.idComunidade ||
+                        comunidade.id;
+
+                    const membros =
+                        comunidade.membros?.length ||
+                        0;
+
+                    return `
+                        <button
+                            type="button"
+                            class="
+                                feed-minha-comunidade
+                            "
+                            onclick="
+                                app.abrirComunidadeDoFeed(
+                                    ${id}
+                                )
+                            "
+                        >
+
+                            <span
+                                class="
+                                    feed-minha-comunidade-avatar
+                                "
+                            >
+                                ${this.escaparHtmlDestaque(
+                                    (
+                                        comunidade.nome ||
+                                        'C'
+                                    )
+                                        .charAt(0)
+                                        .toUpperCase()
+                                )}
+                            </span>
+
+                            <span
+                                class="
+                                    feed-minha-comunidade-info
+                                "
+                            >
+                                <strong>
+                                    ${this.escaparHtmlDestaque(
+                                        comunidade.nome ||
+                                        'Comunidade'
+                                    )}
+                                </strong>
+
+                                <small>
+                                    ${membros}
+                                    membro(s)
+                                </small>
+                            </span>
+
+                            <i class="material-icons">
+                                chevron_right
+                            </i>
+
+                        </button>
+                    `;
+                })
+                .join('');
+
+        return;
+    }
+
+
+    // Feed normal
+    kicker.innerText =
+        'Para você';
+
+    titulo.innerText =
+        'Recomendado';
+
+    this.renderizarRecomendacoes();
+}
 }
 
 
