@@ -138,13 +138,26 @@
                                     <option value="curtidos">Mais curtidos</option>
                                 </select>
                             </div>
-                            <div id="feed-container">Carregando feed...</div>
+                            <div id="feed-comunidades-filtros" class="feed-comunidades-filtros"></div>
+
+                            <div id="feed-container">
+                                Carregando feed...
+                            </div>
                         </div>
                         <div class="feed-sidebar">
-                            <div class="feed-sidebar-heading"><span class="section-kicker">Para você</span>
-                                <h2>Recomendado</h2>
+                            <div id="feed-sidebar-recomendado-heading" class="feed-sidebar-heading">
+                                <span id="feed-sidebar-recomendado-kicker" class="section-kicker">
+                                    Para você
+                                </span>
+
+                                <h2 id="feed-sidebar-recomendado-titulo">
+                                    Recomendado
+                                </h2>
                             </div>
-                            <div id="feed-recomendados" class="feed-recomendados">Carregando sugestões...</div>
+
+                            <div id="feed-recomendados" class="feed-recomendados">
+                                Carregando sugestões...
+                            </div>
 
                             <div class="feed-sidebar-heading" style="margin-top: 18px;"><span
                                     class="section-kicker">Perfil parecido</span>
@@ -267,17 +280,36 @@
                         <button class="btn-primary" onclick="app.abrirModal('comunidade-modal')">Nova
                             Comunidade</button>
                     </div>
+
+                    <div class="comunidades-tabs">
+                        <button id="comunidades-tab-todas" class="comunidades-tab active"
+                            onclick="app.mudarFiltroComunidades('todas')">
+                            Todas
+                        </button>
+
+                        <button id="comunidades-tab-minhas" class="comunidades-tab"
+                            onclick="app.mudarFiltroComunidades('minhas')">
+                            Minhas comunidades
+                        </button>
+
+                        <button id="comunidades-tab-criadas" class="comunidades-tab"
+                            onclick="app.mudarFiltroComunidades('criadas')">
+                            Criadas por mim
+                        </button>
+                    </div>
                     <div class="comunidades-toolbar">
                         <input class="search-bar" id="comunidades-search" type="search"
                             placeholder="Buscar por nome ou interesse..." oninput="app.filtrarComunidades()">
                         <select id="comunidades-ordenacao" onchange="app.filtrarComunidades()">
-                            <option value="relevantes">Mais relevantes</option>
-                            <option value="membros">Mais membros</option>
+                            <option value="membros">Mais populares</option>
                             <option value="recentes">Mais recentes</option>
+                            <option value="nome">Nome A-Z</option>
                         </select>
                     </div>
                     <div id="comunidades-container" class="comunidades-grid">Carregando comunidades...</div>
                 </div>
+
+
 
                 <div id="view-busca" class="view-section">
                     <div class="page-header">
@@ -408,7 +440,7 @@
             </button>
             <div class="auth-intro">
                 <span class="auth-kicker">SocialJoin</span>
-                <h2 id="auth-title">Acesso ao Painel</h2>
+                <h2 id="auth-title">Acesso ao Site</h2>
                 <p id="auth-subtitle">Entre para acompanhar eventos, comunidades e conversas.</p>
             </div>
 
@@ -460,7 +492,7 @@
             <div class="auth-field">
                 <label for="auth-senha">Senha</label>
                 <div class="auth-input-wrap"><i class="material-icons">lock_outline</i><input type="password"
-                        id="auth-senha" placeholder="Sua senha" autocomplete="new-password"
+                        id="auth-senha" placeholder="Sua senha" autocomplete="current-password"
                         oninput="app.atualizarForcaSenha()"><button type="button" class="password-toggle"
                         onclick="app.alternarVisibilidadeSenha('auth-senha', this)" aria-label="Mostrar senha"><i
                             class="material-icons">visibility</i></button></div>

@@ -125,6 +125,7 @@ public class EventoService {
 
         evento.setTitulo(novo.getTitulo());
         evento.setDescricao(novo.getDescricao());
+        evento.setCategoria(novo.getCategoria());
         evento.setDataEvento(novo.getDataEvento());
         evento.setHorarioInicio(novo.getHorarioInicio());
         evento.setHorarioFim(novo.getHorarioFim());
@@ -197,12 +198,6 @@ public class EventoService {
 
         List<Evento> eventosFiltrados = paginaEventos.getContent();
 
-        if (categoria != null && !categoria.trim().isEmpty()) {
-            String categoriaNormalizada = categoria.trim();
-            eventosFiltrados = eventosFiltrados.stream()
-                    .filter(evento -> eventoCorrespondeCategoria(evento, categoriaNormalizada))
-                    .collect(Collectors.toList());
-        }
 
         List<Long> idsEventos
                 = eventosFiltrados.stream()
@@ -268,20 +263,6 @@ public class EventoService {
                 pageable,
                 eventosFiltrados.size()
         );
-    }
-
-    private boolean eventoCorrespondeCategoria(Evento evento, String categoria) {
-        if (evento == null || categoria == null || categoria.isBlank()) {
-            return true;
-        }
-
-        String categoriaNormalizada = categoria.trim();
-        String categoriaEvento = evento.getCategoria() == null ? "" : evento.getCategoria().trim();
-        String textoEvento = (evento.getTitulo() == null ? "" : evento.getTitulo()) + " "
-                + (evento.getDescricao() == null ? "" : evento.getDescricao());
-
-        return categoriaEvento.equalsIgnoreCase(categoriaNormalizada)
-                || textoEvento.toLowerCase().contains(categoriaNormalizada.toLowerCase());
     }
 
     private void validarDadosEvento(Evento evento, boolean validarDataPassada) {

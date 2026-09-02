@@ -18,8 +18,10 @@ class AppController {
         this.postsSalvos = [];
         this.filtroFeed = 'todos';
         this.ordenacaoFeed = 'recentes';
+        this.comunidadeFeedSelecionada = null;
         this.modoCadastro = false;
         this.telaBoasVindasVisivel = true;
+        this.filtroComunidades = 'todas';   
         this.comunidadeAtivaId = null;
         this.usuarioParticipaDaComunidade = false;
         this.comunidadeEditando = null;
@@ -141,6 +143,7 @@ class AppController {
             try {
                 await this.carregarDadosGlobais();
                 await this.carregarConversas();
+                await this.abrirPostPeloLink();
             } catch (erro) {
                 console.error(
                     "Erro ao carregar dados iniciais:",
@@ -152,7 +155,24 @@ class AppController {
         }
 
 
-        this.mostrarTelaBoasVindas();
+        const parametros =
+    new URLSearchParams(
+        window.location.search
+    );
+
+const postCompartilhado =
+    parametros.get('post');
+
+if (postCompartilhado) {
+
+    this.esconderTelaBoasVindas();
+
+    await this.abrirPostPeloLink();
+
+    return;
+}
+
+this.mostrarTelaBoasVindas();
     }
 
     fecharConversa() {
@@ -1229,52 +1249,496 @@ class AppController {
         }).join('');
     }
 
-    renderizarComunidades(comunidades) {
-        const container = document.getElementById('comunidades-container');
-        if (!container) return;
+  renderizarComunidades(comunidades) {
 
-        const comunidadesOrdenadas = this.ordenarPorInteresses(comunidades);
+    const container =
+        document.getElementById(
+            'comunidades-container'
+        );
 
-        if (!comunidadesOrdenadas.length) {
-            container.innerHTML = '<div class="comunidade-empty">Nenhuma comunidade encontrada. Crie a primeira.</div>';
-            return;
+    if (!container) return;
+
+
+    if (!comunidades.length) {
+
+        let mensagem =
+            'Nenhuma comunidade encontrada.';
+
+        if (
+            this.filtroComunidades ===
+            'minhas'
+        ) {
+            mensagem =
+                'Você ainda não participa de nenhuma comunidade.';
         }
-        const eventosPorComunidade = this.listaEventos.reduce((total, evento) => {
-            total[evento.comunidadeId] = (total[evento.comunidadeId] || 0) + 1;
-            return total;
-        }, {});
-        container.innerHTML = '';
-        comunidadesOrdenadas.forEach(c => {
-            const idCom = c.idComunidade || c.id;
-            const div = document.createElement('div');
-            div.className = 'comunidade-card';
 
-            const idUsuarioLogado = ApiService.getIdUsuarioLogado();
+        if (
+            this.filtroComunidades ===
+            'criadas'
+        ) {
+            mensagem =
+                'Você ainda não criou nenhuma comunidade.';
+        }
 
-            const ehAdministrador =
-                c.criador &&
-                (c.criador.idUsuario || c.criador.id) == idUsuarioLogado;
+        container.innerHTML = `
+            <div class="comunidade-empty">
 
-            div.style.setProperty('--community-color', c.cor || '#EA3F74');
-            const imagemComunidade = c.imagemComunidade ? `style="background-image:url('${this.urlCapaEvento(c.imagemComunidade)}')"` : '';
-            div.innerHTML = `<div class="comunidade-card-top"><div class="comunidade-mark ${c.imagemComunidade ? 'has-image' : ''}" ${imagemComunidade}>${!c.imagemComunidade ? this.escaparHtmlDestaque((c.nome || 'C').charAt(0).toUpperCase()) : ''}</div><span>${this.escaparHtmlDestaque(c.categoria || 'Comunidade')}</span></div><h2>${this.escaparHtmlDestaque(c.nome)}</h2><p>${this.escaparHtmlDestaque(c.descricao || 'Uma comunidade para trocar ideias e viver experiências.')}</p><div class="comunidade-stats"><span>👥 ${c.membros ? c.membros.length : 0} membros</span><span>🎟 ${eventosPorComunidade[idCom] || 0} eventos</span></div><div class="comunidade-card-footer"><span>Por ${this.escaparHtmlDestaque(c.criador?.nome || 'Administrador')}</span><button class="btn-primary" onclick="app.entrarSubreddit(${idCom})">Acessar</button>${ehAdministrador ? `<button class="btn-compact" onclick="app.gerenciarComunidade(${idCom})">Gerenciar</button>` : ''}</div>`;
+                <div class="comunidade-empty-icon">
+                    <i class="material-icons">
+                        groups
+                    </i>
+                </div>
 
-            div.addEventListener('click', evento => {
-                if (!evento.target.closest('button')) this.entrarSubreddit(idCom);
+                <h3>
+                    ${mensagem}
+                </h3>
+
+                <p>
+                    Explore comunidades ou crie
+                    um espaço para reunir pessoas
+                    com os mesmos interesses.
+                </p>
+
+            </div>
+        `;
+
+        return;
+    }
+
+
+    const eventosPorComunidade =
+        this.listaEventos.reduce(
+            (total, evento) => {
+
+                if (evento.comunidadeId) {
+
+                    total[evento.comunidadeId] =
+                        (
+                            total[
+                                evento.comunidadeId
+                            ] || 0
+                        ) + 1;
+                }
+
+                return total;
+            },
+            {}
+        );
+
+
+    container.innerHTML = '';
+
+
+    comunidades.forEach(comunidade => {
+
+        const idCom =
+            comunidade.idComunidade ||
+            comunidade.id;
+
+        const idUsuario =
+            ApiService.getIdUsuarioLogado();
+
+        const idAdministrador =
+            comunidade.criador?.idUsuario ||
+            comunidade.criador?.id;
+
+        const ehAdministrador =
+            String(idAdministrador) ===
+            String(idUsuario);
+
+        const participa =
+            this.usuarioParticipaComunidade(
+                comunidade
+            );
+
+        const quantidadeMembros =
+            comunidade.membros?.length || 0;
+
+        const quantidadeEventos =
+            eventosPorComunidade[idCom] || 0;
+
+
+        const div =
+            document.createElement('article');
+
+        div.className =
+            'comunidade-card';
+
+        div.tabIndex = 0;
+
+        div.setAttribute(
+            'role',
+            'link'
+        );
+
+        div.style.setProperty(
+            '--community-color',
+            comunidade.cor || '#EA3F74'
+        );
+
+
+        const imagemComunidade =
+            comunidade.imagemComunidade
+                ? `
+                    style="
+                        background-image:
+                        url('${this.urlCapaEvento(
+                            comunidade.imagemComunidade
+                        )}')
+                    "
+                `
+                : '';
+
+
+        const statusHtml =
+            ehAdministrador
+                ? `
+                    <span class="
+                        comunidade-status
+                        administrando
+                    ">
+                        <i class="material-icons">
+                            admin_panel_settings
+                        </i>
+
+                        Você administra
+                    </span>
+                `
+                : participa
+                    ? `
+                        <span class="
+                            comunidade-status
+                            participando
+                        ">
+                            <i class="material-icons">
+                                check_circle
+                            </i>
+
+                            Participando
+                        </span>
+                    `
+                    : `
+                        <span class="
+                            comunidade-status
+                            descoberta
+                        ">
+                            Descobrir
+                        </span>
+                    `;
+
+
+        div.innerHTML = `
+
+            <div class="comunidade-card-top">
+
+                <div
+                    class="
+                        comunidade-mark
+                        ${
+                            comunidade.imagemComunidade
+                                ? 'has-image'
+                                : ''
+                        }
+                    "
+                    ${imagemComunidade}
+                >
+                    ${
+                        !comunidade.imagemComunidade
+                            ? this.escaparHtmlDestaque(
+                                (
+                                    comunidade.nome ||
+                                    'C'
+                                )
+                                    .charAt(0)
+                                    .toUpperCase()
+                            )
+                            : ''
+                    }
+                </div>
+
+                <span class="comunidade-categoria">
+                    ${this.escaparHtmlDestaque(
+                        comunidade.categoria ||
+                        'Geral'
+                    )}
+                </span>
+
+            </div>
+
+
+            <div class="comunidade-card-content">
+
+                <h2>
+                    ${this.escaparHtmlDestaque(
+                        comunidade.nome ||
+                        'Comunidade'
+                    )}
+                </h2>
+
+                <p>
+                    ${this.escaparHtmlDestaque(
+                        comunidade.descricao ||
+                        'Uma comunidade para trocar ideias e viver experiências.'
+                    )}
+                </p>
+
+            </div>
+
+
+            <div class="comunidade-stats">
+
+                <span>
+                    <i class="material-icons">
+                        group
+                    </i>
+
+                    ${quantidadeMembros}
+                    ${
+                        quantidadeMembros === 1
+                            ? 'membro'
+                            : 'membros'
+                    }
+                </span>
+
+                <span>
+                    <i class="material-icons">
+                        event
+                    </i>
+
+                    ${quantidadeEventos}
+                    ${
+                        quantidadeEventos === 1
+                            ? 'evento'
+                            : 'eventos'
+                    }
+                </span>
+
+            </div>
+
+
+            <div class="comunidade-card-footer">
+
+                <div class="comunidade-card-footer-info">
+
+                    ${statusHtml}
+
+                    <small>
+                        Por
+                        ${this.escaparHtmlDestaque(
+                            comunidade.criador?.nome ||
+                            'Administrador'
+                        )}
+                    </small>
+
+                </div>
+
+
+                ${
+                    ehAdministrador
+                        ? `
+                            <button
+                                type="button"
+                                class="comunidade-gerenciar-btn"
+                                onclick="
+                                    app.gerenciarComunidade(
+                                        ${idCom}
+                                    )
+                                "
+                            >
+                                Gerenciar
+                            </button>
+                        `
+                        : `
+                            <span
+                                class="
+                                    comunidade-card-arrow
+                                "
+                            >
+                                <i class="material-icons">
+                                    arrow_forward
+                                </i>
+                            </span>
+                        `
+                }
+
+            </div>
+        `;
+
+
+        div.addEventListener(
+            'click',
+            evento => {
+
+                if (
+                    evento.target.closest('button')
+                ) {
+                    return;
+                }
+
+                this.entrarSubreddit(idCom);
+            }
+        );
+
+
+        div.addEventListener(
+            'keydown',
+            evento => {
+
+                if (
+                    evento.key !== 'Enter' &&
+                    evento.key !== ' '
+                ) {
+                    return;
+                }
+
+                evento.preventDefault();
+
+                this.entrarSubreddit(idCom);
+            }
+        );
+
+
+        container.appendChild(div);
+    });
+}
+
+    usuarioParticipaComunidade(comunidade) {
+
+    const idUsuario =
+        ApiService.getIdUsuarioLogado();
+
+    if (!idUsuario || !comunidade) {
+        return false;
+    }
+
+    const idCriador =
+        comunidade.criador?.idUsuario ||
+        comunidade.criador?.id;
+
+    const ehCriador =
+        String(idCriador) ===
+        String(idUsuario);
+
+    const ehMembro =
+        (comunidade.membros || [])
+            .some(membro => {
+
+                const idMembro =
+                    membro.idUsuario ||
+                    membro.id;
+
+                return String(idMembro) ===
+                    String(idUsuario);
             });
 
-            container.appendChild(div);
-        });
+    return ehCriador || ehMembro;
+}
+
+   filtrarComunidades() {
+
+    const termo =
+        document
+            .getElementById('comunidades-search')
+            ?.value
+            .trim()
+            .toLowerCase() || '';
+
+    const ordem =
+        document
+            .getElementById('comunidades-ordenacao')
+            ?.value || 'membros';
+
+    const idUsuario =
+        ApiService.getIdUsuarioLogado();
+
+    let comunidades =
+        [...(this.listaComunidades || [])];
+
+
+    // =========================
+    // BUSCA
+    // =========================
+    if (termo) {
+
+        comunidades =
+            comunidades.filter(comunidade => {
+
+                const texto = `
+                    ${comunidade.nome || ''}
+                    ${comunidade.descricao || ''}
+                    ${comunidade.categoria || ''}
+                `.toLowerCase();
+
+                return texto.includes(termo);
+            });
     }
 
-    filtrarComunidades() {
-        const termo = document.getElementById('comunidades-search')?.value.toLowerCase() || '';
-        const ordem = document.getElementById('comunidades-ordenacao')?.value;
-        let comunidades = this.listaComunidades.filter(c => `${c.nome} ${c.descricao} ${c.categoria || ''}`.toLowerCase().includes(termo));
-        if (ordem === 'membros') comunidades.sort((a, b) => (b.membros?.length || 0) - (a.membros?.length || 0));
-        if (ordem === 'recentes') comunidades = comunidades.reverse();
-        this.renderizarComunidades(comunidades);
+
+    // =========================
+    // ABAS
+    // =========================
+    if (this.filtroComunidades === 'minhas') {
+
+        comunidades =
+            comunidades.filter(comunidade =>
+                this.usuarioParticipaComunidade(
+                    comunidade
+                )
+            );
     }
+
+
+    if (this.filtroComunidades === 'criadas') {
+
+        comunidades =
+            comunidades.filter(comunidade => {
+
+                const idCriador =
+                    comunidade.criador?.idUsuario ||
+                    comunidade.criador?.id;
+
+                return String(idCriador) ===
+                    String(idUsuario);
+            });
+    }
+
+
+    // =========================
+    // ORDENAÇÃO
+    // =========================
+    if (ordem === 'membros') {
+
+        comunidades.sort(
+            (a, b) =>
+                (b.membros?.length || 0) -
+                (a.membros?.length || 0)
+        );
+    }
+
+
+    if (ordem === 'recentes') {
+
+        comunidades.reverse();
+    }
+
+
+    if (ordem === 'nome') {
+
+        comunidades.sort(
+            (a, b) =>
+                (a.nome || '')
+                    .localeCompare(
+                        b.nome || '',
+                        'pt-BR'
+                    )
+        );
+    }
+
+
+    this.renderizarComunidades(
+        comunidades
+    );
+}
 
     async criarComunidade() {
         if (!ApiService.getUsuarioLogado()) return alert("Faça login primeiro.");
@@ -1450,25 +1914,240 @@ class AppController {
         this.montarCardsPosts(postsDestaComunidade, 'subreddit-feed-container', false);
     }
 
-    renderizarFeedGeral() {
-        let posts = [...this.posts];
-        const idUsuario = ApiService.getIdUsuarioLogado();
-        const imagem = document.getElementById("editar-comunidade-imagem")?.files?.[0];
+    obterMinhasComunidades() {
 
-        if (this.filtroFeed === 'comunidades') posts = posts.filter(post => post.idComunidade || post.id_comunidade);
-        if (this.filtroFeed === 'meus') posts = posts.filter(post => (post.idUsuario || post.id_usuario) == idUsuario);
-        if (this.ordenacaoFeed === 'comentados') posts.sort((a, b) => (this.comentariosPorPost[b.idPost || b.id] || []).length - (this.comentariosPorPost[a.idPost || a.id] || []).length);
-        if (this.ordenacaoFeed === 'curtidos') posts.sort((a, b) => this.contarVotos(b.idPost || b.id) - this.contarVotos(a.idPost || a.id));
+    const idUsuario =
+        ApiService.getIdUsuarioLogado();
 
-        this.montarCardsPosts(posts, 'feed-container', true);
+    if (!idUsuario) {
+        return [];
     }
 
-    mudarFiltroFeed(filtro) {
-        this.filtroFeed = filtro;
-        document.querySelectorAll('.feed-tab').forEach(tab => tab.classList.remove('active'));
-        document.getElementById(`feed-tab-${filtro}`)?.classList.add('active');
-        this.renderizarFeedGeral();
+    return (this.listaComunidades || [])
+        .filter(comunidade => {
+
+            const membros =
+                comunidade.membros || [];
+
+            const ehMembro =
+                membros.some(membro => {
+
+                    const idMembro =
+                        membro.idUsuario ||
+                        membro.id;
+
+                    return String(idMembro) ===
+                        String(idUsuario);
+                });
+
+            const idCriador =
+                comunidade.criador?.idUsuario ||
+                comunidade.criador?.id;
+
+            const ehCriador =
+                String(idCriador) ===
+                String(idUsuario);
+
+            return ehMembro || ehCriador;
+        });
+}
+
+   renderizarFeedGeral() {
+
+    let posts = [...this.posts];
+
+    const idUsuario =
+        ApiService.getIdUsuarioLogado();
+
+
+    // =========================
+    // FILTRO DE COMUNIDADES
+    // =========================
+    if (this.filtroFeed === 'comunidades') {
+
+        const idsMinhasComunidades =
+            this.obterIdsMinhasComunidades();
+
+        posts = posts.filter(post => {
+
+            const idComunidade =
+                post.idComunidade ||
+                post.id_comunidade;
+
+            if (!idComunidade) {
+                return false;
+            }
+
+            // Só comunidades das quais participa
+            if (
+                !idsMinhasComunidades.has(
+                    String(idComunidade)
+                )
+            ) {
+                return false;
+            }
+
+            // Se escolheu um chip específico
+            if (
+                this.comunidadeFeedSelecionada !== null
+            ) {
+                return (
+                    String(idComunidade) ===
+                    String(
+                        this.comunidadeFeedSelecionada
+                    )
+                );
+            }
+
+            return true;
+        });
     }
+
+
+    // =========================
+    // MEUS POSTS
+    // =========================
+    if (this.filtroFeed === 'meus') {
+
+        posts = posts.filter(post =>
+            (
+                post.idUsuario ||
+                post.id_usuario
+            ) == idUsuario
+        );
+    }
+
+
+    // =========================
+    // ORDENAÇÃO
+    // =========================
+    if (
+        this.ordenacaoFeed === 'comentados'
+    ) {
+
+        posts.sort((a, b) => {
+
+            const idA =
+                a.idPost || a.id;
+
+            const idB =
+                b.idPost || b.id;
+
+            return (
+                (
+                    this.comentariosPorPost[idB] ||
+                    []
+                ).length
+                -
+                (
+                    this.comentariosPorPost[idA] ||
+                    []
+                ).length
+            );
+        });
+    }
+
+
+    if (
+        this.ordenacaoFeed === 'curtidos'
+    ) {
+
+        posts.sort((a, b) =>
+            this.contarVotos(
+                b.idPost || b.id
+            )
+            -
+            this.contarVotos(
+                a.idPost || a.id
+            )
+        );
+    }
+
+
+    // Atualiza elementos auxiliares
+    this.renderizarFiltrosComunidadesFeed();
+    this.atualizarSidebarFeed();
+
+
+    // Estado vazio especial
+    if (
+        this.filtroFeed === 'comunidades' &&
+        !this.obterMinhasComunidades().length
+    ) {
+
+        const container =
+            document.getElementById(
+                'feed-container'
+            );
+
+        if (container) {
+            container.innerHTML = `
+                <div class="feed-comunidades-empty">
+
+                    <div class="feed-empty-icon">
+                        <i class="material-icons">
+                            groups
+                        </i>
+                    </div>
+
+                    <h3>
+                        Encontre sua comunidade
+                    </h3>
+
+                    <p>
+                        Você ainda não participa de
+                        nenhuma comunidade.
+                    </p>
+
+                    <button
+                        type="button"
+                        class="btn-primary"
+                        onclick="
+                            app.mudarAba('comunidades')
+                        "
+                    >
+                        Explorar comunidades
+                    </button>
+
+                </div>
+            `;
+        }
+
+        return;
+    }
+
+
+    this.montarCardsPosts(
+        posts,
+        'feed-container',
+        true
+    );
+}
+
+   mudarFiltroFeed(filtro) {
+
+    this.filtroFeed = filtro;
+
+    // Ao sair da aba Comunidades,
+    // limpa o filtro interno.
+    if (filtro !== 'comunidades') {
+        this.comunidadeFeedSelecionada = null;
+    }
+
+    document
+        .querySelectorAll('.feed-tab')
+        .forEach(tab =>
+            tab.classList.remove('active')
+        );
+
+    document
+        .getElementById(
+            `feed-tab-${filtro}`
+        )
+        ?.classList.add('active');
+
+    this.renderizarFeedGeral();
+}
 
     mudarOrdenacaoFeed(ordenacao) {
         this.ordenacaoFeed = ordenacao;
@@ -1625,14 +2304,89 @@ class AppController {
             const curtido = this.votoDoUsuario(idPost);
             const salvo = this.postEstaSalvo(idPost);
             const totalCurtidas = this.contarVotos(idPost);
+            const origemPostHtml =
+    idComunidade && nomeComunidade
+        ? (
+            mostrarTagComunidade
+                ? `
+                    em
+                    <button
+                        type="button"
+                        class="post-community-link"
+                        onclick="
+                            event.stopPropagation();
+                            app.abrirComunidadeDoFeed(
+                                ${idComunidade}
+                            );
+                        "
+                    >
+                        ${this.escaparHtmlDestaque(
+                            nomeComunidade
+                        )}
+                    </button>
+                `
+                : this.escaparHtmlDestaque(
+                    nomeComunidade
+                )
+        )
+        : 'Feed global';
             div.innerHTML = `
                 <div class="post-header-area">
                     ${avatarHtml}
                     <div>
                         <span class="post-author">${this.escaparHtmlDestaque(nomeAutor)}</span>
-                        <div class="post-meta">${mostrarTagComunidade && nomeComunidade ? `em c/${this.escaparHtmlDestaque(nomeComunidade)}` : 'Feed global'} · ${dataPostagem}</div>
+                        <div class="post-meta">
+    ${origemPostHtml}
+    · ${dataPostagem}
+</div>
                     </div>
-                    <button class="post-more" aria-label="Mais opções"><i class="material-icons">more_horiz</i></button>
+                    
+                 <div class="post-menu-wrapper">
+                 
+
+    <button
+        type="button"
+        class="post-more"
+        aria-label="Mais opções"
+        onclick="app.alternarMenuPost(event)"
+    >
+        <i class="material-icons">more_horiz</i>
+    </button>
+
+    <div
+        id="post-menu-${idPost}"
+        class="post-menu"
+    >
+
+        <button
+            type="button"
+            class="post-menu-item"
+            onclick="
+                event.stopPropagation();
+                app.compartilharPost(${idPost});
+            "
+        >
+            <i class="material-icons">link</i>
+            <span>Copiar link</span>
+        </button>
+
+        ${podeExcluir ? `
+            <button
+                type="button"
+                class="post-menu-item post-menu-delete"
+                onclick="
+                    event.stopPropagation();
+                    app.excluirPost(${idPost});
+                "
+            >
+                <i class="material-icons">delete_outline</i>
+                <span>Excluir publicação</span>
+            </button>
+        ` : ''}
+
+    </div>
+
+</div>
                 </div>
                 <div class="post-title">${this.escaparHtmlDestaque(post.titulo)}</div>
                <div class="post-body">${this.escaparHtmlDestaque(post.conteudo)}</div>
@@ -1643,16 +2397,6 @@ class AppController {
                     <button class="post-action" onclick="document.getElementById('comentario-${idPost}').focus()"><i class="material-icons">chat_bubble_outline</i><span>${comentarios.length}</span></button>
                     <button class="post-action ${salvo ? 'active' : ''}" onclick="app.alternarPostSalvo(${idPost})"><i class="material-icons">${salvo ? 'bookmark' : 'bookmark_border'}</i></button>
                 </div>
-
-${podeExcluir ? `
-    <div style="margin-top: 10px;">
-        <button
-            class="btn-secondary"
-            onclick="app.excluirPost(${idPost})">
-            Excluir
-        </button>
-    </div>
-` : ''}
 
 ${ApiService.getIdUsuarioLogado() ? `
                     <div class="comment-input-container">
@@ -1706,6 +2450,25 @@ ${ApiService.getIdUsuarioLogado() ? `
 
         const idComunidade = post.idComunidade || post.id_comunidade;
         const nomeComunidade = this.comunidadesMap[idComunidade];
+        const idUsuarioLogado =
+    ApiService.getIdUsuarioLogado();
+
+const comunidade =
+    (this.listaComunidades || []).find(
+        c =>
+            (c.idComunidade || c.id) == idComunidade
+    );
+
+const idAdministrador =
+    comunidade?.criador?.idUsuario ||
+    comunidade?.criador?.id;
+
+const podeExcluir =
+    idUsuarioLogado &&
+    (
+        idUsuarioLogado == idAutor ||
+        idUsuarioLogado == idAdministrador
+    );
         const comentarios = this.comentariosPorPost[idPost] || [];
         const curtido = this.votoDoUsuario(idPost);
         const salvo = this.postEstaSalvo(idPost);
@@ -1715,10 +2478,77 @@ ${ApiService.getIdUsuarioLogado() ? `
 
         container.innerHTML = `
             <article class="post-detail-card">
-                <div class="post-detail-header">
-                    ${avatarHeaderHtml}
-                    <div><strong>${this.escaparHtmlDestaque(nomeAutor)}</strong><span>${nomeComunidade ? `em c/${this.escaparHtmlDestaque(nomeComunidade)}` : 'Feed global'} · ${dataPostagem}</span></div>
-                </div>
+              <div class="post-detail-header">
+
+    ${avatarHeaderHtml}
+
+    <div class="post-detail-author-info">
+        <strong>
+            ${this.escaparHtmlDestaque(nomeAutor)}
+        </strong>
+
+        <span>
+            ${
+                nomeComunidade
+                    ? `em ${this.escaparHtmlDestaque(nomeComunidade)}`
+                    : 'Feed global'
+            }
+            · ${dataPostagem}
+        </span>
+    </div>
+
+
+    <div class="post-menu-wrapper">
+
+        <button
+            type="button"
+            class="post-more"
+            aria-label="Mais opções"
+           onclick="app.alternarMenuPost(event)"
+        >
+            <i class="material-icons">more_horiz</i>
+        </button>
+
+        <div
+            class="post-menu"
+        >
+
+            <button
+                type="button"
+                class="post-menu-item"
+                onclick="
+                    event.stopPropagation();
+                    app.compartilharPost(${idPost});
+                "
+            >
+                <i class="material-icons">link</i>
+                <span>Copiar link</span>
+            </button>
+
+            ${podeExcluir ? `
+                <button
+                    type="button"
+                    class="post-menu-item post-menu-delete"
+                    onclick="
+                        event.stopPropagation();
+                        app.excluirPost(${idPost});
+                    "
+                >
+                    <i class="material-icons">
+                        delete_outline
+                    </i>
+
+                    <span>
+                        Excluir publicação
+                    </span>
+                </button>
+            ` : ''}
+
+        </div>
+
+    </div>
+
+</div>
                 <h1>${this.escaparHtmlDestaque(post.titulo)}</h1>
                 <div class="post-detail-body">${this.escaparHtmlDestaque(post.conteudo)}</div>
                 <div class="post-actions post-detail-actions">
@@ -2307,6 +3137,60 @@ ${ApiService.getIdUsuarioLogado() ? `
             alert("Você não tem permissão para remover este membro.");
         }
     }
+   alternarMenuPost(evento) {
+
+    evento.stopPropagation();
+
+    const botao = evento.currentTarget;
+
+    const wrapper =
+        botao.closest('.post-menu-wrapper');
+
+    const menu =
+        wrapper?.querySelector('.post-menu');
+
+    if (!menu) return;
+
+    document
+        .querySelectorAll('.post-menu.open')
+        .forEach(outroMenu => {
+
+            if (outroMenu !== menu) {
+                outroMenu.classList.remove('open');
+            }
+
+        });
+
+    menu.classList.toggle('open');
+}
+
+    async compartilharPost(idPost) {
+
+    const url = new URL(window.location.href);
+
+    url.searchParams.set('post', idPost);
+
+    const link = url.toString();
+
+    try {
+
+        await navigator.clipboard.writeText(link);
+
+        alert('Link da publicação copiado!');
+
+    } catch (erro) {
+
+        console.error(
+            'Não foi possível copiar automaticamente:',
+            erro
+        );
+
+        prompt(
+            'Copie o link da publicação:',
+            link
+        );
+    }
+}
 
     async excluirPost(idPost) {
 
@@ -2324,7 +3208,7 @@ ${ApiService.getIdUsuarioLogado() ? `
                 this.renderizarSubreddit(this.comunidadeAtivaId);
             }
         } else {
-            alert("Você não tem permissão para excluir esta publicaçãox.");
+            alert("Você não tem permissão para excluir esta publicação.");
         }
     }
 
@@ -2368,8 +3252,9 @@ ${ApiService.getIdUsuarioLogado() ? `
         document.getElementById('editar-evento-local').value =
             evento.localEvento || '';
 
-        document.getElementById('editar-evento-comunidade').value =
-            evento.comunidadeId || '';
+       this.popularComunidadesEdicaoEvento(
+    evento.comunidadeId
+);
 
         document.getElementById('editar-evento-limite').value =
             evento.limiteParticipantes || '';
@@ -4718,6 +5603,372 @@ ${ApiService.getIdUsuarioLogado() ? `
         }
 
     }
+
+    async abrirPostPeloLink() {
+
+    const parametros =
+        new URLSearchParams(
+            window.location.search
+        );
+
+    const idPost =
+        parametros.get('post');
+
+    if (!idPost) {
+        return false;
+    }
+
+    try {
+
+        this.esconderTelaBoasVindas();
+
+        await this.abrirDetalhesPost(idPost);
+
+        return true;
+
+    } catch (erro) {
+
+        console.error(
+            'Erro ao abrir publicação compartilhada:',
+            erro
+        );
+
+        return false;
+    }
+}
+
+popularComunidadesEdicaoEvento(selecionadaId = null) {
+
+    const select =
+        document.getElementById(
+            'editar-evento-comunidade'
+        );
+
+    if (!select) return;
+
+    select.innerHTML = `
+        <option value="">
+            Nenhuma (Evento aberto / Global)
+        </option>
+    `;
+
+    if (Array.isArray(this.listaComunidades)) {
+
+        this.listaComunidades.forEach(
+            comunidade => {
+
+                const id =
+                    comunidade.idComunidade ||
+                    comunidade.id;
+
+                const nome =
+                    comunidade.nome ||
+                    'Comunidade';
+
+                select.innerHTML += `
+                    <option value="${id}">
+                        ${this.escaparHtmlDestaque(nome)}
+                    </option>
+                `;
+            }
+        );
+    }
+
+    if (selecionadaId) {
+        select.value = String(selecionadaId);
+    }
+}
+
+obterIdsMinhasComunidades() {
+
+    return new Set(
+        this.obterMinhasComunidades()
+            .map(comunidade =>
+                String(
+                    comunidade.idComunidade ||
+                    comunidade.id
+                )
+            )
+    );
+}
+
+renderizarFiltrosComunidadesFeed() {
+
+    const container =
+        document.getElementById(
+            'feed-comunidades-filtros'
+        );
+
+    if (!container) return;
+
+    if (this.filtroFeed !== 'comunidades') {
+        container.innerHTML = '';
+        container.classList.remove('active');
+        return;
+    }
+
+    const comunidades =
+        this.obterMinhasComunidades();
+
+    container.classList.add('active');
+
+    if (!comunidades.length) {
+        container.innerHTML = '';
+        return;
+    }
+
+    const botaoTodas = `
+        <button
+            type="button"
+            class="
+                feed-comunidade-chip
+                ${
+                    this.comunidadeFeedSelecionada === null
+                        ? 'active'
+                        : ''
+                }
+            "
+            onclick="
+                app.selecionarComunidadeFeed(null)
+            "
+        >
+            Todas
+        </button>
+    `;
+
+    const botoesComunidades =
+        comunidades
+            .map(comunidade => {
+
+                const id =
+                    comunidade.idComunidade ||
+                    comunidade.id;
+
+                const selecionada =
+                    String(
+                        this.comunidadeFeedSelecionada
+                    ) === String(id);
+
+                return `
+                    <button
+                        type="button"
+                        class="
+                            feed-comunidade-chip
+                            ${selecionada ? 'active' : ''}
+                        "
+                        onclick="
+                            app.selecionarComunidadeFeed(${id})
+                        "
+                    >
+                        ${this.escaparHtmlDestaque(
+                            comunidade.nome || 'Comunidade'
+                        )}
+                    </button>
+                `;
+            })
+            .join('');
+
+    container.innerHTML =
+        botaoTodas +
+        botoesComunidades;
+}
+
+selecionarComunidadeFeed(idComunidade) {
+
+    this.comunidadeFeedSelecionada =
+        idComunidade === null
+            ? null
+            : String(idComunidade);
+
+    this.renderizarFeedGeral();
+}
+
+abrirComunidadeDoFeed(idComunidade) {
+
+    const comunidade =
+        (this.listaComunidades || [])
+            .find(c =>
+                (
+                    c.idComunidade ||
+                    c.id
+                ) == idComunidade
+            );
+
+    if (!comunidade) {
+        return;
+    }
+
+    this.entrarSubreddit(
+        idComunidade,
+        comunidade.nome,
+        comunidade.descricao
+    );
+}
+
+atualizarSidebarFeed() {
+
+    const kicker =
+        document.getElementById(
+            'feed-sidebar-recomendado-kicker'
+        );
+
+    const titulo =
+        document.getElementById(
+            'feed-sidebar-recomendado-titulo'
+        );
+
+    const container =
+        document.getElementById(
+            'feed-recomendados'
+        );
+
+    if (
+        !kicker ||
+        !titulo ||
+        !container
+    ) {
+        return;
+    }
+
+
+    if (this.filtroFeed === 'comunidades') {
+
+        kicker.innerText =
+            'Sua rede';
+
+        titulo.innerText =
+            'Suas comunidades';
+
+        const comunidades =
+            this.obterMinhasComunidades();
+
+        if (!comunidades.length) {
+
+            container.innerHTML = `
+                <p class="feed-sidebar-empty">
+                    Participe de comunidades para
+                    acompanhar suas conversas aqui.
+                </p>
+
+                <button
+                    type="button"
+                    class="feed-sidebar-link"
+                    onclick="
+                        app.mudarAba('comunidades')
+                    "
+                >
+                    Explorar comunidades
+
+                    <i class="material-icons">
+                        arrow_forward
+                    </i>
+                </button>
+            `;
+
+            return;
+        }
+
+
+        container.innerHTML =
+            comunidades
+                .slice(0, 5)
+                .map(comunidade => {
+
+                    const id =
+                        comunidade.idComunidade ||
+                        comunidade.id;
+
+                    const membros =
+                        comunidade.membros?.length ||
+                        0;
+
+                    return `
+                        <button
+                            type="button"
+                            class="
+                                feed-minha-comunidade
+                            "
+                            onclick="
+                                app.abrirComunidadeDoFeed(
+                                    ${id}
+                                )
+                            "
+                        >
+
+                            <span
+                                class="
+                                    feed-minha-comunidade-avatar
+                                "
+                            >
+                                ${this.escaparHtmlDestaque(
+                                    (
+                                        comunidade.nome ||
+                                        'C'
+                                    )
+                                        .charAt(0)
+                                        .toUpperCase()
+                                )}
+                            </span>
+
+                            <span
+                                class="
+                                    feed-minha-comunidade-info
+                                "
+                            >
+                                <strong>
+                                    ${this.escaparHtmlDestaque(
+                                        comunidade.nome ||
+                                        'Comunidade'
+                                    )}
+                                </strong>
+
+                                <small>
+                                    ${membros}
+                                    membro(s)
+                                </small>
+                            </span>
+
+                            <i class="material-icons">
+                                chevron_right
+                            </i>
+
+                        </button>
+                    `;
+                })
+                .join('');
+
+        return;
+    }
+
+
+    // Feed normal
+    kicker.innerText =
+        'Para você';
+
+    titulo.innerText =
+        'Recomendado';
+
+    this.renderizarRecomendacoes();
+}
+
+mudarFiltroComunidades(filtro) {
+
+    this.filtroComunidades = filtro;
+
+    document
+        .querySelectorAll('.comunidades-tab')
+        .forEach(tab =>
+            tab.classList.remove('active')
+        );
+
+    document
+        .getElementById(
+            `comunidades-tab-${filtro}`
+        )
+        ?.classList.add('active');
+
+    this.filtrarComunidades();
+}
 }
 
 
