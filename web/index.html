@@ -317,23 +317,47 @@
                             <h1>Pessoas</h1>
                         </div>
                     </div>
-                    <div class="pessoas-toolbar">
-                        <input type="search" class="search-bar" id="search-input"
-                            placeholder="Buscar por nome ou username..." oninput="app.filtrarUsuarios()">
-                        <select id="pessoas-filtro" onchange="app.filtrarUsuarios()">
-                            <option value="todas">Todas as pessoas</option>
-                            <option value="organizadores">Organizadores de eventos</option>
-                            <option value="comunidades">Membros de comunidades</option>
-                        </select>
+                    <div class="pessoas-search-area">
+                        <i class="material-icons">
+                            search
+                        </i>
+
+                        <input id="search-input" type="text" placeholder="Buscar por nome ou username..."
+                            oninput="app.filtrarUsuarios()">
                     </div>
-                    <div class="pessoas-sugestoes">
+
+                    <div class="pessoas-filtros">
+
+                        <button id="pessoas-filtro-todas" class="pessoas-filtro-btn active" type="button"
+                            onclick="app.mudarFiltroPessoas('todas')">
+                            Todas
+                        </button>
+
+                        <button id="pessoas-filtro-comuns" class="pessoas-filtro-btn" type="button"
+                            onclick="app.mudarFiltroPessoas('comuns')">
+                            Das minhas comunidades
+                        </button>
+
+                        <button id="pessoas-filtro-organizadores" class="pessoas-filtro-btn" type="button"
+                            onclick="app.mudarFiltroPessoas('organizadores')">
+                            Organizadores
+                        </button>
+
+                    </div>
+
+                     <div class="pessoas-sugestoes">
                         <div><span class="section-kicker">Para conhecer</span>
-                            <h2>Pessoas da comunidade</h2>
+                            <h2>Descubra novas pessoas</h2>
                         </div>
                         <p>Encontre organizadores, participantes e novas conversas.</p>
                     </div>
+                   
                     <div id="users-container" class="pessoas-grid">Carregando...</div>
+
+
                 </div>
+
+
 
                 <div id="view-subreddit" class="view-section">
                     <div class="page-header">
