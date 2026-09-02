@@ -1753,7 +1753,7 @@ ${ApiService.getIdUsuarioLogado() ? `
             this.renderizarRecomendacoes();
             this.renderizarSugestoesPessoas();
 
-            this.renderizarEventoDestaque(eventos[0]);
+            await this.carregarEventoDestaqueMaisPopular();
 
             container.innerHTML = '';
 
@@ -1908,7 +1908,7 @@ ${ApiService.getIdUsuarioLogado() ? `
         try {
             const eventos = await ApiService.listarEventosParticipando(idUsuario);
             this.listaEventos = eventos;
-            this.renderizarEventoDestaque(eventos[0]);
+            await this.carregarEventoDestaqueMaisPopular();
             container.innerHTML = eventos.length ? eventos.map(evento => `<div class="meu-evento-row"><div><strong>${evento.titulo}</strong><span>${this.formatarDataEvento(evento.dataEvento)} · ${evento.localEvento}</span></div><button class="btn-primary" onclick="app.abrirDetalhesEvento(${evento.id})">Ver evento</button></div>`).join('') : '<div class="evento-destaque-vazio">Você ainda não está participando de nenhum evento.</div>';
         } catch (erro) {
             console.error(erro);
@@ -3740,6 +3740,48 @@ ${ApiService.getIdUsuarioLogado() ? `
 
         </div>
     `;
+    }
+
+    async carregarEventoDestaqueMaisPopular() {
+        try {
+            const resultado = await ApiService.buscarEventos({
+                page: 0,
+                size: 100
+            });
+
+            const eventos =
+                Array.isArray(resultado)
+                    ? resultado
+                    : (resultado.content || []);
+
+            if (!eventos.length) {
+                this.renderizarEventoDestaque(null);
+                return;
+            }
+
+            const eventoMaisPopular =
+                [...eventos].sort((a, b) => {
+                    const participantesA =
+                        Number(a.quantidadeParticipantes || 0);
+
+                    const participantesB =
+                        Number(b.quantidadeParticipantes || 0);
+
+                    return participantesB - participantesA;
+                })[0];
+
+            this.renderizarEventoDestaque(
+                eventoMaisPopular
+            );
+
+        } catch (erro) {
+            console.error(
+                'Erro ao carregar evento em destaque:',
+                erro
+            );
+
+            this.renderizarEventoDestaque(null);
+        }
     }
 
     async abrirEventoDoPerfil(idEvento) {
