@@ -5302,12 +5302,9 @@ ${ApiService.getIdUsuarioLogado() ? `
             container.innerHTML = `
     <div class="card perfil-hero">
 
-        <div style="
-            display:flex;
-            align-items:center;
-            gap:16px;
-            margin-bottom:24px;
-        ">
+      <div class="perfil-header">
+
+    <div class="perfil-identidade">
 
            ${(() => {
                     const fotoUrl = ApiService.formatarUrlFotoPerfil(usuario.fotoPerfil);
@@ -5348,27 +5345,49 @@ ${ApiService.getIdUsuarioLogado() ? `
                 })()
                 }
 
-            <div>
-                <h2 style="margin:0;">
-                    ${usuario.nome}
-                </h2>
+          <div>
+    <h2 style="margin:0;">
+        ${usuario.nome}
+    </h2>
 
-                <p class="perfil-username"
-                   style="
-                       margin:4px 0 0 0;
-                       color:var(--text-muted);
-                   ">
-                    @${usuario.username}
-                </p>
-            </div>
+    <p class="perfil-username"
+       style="
+           margin:4px 0 0 0;
+           color:var(--text-muted);
+       ">
+        @${usuario.username}
+    </p>
+</div>
 
-        </div>
+</div> <!-- fecha perfil-identidade -->
 
-        <div class="perfil-stats">
-            <div><strong>${postsUsuario.length}</strong><span>Publicações</span></div>
-            <div><strong>${comunidadesUsuario.length}</strong><span>Comunidades</span></div>
-            <div><strong>${eventosUsuario.length}</strong><span>Eventos</span></div>
-        </div>
+<div class="perfil-header-acao">
+
+    ${ehProprioPerfil ? `
+        <button
+            type="button"
+            class="btn-perfil-acao btn-perfil-editar"
+            onclick="app.abrirEdicaoPerfil()"
+        >
+            <i class="material-icons">edit</i>
+            Editar perfil
+        </button>
+    ` : idLogado ? `
+        <button
+            type="button"
+            class="btn-perfil-acao btn-perfil-mensagem"
+            onclick="app.iniciarConversa(${idUsuario})"
+        >
+            <i class="material-icons">chat_bubble_outline</i>
+            Mensagem
+        </button>
+    ` : ''}
+
+</div>
+
+</div> <!-- fecha perfil-header -->
+
+</div>
 
         <div style="
             border-top:1px solid var(--border-color);
@@ -5391,51 +5410,38 @@ ${ApiService.getIdUsuarioLogado() ? `
 
         </div>
 
-      ${ehProprioPerfil ? `
-    <button
-        type="button"
-        class="btn-primary btn-editar-perfil"
-        onclick="app.abrirEdicaoPerfil()"
-    >
-        <i class="material-icons">edit</i>
-        <span>Editar perfil</span>
-    </button>
-` : idLogado ? `
-    <button
-        type="button"
-        class="btn-message-profile"
-        onclick="app.iniciarConversa(${idUsuario})"
-    >
-        Mensagem
-    </button>
-` : ''}
+   
+    </div>
+<div class="perfil-tabs">
 
+    <div
+        class="perfil-tab active"
+        id="perfil-tab-publicacoes"
+        onclick="app.mostrarAbaPerfil('publicacoes', ${idUsuario})"
+    >
+        <span>Publicações</span>
+        <strong>${postsUsuario.length}</strong>
     </div>
 
-    <div class="perfil-tabs">
-
-        <div
-            class="perfil-tab active"
-            id="perfil-tab-publicacoes"
-            onclick="app.mostrarAbaPerfil('publicacoes', ${idUsuario})">
-            Publicações
-        </div>
-
-        <div
-            class="perfil-tab"
-            id="perfil-tab-comunidades"
-            onclick="app.mostrarAbaPerfil('comunidades', ${idUsuario})">
-            Comunidades
-        </div>
-
-        <div
-            class="perfil-tab"
-            id="perfil-tab-eventos"
-            onclick="app.mostrarAbaPerfil('eventos', ${idUsuario})">
-            Eventos
-        </div>
-
+    <div
+        class="perfil-tab"
+        id="perfil-tab-comunidades"
+        onclick="app.mostrarAbaPerfil('comunidades', ${idUsuario})"
+    >
+        <span>Comunidades</span>
+        <strong>${comunidadesUsuario.length}</strong>
     </div>
+
+    <div
+        class="perfil-tab"
+        id="perfil-tab-eventos"
+        onclick="app.mostrarAbaPerfil('eventos', ${idUsuario})"
+    >
+        <span>Eventos</span>
+        <strong>${eventosUsuario.length}</strong>
+    </div>
+
+</div>
 
     <div id="perfil-conteudo-abas"></div>
 `;
@@ -5622,14 +5628,22 @@ ${ApiService.getIdUsuarioLogado() ? `
             return;
         }
 
-        if (!posts || posts.length === 0) {
-            container.innerHTML = `
-            <p style="color:var(--text-muted);">
-                Este usuário ainda não publicou nada.
-            </p>
-        `;
-            return;
-        }
+      if (!posts || posts.length === 0) {
+    container.innerHTML = `
+        <div class="perfil-empty">
+            <div class="perfil-empty-icon">
+                <i class="material-icons">article</i>
+            </div>
+
+            <strong>Nenhuma publicação ainda</strong>
+
+            <span>
+                As publicações deste usuário aparecerão aqui.
+            </span>
+        </div>
+    `;
+    return;
+}
 
         container.innerHTML = '';
 
@@ -5678,14 +5692,22 @@ ${ApiService.getIdUsuarioLogado() ? `
             return;
         }
 
-        if (!comunidades || comunidades.length === 0) {
-            container.innerHTML = `
-            <p style="color:var(--text-muted);">
-                Este usuário ainda não participa de nenhuma comunidade.
-            </p>
-        `;
-            return;
-        }
+      if (!comunidades || comunidades.length === 0) {
+    container.innerHTML = `
+        <div class="perfil-empty">
+            <div class="perfil-empty-icon">
+                <i class="material-icons">groups</i>
+            </div>
+
+            <strong>Nenhuma comunidade ainda</strong>
+
+            <span>
+                As comunidades deste usuário aparecerão aqui.
+            </span>
+        </div>
+    `;
+    return;
+}
 
         container.innerHTML = '';
 
@@ -5938,6 +5960,105 @@ ${ApiService.getIdUsuarioLogado() ? `
     async abrirEventoDoPerfil(idEvento) {
         await this.abrirDetalhesEvento(idEvento);
     }
+
+    renderizarEventosPerfil(eventos) {
+
+    const container =
+        document.getElementById('perfil-conteudo-abas');
+
+    if (!container) {
+        return;
+    }
+
+   if (!eventos || eventos.length === 0) {
+    container.innerHTML = `
+        <div class="perfil-empty">
+            <div class="perfil-empty-icon">
+                <i class="material-icons">event</i>
+            </div>
+
+            <strong>Nenhum evento ainda</strong>
+
+            <span>
+                Os eventos deste usuário aparecerão aqui.
+            </span>
+        </div>
+    `;
+    return;
+}
+
+    container.innerHTML = '';
+
+    eventos.forEach(evento => {
+
+        const idEvento =
+            evento.idEvento || evento.id;
+
+        const div =
+            document.createElement('div');
+
+        div.className = 'list-item';
+
+        const dataEvento =
+            evento.dataEvento ||
+            evento.data ||
+            evento.dataInicio;
+
+        let dataFormatada = '';
+
+        if (dataEvento) {
+
+            try {
+                dataFormatada =
+                    new Date(dataEvento)
+                        .toLocaleDateString('pt-BR');
+            } catch (erro) {
+                dataFormatada = dataEvento;
+            }
+
+        }
+
+        div.innerHTML = `
+            <div class="list-item-info">
+
+                <div style="
+                    display:flex;
+                    align-items:center;
+                    gap:8px;
+                    margin-bottom:4px;
+                ">
+
+                    <h3 style="margin:0;">
+                        ${evento.nome || evento.titulo || 'Evento'}
+                    </h3>
+
+                </div>
+
+                <p>
+                    ${evento.descricao || 'Sem descrição.'}
+                </p>
+
+                ${dataFormatada ? `
+                    <small style="color:var(--text-muted);">
+                        ${dataFormatada}
+                    </small>
+                ` : ''}
+
+            </div>
+
+            <button
+                class="btn-primary"
+                onclick="app.abrirDetalhesEvento(${idEvento})"
+            >
+                Acessar
+            </button>
+        `;
+
+        container.appendChild(div);
+
+    });
+
+}
 
     async mostrarAbaPerfil(aba, idUsuario) {
 

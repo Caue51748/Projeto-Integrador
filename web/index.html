@@ -1167,61 +1167,121 @@
             </button>
         </div>
     </div>
+<div class="modal-overlay" id="editar-perfil-modal">
+    <div class="modal editar-perfil-modal">
 
-    <div class="modal-overlay" id="editar-perfil-modal">
-        <div class="modal">
+        <button
+            type="button"
+            class="modal-close-btn"
+            onclick="app.fecharModal('editar-perfil-modal')"
+            aria-label="Fechar"
+        >
+            <i class="material-icons">close</i>
+        </button>
 
-            <h2>Editar Perfil</h2>
+        <div class="editar-perfil-header">
+            <span class="editar-perfil-kicker">Sua conta</span>
+            <h2>Editar perfil</h2>
+            <p>Atualize como seu perfil aparece para outras pessoas.</p>
+        </div>
 
-            <label for="editar-perfil-foto">
-                Foto de perfil
-            </label>
+        <div class="editar-perfil-foto-area">
 
-            <input type="file" id="editar-perfil-foto" accept="image/*">
-            <small style="color:var(--text-muted); display:block; margin:4px 0 8px 0; font-size:12px;">
-                Tamanho máximo permitido: 5 MB (JPG, PNG, WEBP).
-            </small>
-            <button type="button" class="btn-secondary" onclick="app.salvarFotoPerfil()">
-                Alterar foto
-            </button>
+            <div class="editar-perfil-avatar">
+                <i class="material-icons">person</i>
+            </div>
 
-            <label for="editar-perfil-nome">
-                Nome
-            </label>
+            <div class="editar-perfil-foto-info">
+                <strong>Foto de perfil</strong>
+                <span>JPG, PNG ou WEBP · máximo de 5 MB</span>
 
-            <input type="text" id="editar-perfil-nome" placeholder="Seu nome">
+                <input
+                    type="file"
+                    id="editar-perfil-foto"
+                    accept="image/jpeg,image/png,image/webp"
+                    class="editar-perfil-file-input"
+                >
 
-            <label for="editar-perfil-username">
-                Username
-            </label>
+                <div class="editar-perfil-foto-acoes">
+                    <label
+                        for="editar-perfil-foto"
+                        class="editar-perfil-escolher-foto"
+                    >
+                        <i class="material-icons">photo_camera</i>
+                        Escolher foto
+                    </label>
 
-            <input type="text" id="editar-perfil-username" placeholder="Seu username">
+                    <button
+                        type="button"
+                        class="editar-perfil-alterar-foto"
+                        onclick="app.salvarFotoPerfil()"
+                    >
+                        Alterar
+                    </button>
+                </div>
+            </div>
 
-            <label for="editar-perfil-bio">
-                Bio
-            </label>
+        </div>
 
-            <textarea id="editar-perfil-bio" maxlength="300" placeholder="Conte um pouco sobre você...">
-        </textarea>
+        <div class="editar-perfil-form">
 
-            <small style="
-            color:var(--text-muted);
-            display:block;
-            margin-bottom:16px;
-        ">
-                Máximo de 300 caracteres.
-            </small>
+            <div class="editar-perfil-campo">
+                <label for="editar-perfil-nome">Nome</label>
+                <input
+                    type="text"
+                    id="editar-perfil-nome"
+                    placeholder="Seu nome"
+                >
+            </div>
 
-            <button class="btn-primary" onclick="app.salvarPerfil()">
-                Salvar alterações
-            </button>
+            <div class="editar-perfil-campo">
+                <label for="editar-perfil-username">Username</label>
 
-            <button class="btn-secondary" onclick="app.fecharModal('editar-perfil-modal')">
+                <div class="editar-perfil-username">
+                    <span>@</span>
+                    <input
+                        type="text"
+                        id="editar-perfil-username"
+                        placeholder="seuusername"
+                    >
+                </div>
+            </div>
+
+            <div class="editar-perfil-campo">
+                <div class="editar-perfil-label-row">
+                    <label for="editar-perfil-bio">Bio</label>
+                    <span>Máximo de 300 caracteres</span>
+                </div>
+
+                <textarea
+                    id="editar-perfil-bio"
+                    maxlength="300"
+                    placeholder="Conte um pouco sobre você..."
+                ></textarea>
+            </div>
+
+        </div>
+
+        <div class="editar-perfil-footer">
+            <button
+                type="button"
+                class="btn-secondary"
+                onclick="app.fecharModal('editar-perfil-modal')"
+            >
                 Cancelar
             </button>
 
+            <button
+                type="button"
+                class="btn-primary"
+                onclick="app.salvarPerfil()"
+            >
+                Salvar alterações
+            </button>
         </div>
+
     </div>
+</div>
 
     <div class="modal-overlay" id="gerenciar-evento-modal" role="dialog" aria-modal="true"
         aria-labelledby="gerenciar-evento-title">
