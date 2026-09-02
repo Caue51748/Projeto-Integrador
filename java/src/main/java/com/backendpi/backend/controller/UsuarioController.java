@@ -188,6 +188,9 @@ public class UsuarioController {
         }
 
         String tipo = foto.getContentType();
+        System.out.println("TIPO RECEBIDO: " + tipo);
+
+        String tipo = foto.getContentType();
         if (tipo == null || !tipo.startsWith("image/")) {
             return ResponseEntity
                     .badRequest()
