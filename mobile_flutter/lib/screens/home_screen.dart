@@ -137,26 +137,26 @@ class _HomeScreenState extends State<HomeScreen> {
     final bool isDesktop = size.width > 920;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F8FA),
+      backgroundColor: const Color(0xFFF5F7FF),
       appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(64),
+        preferredSize: const Size.fromHeight(72),
         child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            border: const Border(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.white,
+                Color(0xFFF9FAFF),
+              ],
+            ),
+            border: Border(
               bottom: BorderSide(color: Color(0xFFE5E7EB), width: 1.0),
             ),
-            boxShadow: [
-              BoxShadow(
-                color: const Color.fromRGBO(120, 34, 66, 0.06),
-                blurRadius: 24,
-                offset: const Offset(0, 8),
-              ),
-            ],
           ),
           child: SafeArea(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               child: Row(
                 children: [
                   // Logotipo SocialJoin (Web brand mark style)
@@ -287,16 +287,27 @@ class _HomeScreenState extends State<HomeScreen> {
     required VoidCallback onTap,
     String? tooltip,
   }) {
-    return IconButton(
-      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-      padding: EdgeInsets.zero,
-      icon: Icon(
-        icon,
-        color: isActive ? const Color(0xFFEA3F74) : const Color(0xFF202124),
-        size: 22,
+    return Container(
+      margin: const EdgeInsets.only(left: 2),
+      decoration: BoxDecoration(
+        color: isActive ? const Color(0xFFEA3F74).withValues(alpha: 0.08) : Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isActive ? const Color(0xFFF7B7CD) : const Color(0xFFE5E7EB),
+          width: 1,
+        ),
       ),
-      onPressed: onTap,
-      tooltip: tooltip,
+      child: IconButton(
+        constraints: const BoxConstraints(minWidth: 38, minHeight: 38),
+        padding: EdgeInsets.zero,
+        icon: Icon(
+          icon,
+          color: isActive ? const Color(0xFFEA3F74) : const Color(0xFF202124),
+          size: 22,
+        ),
+        onPressed: onTap,
+        tooltip: tooltip,
+      ),
     );
   }
 
@@ -305,28 +316,29 @@ class _HomeScreenState extends State<HomeScreen> {
     final int navIndex = _mapPaginaParaBottomNav(paginaAtual);
 
     return Container(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
       decoration: const BoxDecoration(
         color: Colors.white,
         border: Border(
           top: BorderSide(color: Color(0xFFE5E7EB), width: 1.0),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Color.fromRGBO(120, 34, 66, 0.06),
-            blurRadius: 16,
-            offset: Offset(0, -4),
-          ),
-        ],
       ),
       child: SafeArea(
-        child: Row(
-          children: [
-            _buildNavTabItem(0, Icons.dynamic_feed_rounded, "Feed", navIndex == 0),
-            _buildNavTabItem(1, Icons.search_rounded, "Buscar", navIndex == 1),
-            _buildNavTabItem(2, Icons.event_rounded, "Eventos", navIndex == 2),
-            _buildNavTabItem(3, Icons.groups_rounded, "Grupos", navIndex == 3),
-            _buildNavTabItem(4, Icons.person_rounded, AuthService.logado ? "Perfil" : "Conta", navIndex == 4),
-          ],
+        child: Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF5F7FF),
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Row(
+            children: [
+              _buildNavTabItem(0, Icons.dynamic_feed_rounded, "Feed", navIndex == 0),
+              _buildNavTabItem(1, Icons.search_rounded, "Buscar", navIndex == 1),
+              _buildNavTabItem(2, Icons.event_rounded, "Eventos", navIndex == 2),
+              _buildNavTabItem(3, Icons.groups_rounded, "Grupos", navIndex == 3),
+              _buildNavTabItem(4, Icons.person_rounded, AuthService.logado ? "Perfil" : "Conta", navIndex == 4),
+            ],
+          ),
         ),
       ),
     );
@@ -339,16 +351,22 @@ class _HomeScreenState extends State<HomeScreen> {
           final pageIndex = _mapBottomNavParaPagina(index);
           _selecionarPagina(pageIndex);
         },
-        child: Container(
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
           padding: const EdgeInsets.symmetric(vertical: 8),
+          margin: const EdgeInsets.symmetric(horizontal: 2),
           decoration: BoxDecoration(
-            border: Border(
-              top: BorderSide(
-                color: isActive ? const Color(0xFFEA3F74) : Colors.transparent,
-                width: 3.0,
-              ),
-            ),
-            color: isActive ? const Color(0xFFF7F8FA) : Colors.white,
+            color: isActive ? Colors.white : Colors.transparent,
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: isActive
+                ? const [
+                    BoxShadow(
+                      color: Color.fromRGBO(234, 63, 116, 0.16),
+                      blurRadius: 14,
+                      offset: Offset(0, 5),
+                    ),
+                  ]
+                : null,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,

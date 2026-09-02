@@ -155,30 +155,42 @@ class _FeedPageState extends State<FeedPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F8FA),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          if (!AuthService.logado) {
+      backgroundColor: const Color(0xFFF5F7FF),
+      floatingActionButton: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: const [
+            BoxShadow(
+              color: Color.fromRGBO(234, 63, 116, 0.26),
+              blurRadius: 18,
+              offset: Offset(0, 8),
+            ),
+          ],
+        ),
+        child: FloatingActionButton.extended(
+          onPressed: () {
+            if (!AuthService.logado) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const LoginScreen()),
+              );
+              return;
+            }
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const LoginScreen()),
-            );
-            return;
-          }
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const CreatePostPage()),
-          ).then((_) => carregarDados());
-        },
-        backgroundColor: const Color(0xFFEA3F74),
-        elevation: 4,
-        icon: const Icon(Icons.add_rounded, color: Colors.white, size: 20),
-        label: Text(
-          "Novo Post",
-          style: GoogleFonts.manrope(
-            color: Colors.white,
-            fontWeight: FontWeight.w700,
-            fontSize: 14,
+              MaterialPageRoute(builder: (_) => const CreatePostPage()),
+            ).then((_) => carregarDados());
+          },
+          backgroundColor: const Color(0xFFEA3F74),
+          elevation: 0,
+          icon: const Icon(Icons.add_rounded, color: Colors.white, size: 20),
+          label: Text(
+            "Novo Post",
+            style: GoogleFonts.manrope(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+              fontSize: 14,
+            ),
           ),
         ),
       ),
@@ -252,13 +264,13 @@ class _FeedPageState extends State<FeedPage> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE8ECF5)),
         boxShadow: const [
           BoxShadow(
-            color: Color.fromRGBO(17, 24, 39, 0.07),
-            blurRadius: 30,
-            offset: Offset(0, 12),
+            color: Color.fromRGBO(17, 24, 39, 0.06),
+            blurRadius: 22,
+            offset: Offset(0, 10),
           ),
         ],
       ),
@@ -336,13 +348,13 @@ class _FeedPageState extends State<FeedPage> {
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE8ECF5)),
         boxShadow: const [
           BoxShadow(
-            color: Color.fromRGBO(17, 24, 39, 0.07),
-            blurRadius: 30,
-            offset: Offset(0, 12),
+            color: Color.fromRGBO(17, 24, 39, 0.06),
+            blurRadius: 22,
+            offset: Offset(0, 10),
           ),
         ],
       ),

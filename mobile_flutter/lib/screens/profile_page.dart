@@ -356,7 +356,7 @@ class _ProfilePageState extends State<ProfilePage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F8FA),
+      backgroundColor: const Color(0xFFF5F7FF),
       body: _carregando
           ? const Center(child: CircularProgressIndicator(color: Color(0xFFEA3F74)))
           : _erro != null
