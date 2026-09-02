@@ -3607,92 +3607,139 @@ ${ApiService.getIdUsuarioLogado() ? `
             container.appendChild(div);
         });
     }
-
-    renderizarEventosPerfil(eventos) {
-
+    renderizarEventoDestaque(evento) {
         const container =
-            document.getElementById('perfil-conteudo-abas');
+            document.getElementById('evento-destaque');
 
-        if (!container) {
-            return;
-        }
+        if (!container) return;
 
-        if (!eventos || eventos.length === 0) {
+        if (!evento) {
             container.innerHTML = `
-            <p style="color:var(--text-muted);">
-                Este usuário ainda não organizou nenhum evento.
-            </p>
+            <div class="evento-destaque-vazio">
+                Nenhum evento encontrado com esses filtros.
+            </div>
         `;
             return;
         }
 
-        container.innerHTML = '';
+        const data = evento.dataEvento
+            ? new Date(
+                `${evento.dataEvento}T00:00:00`
+            ).toLocaleDateString('pt-BR', {
+                day: '2-digit',
+                month: 'short'
+            }).replace('.', '')
+            : '--';
 
-        eventos.forEach(evento => {
+        const horario =
+            evento.horarioInicio?.substring(0, 5) ||
+            '--:--';
 
-            const idEvento =
-                evento.idEvento || evento.id;
+        const titulo =
+            this.escaparHtmlDestaque(
+                evento.titulo || 'Evento'
+            );
 
-            const dataFormatada =
-                evento.dataEvento
-                    ? new Date(
-                        evento.dataEvento + 'T00:00:00'
-                    ).toLocaleDateString('pt-BR')
-                    : '';
+        const descricao =
+            this.escaparHtmlDestaque(
+                evento.descricao ||
+                'Confira os detalhes deste evento.'
+            );
 
-            const horarioInicio =
-                evento.horarioInicio
-                    ? evento.horarioInicio.substring(0, 5)
-                    : '';
+        const local =
+            this.escaparHtmlDestaque(
+                evento.localEvento ||
+                'Local a confirmar'
+            );
 
-            const horarioFim =
-                evento.horarioFim
-                    ? evento.horarioFim.substring(0, 5)
-                    : '';
+        const categoria =
+            this.escaparHtmlDestaque(
+                evento.categoria ||
+                'Evento'
+            );
 
-            const div = document.createElement('div');
-            div.className = 'card';
-
-            div.innerHTML = `
-            <h3 style="margin-top:0;">
-                ${evento.titulo}
-            </h3>
-
-            <p style="color:var(--text-muted);">
-                ${evento.descricao || 'Sem descrição.'}
-            </p>
-
-            <div style="
-                display:flex;
-                gap:16px;
-                flex-wrap:wrap;
-                margin-top:12px;
-                font-size:14px;
+        const imagem = evento.imagemCapa
+            ? `
+            <div
+                class="evento-destaque-imagem"
+                style="
+                    background-image:
+                    url('${this.urlCapaEvento(evento.imagemCapa)}');
+                "
+            ></div>
+        `
+            : `
+            <div class="
+                evento-destaque-imagem
+                evento-destaque-imagem-vazia
             ">
-                <span>
-                    📅 ${dataFormatada}
-                </span>
+                <i class="material-icons">
+                    event
+                </i>
+            </div>
+        `;
 
-                <span>
-                    🕒 ${horarioInicio} - ${horarioFim}
-                </span>
+        container.innerHTML = `
+        <div class="evento-destaque-container">
 
-                ${evento.localEvento
-                    ? `<span>📍 ${evento.localEvento}</span>`
-                    : ''
-                }
+            ${imagem}
+
+            <div class="evento-destaque-copy">
+
+                <div class="evento-destaque-topo">
+                    <span class="evento-destaque-badge">
+                        ${categoria}
+                    </span>
+
+                    <span class="evento-destaque-data">
+                        ${data}
+                    </span>
+                </div>
+
+                <h2 class="evento-destaque-titulo">
+                    ${titulo}
+                </h2>
+
+                <p class="evento-destaque-descricao">
+                    ${descricao}
+                </p>
+
+                <div class="evento-destaque-info">
+
+                    <span>
+                        <i class="material-icons">
+                            schedule
+                        </i>
+                        ${horario}
+                    </span>
+
+                    <span>
+                        <i class="material-icons">
+                            location_on
+                        </i>
+                        ${local}
+                    </span>
+
+                </div>
+
+                <button
+                    type="button"
+                    class="evento-destaque-btn"
+                    onclick="
+                        app.abrirDetalhesEvento(${evento.id})
+                    "
+                >
+                    Ver detalhes
+
+                    <i class="material-icons">
+                        arrow_forward
+                    </i>
+                </button>
+
             </div>
 
-            <button
-                class="btn-primary"
-                style="margin-top:16px;"
-                onclick="app.abrirEventoDoPerfil(${idEvento})">
-                Ver evento
-            </button>
-        `;
-
-            container.appendChild(div);
-        });
+        </div>
+    `;
     }
 
     async abrirEventoDoPerfil(idEvento) {
