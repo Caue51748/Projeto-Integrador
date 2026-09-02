@@ -21,17 +21,17 @@ public class PostController {
         return service.listar();
     }
 
-    @PostMapping
+    @PostMapping("criar/{id}")
     public Post criar(@RequestBody Post post) {
         return service.salvar(post);
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("buscar/{id}")
     public Post buscar(@PathVariable Long id) {
         return service.buscarPorId(id);
     }
 
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/deletar/{id}")
     public void deletar(@PathVariable Long id) {
         service.deletar(id);
     }

@@ -17,7 +17,7 @@ public class UsuarioController {
         this.service = service;
     }
 
-    @GetMapping
+    @GetMapping("/listar")
     public List<Usuario> listar() {
         return service.listar();
     }
