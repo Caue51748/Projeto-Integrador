@@ -1591,7 +1591,7 @@ ${ApiService.getIdUsuarioLogado() ? `
             if (comentariosPost && comentariosPost.length) {
                 this.comentariosPorPost[idPost] = comentariosPost;
             }
-        } catch (_) {}
+        } catch (_) { }
 
         const idAutor = post.idUsuario || post.id_usuario;
         const nomeAutor = this.usuariosMap[idAutor] || 'Desconhecido';
@@ -1628,16 +1628,16 @@ ${ApiService.getIdUsuarioLogado() ? `
                     <div class="post-comments-heading"><h2>Comentários</h2><span>${comentarios.length}</span></div>
                     ${ApiService.getIdUsuarioLogado() ? `<div class="detail-comment-box"><input id="comentario-detalhe-${idPost}" type="text" placeholder="Escreva um comentário..." onkeydown="if(event.key === 'Enter') app.enviarComentarioDetalhe(${idPost})"><button onclick="app.enviarComentarioDetalhe(${idPost})">Comentar</button></div>` : '<p class="comments-login-note">Entre para participar da conversa.</p>'}
                     <div class="post-detail-comments">${comentarios.length ? comentarios.map(c => {
-                        const idC = c.idUsuario || c.id_usuario;
-                        const nomeC = this.usuariosMap[idC] || 'Usuário';
-                        const fotoC = this.usuariosFotosMap[idC];
-                        const urlFotoC = ApiService.formatarUrlFotoPerfil(fotoC);
-                        const iniC = (nomeC || 'U').charAt(0).toUpperCase();
-                        const avC = urlFotoC
-                            ? `<img src="${urlFotoC}" class="avatar detail-comment-avatar" style="object-fit:cover;" onerror="this.outerHTML='<div class=\\'avatar detail-comment-avatar\\'>${iniC}</div>'">`
-                            : `<div class="avatar detail-comment-avatar">${iniC}</div>`;
-                        return `<div class="detail-comment">${avC}<div><strong>${this.escaparHtmlDestaque(nomeC)}</strong><p>${this.escaparHtmlDestaque(c.conteudo)}</p></div></div>`;
-                    }).join('') : '<p class="comments-empty">Ainda não há comentários. Seja o primeiro a participar.</p>'}</div>
+            const idC = c.idUsuario || c.id_usuario;
+            const nomeC = this.usuariosMap[idC] || 'Usuário';
+            const fotoC = this.usuariosFotosMap[idC];
+            const urlFotoC = ApiService.formatarUrlFotoPerfil(fotoC);
+            const iniC = (nomeC || 'U').charAt(0).toUpperCase();
+            const avC = urlFotoC
+                ? `<img src="${urlFotoC}" class="avatar detail-comment-avatar" style="object-fit:cover;" onerror="this.outerHTML='<div class=\\'avatar detail-comment-avatar\\'>${iniC}</div>'">`
+                : `<div class="avatar detail-comment-avatar">${iniC}</div>`;
+            return `<div class="detail-comment">${avC}<div><strong>${this.escaparHtmlDestaque(nomeC)}</strong><p>${this.escaparHtmlDestaque(c.conteudo)}</p></div></div>`;
+        }).join('') : '<p class="comments-empty">Ainda não há comentários. Seja o primeiro a participar.</p>'}</div>
                 </section>
             </article>
         `;
@@ -3110,22 +3110,7 @@ ${ApiService.getIdUsuarioLogado() ? `
     }
 
     voltarParaEventos() {
-
-        document.querySelectorAll('.view-section')
-            .forEach(el => el.classList.remove('active'));
-
-        document.getElementById('view-eventos')
-            .classList.add('active');
-
-        document.querySelectorAll('.nav-btn')
-            .forEach(el => el.classList.remove('active'));
-
-        const botaoEventos =
-            document.getElementById('tab-eventos');
-
-        if (botaoEventos) {
-            botaoEventos.classList.add('active');
-        }
+        this.mudarAba('eventos');
     }
 
     async abrirPerfil(idUsuario) {
@@ -3179,9 +3164,9 @@ ${ApiService.getIdUsuarioLogado() ? `
         ">
 
            ${(() => {
-                const fotoUrl = ApiService.formatarUrlFotoPerfil(usuario.fotoPerfil);
-                return fotoUrl
-                    ? `
+                    const fotoUrl = ApiService.formatarUrlFotoPerfil(usuario.fotoPerfil);
+                    return fotoUrl
+                        ? `
         <img
             src="${fotoUrl}?v=${Date.now()}"
             alt="Foto de perfil"
@@ -3204,7 +3189,7 @@ ${ApiService.getIdUsuarioLogado() ? `
             ${inicial}
         </div>
       `
-                    : `
+                        : `
         <div class="avatar"
              style="
                 width:72px;
@@ -3214,7 +3199,7 @@ ${ApiService.getIdUsuarioLogado() ? `
             ${inicial}
         </div>
       `;
-            })()
+                })()
                 }
 
             <div>
