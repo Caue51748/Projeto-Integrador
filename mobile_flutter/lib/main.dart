@@ -36,21 +36,33 @@ class MyApp extends StatelessWidget {
         primaryColor: primaryPink,
         scaffoldBackgroundColor: const Color(0xFFF5F7FF),
         textTheme: baseTextTheme.copyWith(
-          displayLarge: baseTextTheme.displayLarge?.copyWith(color: textMain, fontWeight: FontWeight.w800),
-          displayMedium: baseTextTheme.displayMedium?.copyWith(color: textMain, fontWeight: FontWeight.w800),
-          displaySmall: baseTextTheme.displaySmall?.copyWith(color: textMain, fontWeight: FontWeight.w700),
-          headlineLarge: baseTextTheme.headlineLarge?.copyWith(color: textMain, fontWeight: FontWeight.w800),
-          headlineMedium: baseTextTheme.headlineMedium?.copyWith(color: textMain, fontWeight: FontWeight.w700),
-          headlineSmall: baseTextTheme.headlineSmall?.copyWith(color: textMain, fontWeight: FontWeight.w700),
-          titleLarge: baseTextTheme.titleLarge?.copyWith(color: textMain, fontWeight: FontWeight.w700),
-          titleMedium: baseTextTheme.titleMedium?.copyWith(color: textMain, fontWeight: FontWeight.w700),
-          titleSmall: baseTextTheme.titleSmall?.copyWith(color: textMain, fontWeight: FontWeight.w600),
+          displayLarge: baseTextTheme.displayLarge
+              ?.copyWith(color: textMain, fontWeight: FontWeight.w800),
+          displayMedium: baseTextTheme.displayMedium
+              ?.copyWith(color: textMain, fontWeight: FontWeight.w800),
+          displaySmall: baseTextTheme.displaySmall
+              ?.copyWith(color: textMain, fontWeight: FontWeight.w700),
+          headlineLarge: baseTextTheme.headlineLarge
+              ?.copyWith(color: textMain, fontWeight: FontWeight.w800),
+          headlineMedium: baseTextTheme.headlineMedium
+              ?.copyWith(color: textMain, fontWeight: FontWeight.w700),
+          headlineSmall: baseTextTheme.headlineSmall
+              ?.copyWith(color: textMain, fontWeight: FontWeight.w700),
+          titleLarge: baseTextTheme.titleLarge
+              ?.copyWith(color: textMain, fontWeight: FontWeight.w700),
+          titleMedium: baseTextTheme.titleMedium
+              ?.copyWith(color: textMain, fontWeight: FontWeight.w700),
+          titleSmall: baseTextTheme.titleSmall
+              ?.copyWith(color: textMain, fontWeight: FontWeight.w600),
           bodyLarge: baseTextTheme.bodyLarge?.copyWith(color: textMain),
           bodyMedium: baseTextTheme.bodyMedium?.copyWith(color: textMuted),
           bodySmall: baseTextTheme.bodySmall?.copyWith(color: textMuted),
-          labelLarge: baseTextTheme.labelLarge?.copyWith(color: textMain, fontWeight: FontWeight.w700),
-          labelMedium: baseTextTheme.labelMedium?.copyWith(color: textMuted, fontWeight: FontWeight.w600),
-          labelSmall: baseTextTheme.labelSmall?.copyWith(color: textMuted, fontWeight: FontWeight.w800),
+          labelLarge: baseTextTheme.labelLarge
+              ?.copyWith(color: textMain, fontWeight: FontWeight.w700),
+          labelMedium: baseTextTheme.labelMedium
+              ?.copyWith(color: textMuted, fontWeight: FontWeight.w600),
+          labelSmall: baseTextTheme.labelSmall
+              ?.copyWith(color: textMuted, fontWeight: FontWeight.w800),
         ),
         colorScheme: ColorScheme.fromSeed(
           seedColor: primaryPink,
@@ -90,7 +102,8 @@ class MyApp extends StatelessWidget {
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
           fillColor: Colors.white,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: const BorderSide(color: borderColor, width: 1),
@@ -155,9 +168,11 @@ class MyApp extends StatelessWidget {
         chipTheme: ChipThemeData(
           backgroundColor: Colors.white,
           selectedColor: primaryPink,
-          labelStyle: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w700),
+          labelStyle:
+              GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w700),
           side: const BorderSide(color: borderColor),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         ),
         dividerTheme: const DividerThemeData(
@@ -173,12 +188,14 @@ class MyApp extends StatelessWidget {
           surfaceTintColor: Colors.transparent,
         ),
         dialogTheme: DialogThemeData(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
           surfaceTintColor: Colors.transparent,
         ),
         snackBarTheme: SnackBarThemeData(
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
         floatingActionButtonTheme: const FloatingActionButtonThemeData(
           backgroundColor: primaryPink,

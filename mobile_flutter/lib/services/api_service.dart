@@ -1,11 +1,11 @@
 class ApiService {
-  //static const String baseUrl = 'http://localhost:8080';
+  static const String baseUrl = 'http://localhost:8080';
 
   //PC do COTIL:
   //static const String baseUrl = 'http://143.106.241.xx:8080';
 
   //API Render:
-  static const String baseUrl = 'https://projeto-integrador-m4jn.onrender.com';
+  //static const String baseUrl = 'https://projeto-integrador-m4jn.onrender.com';
 
   //Só comentar a primeira linha e descomentar a que for usar
 
@@ -25,7 +25,8 @@ class ApiService {
     if (foto.startsWith('uploads/')) {
       return '$baseUrl/$foto';
     }
-    if (foto.startsWith('/google/drive/image/') || foto.startsWith('google/drive/image/')) {
+    if (foto.startsWith('/google/drive/image/') ||
+        foto.startsWith('google/drive/image/')) {
       final limpo = foto.startsWith('/') ? foto.substring(1) : foto;
       return '$baseUrl/$limpo';
     }
