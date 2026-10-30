@@ -10,7 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap"
         rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/style.css?v=post-gallery-3">
 </head>
 
 <body>
@@ -721,10 +721,17 @@
             <h2 id="modal-post-title">Nova Publicação</h2>
             <input type="text" id="post-titulo" placeholder="Título">
             <textarea id="post-conteudo" placeholder="Conteúdo..."></textarea>
+            <label class="post-image-picker" for="post-imagens">
+                <i class="material-icons" aria-hidden="true">add_photo_alternate</i>
+                Adicionar fotos
+            </label>
+            <input type="file" id="post-imagens" accept="image/jpeg,image/png,image/webp" multiple hidden>
+            <small class="form-hint">Escolha várias de uma vez ou adicione mais depois. Até 4 imagens JPG, PNG ou WEBP; máximo de 5 MB cada.</small>
+            <div id="post-imagens-preview" class="post-image-preview" aria-live="polite"></div>
             <select id="post-comunidade-id">
                 <option value="">Publicar no feed global</option>
             </select>
-            <button class="btn-full" onclick="app.enviarPost()">Publicar</button>
+            <button class="btn-full" id="post-publicar-btn" onclick="app.enviarPost()">Publicar</button>
             <button class="btn-cancel" onclick="app.fecharModal('post-modal')">Cancelar</button>
         </div>
     </div>
@@ -1251,7 +1258,8 @@
         <div class="editar-perfil-foto-area">
 
             <div class="editar-perfil-avatar">
-                <i class="material-icons">person</i>
+                <i class="material-icons" id="editar-perfil-avatar-icon">person</i>
+                <img id="editar-perfil-avatar-preview" alt="Prévia da foto de perfil" hidden>
             </div>
 
             <div class="editar-perfil-foto-info">
@@ -1782,7 +1790,7 @@
 
 </div>
 
-    <script type="module" src="js/app.js"></script>
+    <script type="module" src="js/app.js?v=post-multi-3"></script>
 </body>
 
 </html>

@@ -1,7 +1,12 @@
 package com.backendpi.backend.controller;
 
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -19,7 +24,6 @@ import org.springframework.web.multipart.MultipartFile;
 import com.backendpi.backend.dto.UsuarioPerfilDTO;
 import com.backendpi.backend.model.Usuario;
 import com.backendpi.backend.repository.UsuarioRepository;
-import com.backendpi.backend.service.GoogleDriveService;
 import com.backendpi.backend.service.UsuarioService;
 
 @RestController
@@ -29,16 +33,13 @@ public class UsuarioController {
 
     private final UsuarioRepository usuarioRepository;
     private final UsuarioService usuarioService;
-    private final GoogleDriveService googleDriveService;
 
     public UsuarioController(
             UsuarioRepository usuarioRepository,
-            UsuarioService usuarioService,
-            GoogleDriveService googleDriveService) {
+            UsuarioService usuarioService) {
 
         this.usuarioRepository = usuarioRepository;
         this.usuarioService = usuarioService;
-        this.googleDriveService = googleDriveService;
     }
 
     @GetMapping
@@ -176,24 +177,23 @@ public class UsuarioController {
             return ResponseEntity.notFound().build();
         }
 
-        System.out.println("=== TROCA DE FOTO DE PERFIL (GOOGLE DRIVE) ===");
-        System.out.println("Usuario: " + id);
-        System.out.println("Arquivo: " + foto.getOriginalFilename());
-        System.out.println("Tamanho: " + foto.getSize() + " bytes");
-
         if (foto.isEmpty()) {
             return ResponseEntity
                     .badRequest()
                     .body(Map.of("success", false, "error", "Selecione uma imagem."));
         }
 
-        String tipo = foto.getContentType();
-        System.out.println("TIPO RECEBIDO: " + tipo);
+                String extensao = switch (foto.getContentType() == null ? "" : foto.getContentType()) {
+                        case "image/jpeg" -> ".jpg";
+                        case "image/png" -> ".png";
+                        case "image/webp" -> ".webp";
+                        default -> null;
+                };
 
-        if (tipo == null || !tipo.startsWith("image/")) {
+                if (extensao == null) {
             return ResponseEntity
                     .badRequest()
-                    .body(Map.of("success", false, "error", "O arquivo precisa ser uma imagem."));
+                                        .body(Map.of("success", false, "error", "Use uma imagem JPG, PNG ou WEBP."));
         }
 
         // Limite de 5 MB
@@ -204,19 +204,41 @@ public class UsuarioController {
         }
 
         try {
-            // Salva a foto no Google Drive usando a classe GoogleDriveService pronta
-            String usernameLimpo = (usuario.getUsername() != null && !usuario.getUsername().isBlank())
-                    ? usuario.getUsername().trim()
-                    : "usuario";
+                        Path diretorio = Paths.get("uploads", "perfis").toAbsolutePath().normalize();
+                        Files.createDirectories(diretorio);
+                        Path destino = diretorio.resolve(UUID.randomUUID() + extensao).normalize();
+                        if (!destino.startsWith(diretorio)) {
+                                return ResponseEntity.badRequest()
+                                                .body(Map.of("success", false, "error", "Nome de arquivo inválido."));
+                        }
 
-            String fileId = googleDriveService.salvarFotoPerfil(
-                    foto,
-                    usuario.getIdUsuario(),
-                    usernameLimpo
-            );
+                        try (InputStream arquivo = foto.getInputStream()) {
+                                Files.copy(arquivo, destino);
+                        }
 
-            usuario.setFotoPerfil(fileId);
-            Usuario salvo = usuarioRepository.save(usuario);
+                        String caminhoFoto = "uploads/perfis/" + destino.getFileName();
+                        String caminhoAnterior = usuario.getFotoPerfil();
+                        usuario.setFotoPerfil(caminhoFoto);
+                        Usuario salvo;
+                        try {
+                                salvo = usuarioRepository.save(usuario);
+                        } catch (RuntimeException erroBanco) {
+                                Files.deleteIfExists(destino);
+                                throw erroBanco;
+                        }
+
+                        if (caminhoAnterior != null && caminhoAnterior.startsWith("uploads/perfis/")) {
+                                try {
+                                        String nomeAnterior = Paths.get(caminhoAnterior).getFileName().toString();
+                                        Path fotoAnterior = diretorio.resolve(nomeAnterior).normalize();
+                                        if (fotoAnterior.startsWith(diretorio) && !fotoAnterior.equals(destino)) {
+                                                Files.deleteIfExists(fotoAnterior);
+                                        }
+                                } catch (Exception erroLimpeza) {
+                                        System.err.println("Não foi possível remover a foto de perfil anterior: "
+                                                        + erroLimpeza.getMessage());
+                                }
+                        }
 
             UsuarioPerfilDTO perfil = new UsuarioPerfilDTO(
                     salvo.getIdUsuario(),
@@ -233,7 +255,7 @@ public class UsuarioController {
             erro.printStackTrace();
             return ResponseEntity
                     .internalServerError()
-                    .body(Map.of("success", false, "error", "Erro ao salvar foto no Google Drive: " + erro.getMessage()));
+                                        .body(Map.of("success", false, "error", "Não foi possível salvar a foto de perfil."));
         }
     }
 }

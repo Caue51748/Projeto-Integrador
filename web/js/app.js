@@ -1,10 +1,14 @@
-import { ApiService } from './api_service.js';
+import { ApiService } from './api_service.js?v=post-images-1';
 
 class AppController {
     constructor() {
         this.listaUsuariosCompleta = [];
         this.usuariosMap = {};
         this.usuariosFotosMap = {};
+        this.imagensPorPost = {};
+        this.previewPostUrls = [];
+        this.imagensPostSelecionadas = [];
+        this.previewFotoPerfilUrl = null;
         this.comunidadesMap = {}; // Guarda id -> nome da comunidade
         this.carregarFiltroComunidadesEventos();
         this.listaComunidades = [];
@@ -121,6 +125,16 @@ class AppController {
                 (event) => this.filtrarConversas(event.target.value)
             );
         }
+
+        document.getElementById('editar-perfil-foto')?.addEventListener(
+            'change',
+            (evento) => this.previsualizarFotoPerfil(evento.target.files?.[0])
+        );
+
+        document.getElementById('post-imagens')?.addEventListener(
+            'change',
+            (evento) => this.previsualizarImagensPost(evento.target.files)
+        );
 
         const usuarioLogado =
             ApiService.getUsuarioLogado();
@@ -881,7 +895,14 @@ class AppController {
         this.mostrarEventoFeedback('');
     }
 
-    fecharModal(id) { document.getElementById(id).style.display = 'none'; }
+    fecharModal(id) {
+        document.getElementById(id).style.display = 'none';
+        if (id === 'post-modal') {
+            const inputImagens = document.getElementById('post-imagens');
+            if (inputImagens) inputImagens.value = '';
+            this.limparPrevisualizacoesPost();
+        }
+    }
 
     abrirModalPost() {
 
@@ -1252,12 +1273,15 @@ class AppController {
     // --- CARREGAMENTO GLOBAL E PAGINADO ---
     async carregarDadosGlobais() {
         try {
-            const [usuarios, comunidades, comentarios, votos, salvos] = await Promise.all([
+            const [usuarios, comunidades, comentarios, votos, salvos, imagensPost] = await Promise.all([
                 ApiService.listarUsuarios(),
                 ApiService.listarComunidades().catch(() => []),
                 ApiService.listarComentarios().catch(() => []),
                 ApiService.listarVotos().catch(() => []),
-                ApiService.listarPostsSalvos().catch(() => [])
+                ApiService.listarPostsSalvos().catch(() => []),
+                typeof ApiService.listarImagensPost === 'function'
+                    ? ApiService.listarImagensPost().catch(() => [])
+                    : Promise.resolve([])
             ]);
 
             this.listaUsuariosCompleta = usuarios;
@@ -1282,6 +1306,12 @@ class AppController {
 
             this.votos = votos;
             this.postsSalvos = salvos;
+            this.imagensPorPost = imagensPost.reduce((porPost, imagem) => {
+                const idPost = imagem.idPost || imagem.id_post;
+                if (!porPost[idPost]) porPost[idPost] = [];
+                porPost[idPost].push(imagem);
+                return porPost;
+            }, {});
             this.renderizarSugestoesPessoas();
 
             // Carrega os primeiros posts sob demanda (primeira página)
@@ -2924,16 +2954,213 @@ class AppController {
         const titulo = document.getElementById('post-titulo').value.trim();
         const conteudo = document.getElementById('post-conteudo').value.trim();
         const comunidadeSelecionada = document.getElementById('post-comunidade-id')?.value;
+        const inputImagens = document.getElementById('post-imagens');
+        const imagens = [...(inputImagens?.files || [])];
+        const botaoPublicar = document.getElementById('post-publicar-btn');
 
-        // Se this.comunidadeAtivaId existir, envia o post vinculado à comunidade
-        const res = await ApiService.criarPost(titulo, conteudo, idLogado, comunidadeSelecionada || null);
-        if (res.ok) {
+        if (!idLogado) return alert('Entre para publicar.');
+        if (imagens.length > 4) return alert('Escolha no máximo quatro imagens.');
+        if (imagens.some(imagem => !['image/jpeg', 'image/png', 'image/webp'].includes(imagem.type))) {
+            return alert('Use imagens JPG, PNG ou WEBP.');
+        }
+        if (imagens.some(imagem => imagem.size > 5 * 1024 * 1024)) {
+            return alert('Cada imagem deve ter no máximo 5 MB.');
+        }
+        if (imagens.length && typeof ApiService.enviarImagemPost !== 'function') {
+            return alert('Atualize a página para habilitar o envio de imagens.');
+        }
+
+        if (botaoPublicar) {
+            botaoPublicar.disabled = true;
+            botaoPublicar.textContent = 'Publicando...';
+        }
+
+        try {
+            const resposta = await ApiService.criarPost(
+                titulo,
+                conteudo,
+                idLogado,
+                comunidadeSelecionada || null
+            );
+            if (!resposta.ok) {
+                return alert('Não foi possível publicar o post.');
+            }
+
+            const post = await resposta.json();
+            const idPost = post.idPost || post.id;
+            const falhasUpload = [];
+
+            for (const [indice, imagem] of imagens.entries()) {
+                try {
+                    const respostaImagem = await ApiService.enviarImagemPost(idPost, imagem);
+                    if (!respostaImagem.ok) {
+                        falhasUpload.push(`${imagem.name}: ${await respostaImagem.text()}`);
+                    }
+                } catch (erroUpload) {
+                    falhasUpload.push(`${imagem.name}: ${erroUpload.message}`);
+                }
+            }
+
             this.fecharModal('post-modal');
             document.getElementById('post-titulo').value = '';
             document.getElementById('post-conteudo').value = '';
             document.getElementById('post-comunidade-id').value = '';
+            if (inputImagens) inputImagens.value = '';
+            this.limparPrevisualizacoesPost();
             await this.carregarDadosGlobais();
-        } else alert(`Não foi possível publicar o post.`);
+
+            if (falhasUpload.length) {
+                alert(`O post foi publicado, mas ${falhasUpload.length} imagem(ns) não foram enviadas:\n${falhasUpload.join('\n')}`);
+            }
+        } catch (erro) {
+            console.error('Erro ao publicar post:', erro);
+            alert('Não foi possível publicar. Verifique a conexão e tente novamente.');
+        } finally {
+            if (botaoPublicar) {
+                botaoPublicar.disabled = false;
+                botaoPublicar.textContent = 'Publicar';
+            }
+        }
+    }
+
+    previsualizarFotoPerfil(foto) {
+        if (!foto) return;
+        if (!['image/jpeg', 'image/png', 'image/webp'].includes(foto.type)) {
+            alert('Use uma foto JPG, PNG ou WEBP.');
+            return;
+        }
+        if (foto.size > 5 * 1024 * 1024) {
+            alert('A foto deve ter no máximo 5 MB.');
+            return;
+        }
+
+        if (this.previewFotoPerfilUrl) URL.revokeObjectURL(this.previewFotoPerfilUrl);
+        this.previewFotoPerfilUrl = URL.createObjectURL(foto);
+        this.mostrarPreviewFotoPerfil(this.previewFotoPerfilUrl);
+    }
+
+    mostrarPreviewFotoPerfil(url) {
+        const imagem = document.getElementById('editar-perfil-avatar-preview');
+        const icone = document.getElementById('editar-perfil-avatar-icon');
+        if (!imagem || !icone) return;
+
+        if (url) {
+            let urlComCacheBust = url;
+            if (!url.startsWith('blob:')) {
+                try {
+                    const endereco = new URL(url, window.location.href);
+                    endereco.searchParams.set('v', Date.now());
+                    urlComCacheBust = endereco.href;
+                } catch {
+                    urlComCacheBust = url;
+                }
+            }
+            imagem.src = urlComCacheBust;
+            imagem.hidden = false;
+            icone.hidden = true;
+        } else {
+            imagem.removeAttribute('src');
+            imagem.hidden = true;
+            icone.hidden = false;
+        }
+    }
+
+    previsualizarImagensPost(arquivos) {
+        const novasImagens = [...(arquivos || [])]
+            .filter(arquivo => arquivo.type.startsWith('image/'));
+        const assinaturasExistentes = new Set(
+            this.imagensPostSelecionadas.map(arquivo =>
+                `${arquivo.name}:${arquivo.size}:${arquivo.lastModified}`
+            )
+        );
+        const novasUnicas = novasImagens.filter(arquivo => {
+            const assinatura = `${arquivo.name}:${arquivo.size}:${arquivo.lastModified}`;
+            if (assinaturasExistentes.has(assinatura)) return false;
+            assinaturasExistentes.add(assinatura);
+            return true;
+        });
+
+        const vagas = Math.max(0, 4 - this.imagensPostSelecionadas.length);
+        if (novasUnicas.length > vagas) {
+            alert('Cada publicação aceita até quatro imagens. As primeiras disponíveis foram adicionadas.');
+        }
+        this.imagensPostSelecionadas.push(...novasUnicas.slice(0, vagas));
+
+        const input = document.getElementById('post-imagens');
+        if (input) {
+            const transferencia = new DataTransfer();
+            this.imagensPostSelecionadas.forEach(arquivo => transferencia.items.add(arquivo));
+            input.files = transferencia.files;
+        }
+
+        this.renderizarPrevisualizacoesPost();
+    }
+
+    renderizarPrevisualizacoesPost() {
+        this.previewPostUrls.forEach(url => URL.revokeObjectURL(url));
+        this.previewPostUrls = [];
+        const container = document.getElementById('post-imagens-preview');
+        if (!container) return;
+        container.replaceChildren();
+
+        this.imagensPostSelecionadas.forEach((arquivo, indice) => {
+            const url = URL.createObjectURL(arquivo);
+            this.previewPostUrls.push(url);
+            const item = document.createElement('div');
+            item.className = 'post-image-preview-item';
+            const imagem = document.createElement('img');
+            imagem.src = url;
+            imagem.alt = `Prévia: ${arquivo.name}`;
+            const remover = document.createElement('button');
+            remover.type = 'button';
+            remover.className = 'post-image-remove';
+            remover.setAttribute('aria-label', `Remover ${arquivo.name}`);
+            remover.textContent = '×';
+            remover.addEventListener('click', () => this.removerImagemPost(indice));
+            item.append(imagem, remover);
+            container.appendChild(item);
+        });
+    }
+
+    removerImagemPost(indice) {
+        this.imagensPostSelecionadas.splice(indice, 1);
+        const input = document.getElementById('post-imagens');
+        if (input) {
+            const transferencia = new DataTransfer();
+            this.imagensPostSelecionadas.forEach(arquivo => transferencia.items.add(arquivo));
+            input.files = transferencia.files;
+        }
+        this.renderizarPrevisualizacoesPost();
+    }
+
+    limparPrevisualizacoesPost() {
+        this.previewPostUrls.forEach(url => URL.revokeObjectURL(url));
+        this.previewPostUrls = [];
+        this.imagensPostSelecionadas = [];
+        const input = document.getElementById('post-imagens');
+        if (input) input.value = '';
+        const container = document.getElementById('post-imagens-preview');
+        if (container) container.replaceChildren();
+    }
+
+    renderizarImagensPost(idPost) {
+        const imagens = (this.imagensPorPost[idPost] || []).slice(0, 4);
+        const elementos = imagens.map((imagem, indice) => {
+            const url = ApiService.formatarUrlFotoPerfil(imagem.url);
+            if (!url) return '';
+
+            try {
+                const urlSegura = new URL(url, window.location.href);
+                if (!['http:', 'https:'].includes(urlSegura.protocol)) return '';
+                return `<img src="${this.escaparHtmlDestaque(urlSegura.href)}" alt="Imagem ${indice + 1} da publicação" loading="lazy">`;
+            } catch {
+                return '';
+            }
+        }).filter(Boolean);
+
+        return elementos.length
+            ? `<div class="post-images" role="group" aria-label="Imagens da publicação">${elementos.join('')}</div>`
+            : '';
     }
 
     async enviarComentario(idPost, botao) {
@@ -3018,6 +3245,7 @@ class AppController {
             const curtido = this.votoDoUsuario(idPost);
             const salvo = this.postEstaSalvo(idPost);
             const totalCurtidas = this.contarVotos(idPost);
+            const htmlImagensPost = this.renderizarImagensPost(idPost);
             const origemPostHtml =
                 idComunidade && nomeComunidade
                     ? (
@@ -3104,6 +3332,7 @@ class AppController {
                 </div>
                 <div class="post-title">${this.escaparHtmlDestaque(post.titulo)}</div>
                <div class="post-body">${this.escaparHtmlDestaque(post.conteudo)}</div>
+               ${htmlImagensPost}
                ${htmlComentarios}
 
                 <div class="post-actions">
@@ -3189,6 +3418,7 @@ ${ApiService.getIdUsuarioLogado() ? `
         const dataPostagem = post.dataPostagem
             ? new Date(post.dataPostagem).toLocaleDateString('pt-BR')
             : 'Agora';
+        const htmlImagensPost = this.renderizarImagensPost(idPost);
 
         container.innerHTML = `
             <article class="post-detail-card">
@@ -3264,6 +3494,7 @@ ${ApiService.getIdUsuarioLogado() ? `
 </div>
                 <h1>${this.escaparHtmlDestaque(post.titulo)}</h1>
                 <div class="post-detail-body">${this.escaparHtmlDestaque(post.conteudo)}</div>
+                ${htmlImagensPost}
                 <div class="post-actions post-detail-actions">
                     <button class="post-action ${curtido ? 'active' : ''}" onclick="app.alternarCurtidaDetalhe(${idPost})"><i class="material-icons">${curtido ? 'favorite' : 'favorite_border'}</i><span>${this.contarVotos(idPost)}</span></button>
                     <button class="post-action ${salvo ? 'active' : ''}" onclick="app.alternarPostSalvoDetalhe(${idPost})"><i class="material-icons">${salvo ? 'bookmark' : 'bookmark_border'}</i><span>${salvo ? 'Salvo' : 'Salvar'}</span></button>
@@ -6015,6 +6246,10 @@ ${ApiService.getIdUsuarioLogado() ? `
                 'editar-perfil-bio'
             ).value = usuario.bio || '';
 
+            const fotoUrl = ApiService.formatarUrlFotoPerfil(usuario.fotoPerfil);
+            this.mostrarPreviewFotoPerfil(fotoUrl);
+            document.getElementById('editar-perfil-foto').value = '';
+
             this.abrirModal('editar-perfil-modal');
 
         } catch (erro) {
@@ -6623,46 +6858,31 @@ ${ApiService.getIdUsuarioLogado() ? `
     }
 
     async salvarFotoPerfil() {
-
-        console.log("1 - salvarFotoPerfil foi chamada");
-
         const idUsuario =
             ApiService.getIdUsuarioLogado();
-
-        console.log("2 - ID:", idUsuario);
 
         const input =
             document.getElementById('editar-perfil-foto');
 
-        console.log("3 - input:", input);
-
         const foto = input?.files?.[0];
-
-        console.log("4 - foto:", foto);
 
         if (!foto) {
             return alert("Selecione uma imagem.");
         }
 
-        if (!foto.type.startsWith('image/')) {
-            return alert("Selecione um arquivo de imagem.");
+        if (!['image/jpeg', 'image/png', 'image/webp'].includes(foto.type)) {
+            return alert("Use uma foto JPG, PNG ou WEBP.");
         }
 
         if (foto.size > 5 * 1024 * 1024) {
             return alert("A imagem deve ter no máximo 5 MB.");
         }
         try {
-
-            console.log("5 - chamando ApiService");
-
             const resposta =
                 await ApiService.atualizarFotoPerfil(
                     idUsuario,
                     foto
                 );
-
-            console.log("6 - resposta:", resposta);
-            console.log("7 - status:", resposta.status);
 
             if (!resposta.ok) {
 
@@ -6689,12 +6909,21 @@ ${ApiService.getIdUsuarioLogado() ? `
             this.usuariosFotosMap[idUsuario] = usuarioAtualizado.fotoPerfil;
 
             input.value = '';
+            if (this.previewFotoPerfilUrl) {
+                URL.revokeObjectURL(this.previewFotoPerfilUrl);
+                this.previewFotoPerfilUrl = null;
+            }
+            const fotoAtualizadaUrl = ApiService.formatarUrlFotoPerfil(
+                usuarioAtualizado.fotoPerfil
+            );
+            this.mostrarPreviewFotoPerfil(fotoAtualizadaUrl);
 
             this.fecharModal('editar-perfil-modal');
 
             await this.abrirPerfil(idUsuario);
 
             this.atualizarMenuLateral();
+            this.renderizarFeedGeral();
 
             alert("Foto alterada com sucesso!");
         } catch (erro) {
@@ -7071,19 +7300,23 @@ ${ApiService.getIdUsuarioLogado() ? `
 
         if (
             this.chatSocket &&
-            this.chatSocket.readyState === WebSocket.OPEN
+            (
+                this.chatSocket.readyState === WebSocket.CONNECTING ||
+                this.chatSocket.readyState === WebSocket.OPEN
+            )
         ) {
             return;
         }
 
-        const url =
-            `ws://localhost:8080/ws/chat?usuarioId=${idUsuario}`;
+        const url = new URL('/ws/chat', ApiService.API_URL);
+        url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+        url.searchParams.set('usuarioId', idUsuario);
 
-        this.chatSocket =
-            new WebSocket(url);
+        const socket = new WebSocket(url);
+        this.chatSocket = socket;
 
 
-        this.chatSocket.addEventListener(
+        socket.addEventListener(
             'open',
             () => {
                 console.log(
@@ -7092,7 +7325,7 @@ ${ApiService.getIdUsuarioLogado() ? `
             }
         );
 
-        this.chatSocket.addEventListener(
+        socket.addEventListener(
             'message',
             (event) => {
 
@@ -7123,17 +7356,24 @@ ${ApiService.getIdUsuarioLogado() ? `
         );
 
 
-        this.chatSocket.addEventListener(
+        socket.addEventListener(
             'close',
-            () => {
-                console.log(
-                    'CHAT WS: desconectado'
+            (evento) => {
+                const encerramentoNormal =
+                    evento.code === 1000 || evento.code === 1001;
+
+                console[encerramentoNormal ? 'info' : 'warn'](
+                    `CHAT WS: conexão encerrada (${evento.code}${evento.reason ? `: ${evento.reason}` : ''})`
                 );
+
+                if (this.chatSocket === socket) {
+                    this.chatSocket = null;
+                }
             }
         );
 
 
-        this.chatSocket.addEventListener(
+        socket.addEventListener(
             'error',
             (erro) => {
                 console.error(

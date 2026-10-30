@@ -118,6 +118,23 @@ export class ApiService {
         });
     }
 
+    static async listarImagensPost() {
+        const resposta = await fetch(`${this.API_URL}/imagens-post`);
+        if (!resposta.ok) throw new Error('Não foi possível carregar as imagens dos posts.');
+        return resposta.json();
+    }
+
+    static async enviarImagemPost(idPost, imagem) {
+        const formData = new FormData();
+        formData.append('idPost', idPost);
+        formData.append('imagem', imagem);
+
+        return fetch(`${this.API_URL}/imagens-post/upload`, {
+            method: 'POST',
+            body: formData
+        });
+    }
+
     static async listarComentarios() { return await (await fetch(`${this.API_URL}/comentarios`)).json(); }
     static async listarComentariosPorPost(idPost) {
         try {

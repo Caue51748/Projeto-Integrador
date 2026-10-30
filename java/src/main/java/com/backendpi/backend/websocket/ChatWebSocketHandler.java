@@ -31,10 +31,21 @@ public class ChatWebSocketHandler
             return;
         }
 
-        sessoes.put(
+        WebSocketSession sessaoAnterior = sessoes.put(
                 usuarioId,
                 session
         );
+
+        if (sessaoAnterior != null
+                && sessaoAnterior.isOpen()
+                && !sessaoAnterior.getId().equals(session.getId())) {
+            sessaoAnterior.close(
+                    new CloseStatus(
+                            1000,
+                            "Conexão substituída por uma sessão mais recente"
+                    )
+            );
+        }
 
         System.out.println(
                 "WebSocket conectado - usuário: "
@@ -58,6 +69,10 @@ public class ChatWebSocketHandler
         System.out.println(
                 "WebSocket desconectado: "
                 + session.getId()
+                + " - código: " + status.getCode()
+                + (status.getReason() == null || status.getReason().isBlank()
+                        ? ""
+                        : " - motivo: " + status.getReason())
         );
     }
 
