@@ -1,6 +1,6 @@
 # Projeto Integrador - Rede Social (PI-4DSN)
 
-Este é um projeto de rede social full-stack desenvolvido como Projeto Integrador. O sistema conta com um backend robusto em Java Spring Boot e uma aplicação móvel moderna desenvolvida em Flutter.
+Este é um projeto de rede social full-stack desenvolvido como Projeto Integrador. O sistema inclui uma aplicação web, um backend em Java Spring Boot e um aplicativo móvel em Flutter.
 
 ## 🚀 Tecnologias Utilizadas
 
@@ -17,6 +17,10 @@ Este é um projeto de rede social full-stack desenvolvido como Projeto Integrado
 - **Linguagem:** Dart
 - **Comunicação:** Pacote `http` para integração com API REST
 
+### Web
+- **Tecnologias:** HTML, CSS e JavaScript (módulos ES)
+- **Comunicação:** API REST do backend
+
 ## 📋 Funcionalidades
 
 - **Usuários:** Cadastro, login e perfis.
@@ -30,34 +34,44 @@ Este é um projeto de rede social full-stack desenvolvido como Projeto Integrado
 
 ```text
 .
-├── Projeto-Integrador/
-│   ├── java/             # Código fonte do Backend (Spring Boot)
-│   ├── mobile_flutter/   # Código fonte do App Mobile (Flutter)
-│   └── database/         # Scripts SQL de inicialização
-└── GEMINI.md             # Instruções de contexto para o agente IA
+├── java/                 # Backend Spring Boot
+├── mobile_flutter/       # Aplicativo Flutter
+├── web/                  # Aplicação web
+└── desktop/              # Painel administrativo desktop
 ```
 
 ## ⚙️ Configuração e Execução
 
 ### 1. Banco de Dados
-O projeto utiliza MySQL. Você pode encontrar o script de criação das tabelas em:
-`Projeto-Integrador/database/schema.sql`
+O backend utiliza MySQL. Configure o acesso ao banco no arquivo:
+`java/src/main/resources/application.properties`
 
-Certifique-se de configurar as credenciais do banco no arquivo:
-`Projeto-Integrador/java/src/main/resources/application.properties`
+Antes de iniciar o backend, confirme que o serviço MySQL está ativo e que o banco configurado existe. Não há um script `database/schema.sql` neste repositório.
 
 ### 2. Backend (Java)
-Para rodar o servidor:
-```bash
-cd Projeto-Integrador/java
-./mvnw spring-boot:run
+Abra um terminal na pasta raiz do repositório e execute:
+
+```powershell
+Set-Location .\java
+.\mvnw.cmd spring-boot:run
 ```
 A API estará disponível em `http://localhost:8080`.
 
-### 3. Mobile (Flutter)
+### 3. Web
+Com o backend ativo, abra outro terminal na raiz do repositório e inicie um servidor HTTP para a aplicação web:
+
+```powershell
+py -m http.server 5500 --directory web
+```
+
+Abra `http://localhost:5500` no navegador. Não abra `web/index.html` diretamente como arquivo: a aplicação usa módulos ES e precisa ser servida por HTTP.
+
+A URL da API usada pelo frontend está configurada em `web/js/api_service.js` (`http://localhost:8080`). Para uma demonstração, confirme que o banco contém usuários e eventos futuros de status agendado.
+
+### 4. Mobile (Flutter)
 Para rodar o aplicativo:
 ```bash
-cd Projeto-Integrador/mobile_flutter
+cd mobile_flutter
 flutter pub get
 flutter run
 ```

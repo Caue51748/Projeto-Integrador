@@ -38,6 +38,33 @@ public interface EventoRepository extends JpaRepository<Evento, Long> {
                    sin(radians(:lat)) * sin(radians(e.latitude))
                )) <= :raioKm
           )
+        ORDER BY
+            CASE
+                WHEN e.dataEvento > CURRENT_DATE
+                    OR (e.dataEvento = CURRENT_DATE AND e.horarioInicio >= CURRENT_TIME)
+                THEN 0
+                ELSE 1
+            END ASC,
+            CASE
+                WHEN e.dataEvento > CURRENT_DATE
+                    OR (e.dataEvento = CURRENT_DATE AND e.horarioInicio >= CURRENT_TIME)
+                THEN e.dataEvento
+            END ASC,
+            CASE
+                WHEN e.dataEvento > CURRENT_DATE
+                    OR (e.dataEvento = CURRENT_DATE AND e.horarioInicio >= CURRENT_TIME)
+                THEN e.horarioInicio
+            END ASC,
+            CASE
+                WHEN e.dataEvento < CURRENT_DATE
+                    OR (e.dataEvento = CURRENT_DATE AND e.horarioInicio < CURRENT_TIME)
+                THEN e.dataEvento
+            END DESC,
+            CASE
+                WHEN e.dataEvento < CURRENT_DATE
+                    OR (e.dataEvento = CURRENT_DATE AND e.horarioInicio < CURRENT_TIME)
+                THEN e.horarioInicio
+            END DESC
         """)
     Page<Evento> buscarComFiltros(
             @Param("texto") String texto,

@@ -187,6 +187,8 @@ class AppController {
         }
 
         this.conversaAtiva = null;
+        const mobileToggle = document.getElementById('chat-mobile-toggle');
+        if (mobileToggle) mobileToggle.hidden = false;
     }
 
     alternarChatSidebar() {
@@ -194,6 +196,17 @@ class AppController {
         const toggleBtn = document.getElementById('chat-toggle-btn');
 
         if (!sidebar || !toggleBtn) {
+            return;
+        }
+
+        if (window.matchMedia('(max-width: 760px)').matches) {
+            sidebar.classList.remove('collapsed');
+            const aberto = sidebar.classList.toggle('mobile-open');
+            const mobileToggle = document.getElementById('chat-mobile-toggle');
+            mobileToggle?.setAttribute('aria-expanded', String(aberto));
+            toggleBtn.textContent = '×';
+            toggleBtn.setAttribute('title', 'Fechar mensagens');
+            toggleBtn.setAttribute('aria-label', 'Fechar mensagens');
             return;
         }
 
@@ -244,12 +257,26 @@ class AppController {
             const resultado = await ApiService.buscarEventos({
                 status: 'AGENDADO',
                 page: 0,
-                size: 3
+                size: 100
             });
-            const eventos = (resultado.content || []).slice(0, 3);
+            const agora = new Date();
+            const eventos = (resultado.content || [])
+                .filter(evento => {
+                    if (!evento.dataEvento) return false;
+                    const dataHora = new Date(
+                        `${evento.dataEvento}T${evento.horarioInicio || '00:00'}`
+                    );
+                    return !Number.isNaN(dataHora.getTime()) && dataHora >= agora;
+                })
+                .sort((a, b) => {
+                    const dataA = new Date(`${a.dataEvento}T${a.horarioInicio || '00:00'}`);
+                    const dataB = new Date(`${b.dataEvento}T${b.horarioInicio || '00:00'}`);
+                    return dataA - dataB;
+                })
+                .slice(0, 3);
 
             if (!eventos.length) {
-                container.innerHTML = '<div class="preview-empty">Nenhum evento agendado por enquanto.</div>';
+                container.innerHTML = '<div class="preview-empty">Nenhum evento futuro agendado por enquanto.</div>';
                 dataContainer.innerHTML = '<strong>--</strong><span>AGENDA<br><b>em breve</b></span>';
                 return;
             }
@@ -1271,7 +1298,29 @@ class AppController {
 
         } catch (e) {
             console.error(e);
-            document.getElementById('feed-container').innerHTML = `Erro de conexão com servidor.`;
+            const activeView = document.querySelector('.view-section.active');
+            if (activeView) {
+                activeView.querySelector('.global-load-error')?.remove();
+
+                const feedback = document.createElement('div');
+                feedback.className = 'global-load-error';
+                feedback.setAttribute('role', 'alert');
+
+                const message = document.createElement('span');
+                message.textContent = 'Não foi possível carregar os dados. Verifique a conexão e tente novamente.';
+
+                const retryButton = document.createElement('button');
+                retryButton.type = 'button';
+                retryButton.className = 'btn-ghost';
+                retryButton.textContent = 'Tentar novamente';
+                retryButton.addEventListener('click', () => {
+                    feedback.remove();
+                    this.carregarDadosGlobais();
+                });
+
+                feedback.append(message, retryButton);
+                activeView.prepend(feedback);
+            }
         }
     }
 
@@ -3807,8 +3856,10 @@ ${ApiService.getIdUsuarioLogado() ? `
                             evento.longitude
                         );
                         if (distKm !== null) {
-                            const textoDist = distKm < 1 ? '${Math.round(distKm * 1000)} m' : '${distKm.toFixed(1)} km';
-                            badgeDistanciaHtml = '<span class="badge-distancia" title="DistÃ¢ncia estimada de vocÃª"><i class="material-icons">near_me</i> ${textoDist}</span>';
+                            const textoDist = distKm < 1
+                                ? `${Math.round(distKm * 1000)} m`
+                                : `${distKm.toFixed(1)} km`;
+                            badgeDistanciaHtml = `<span class="badge-distancia" title="Distância estimada de você"><i class="material-icons">near_me</i> ${textoDist}</span>`;
                         }
                     }
 
@@ -3827,6 +3878,18 @@ ${ApiService.getIdUsuarioLogado() ? `
                         statusDetalhes === 'ACONTECENDO_AGORA'
                             ? 'ACONTECENDO AGORA'
                             : statusDetalhes;
+
+                    const categoriaExibida =
+                        this.escaparHtmlDestaque(evento.categoria || 'Comunidade');
+                    const tituloExibido =
+                        this.escaparHtmlDestaque(evento.titulo || 'Evento');
+                    const descricaoExibida =
+                        this.escaparHtmlDestaque(evento.descricao || 'Sem descrição informada.');
+                    const localExibido =
+                        this.escaparHtmlDestaque(evento.localEvento || 'Local a confirmar');
+                    const imagemCapaUrl = evento.imagemCapa
+                        ? this.escaparHtmlDestaque(this.urlCapaEvento(evento.imagemCapa))
+                        : '';
 
                     const dataFormatada = evento.dataEvento
                         ? evento.dataEvento.split('-').reverse().join('/')
@@ -3871,18 +3934,18 @@ ${ApiService.getIdUsuarioLogado() ? `
                     const ehCriador = idUsuario && idUsuario == evento.criadorId;
                     const acao = ehCriador ? 'Organizador' : eventoLotado ? 'Evento lotado' : idUsuario ? 'Ver detalhes' : 'Entrar para participar';
                     div.innerHTML = `
-                    <div class="evento-card-capa ${evento.imagemCapa ? '' : 'evento-card-capa-vazia'}" ${evento.imagemCapa ? `style="background-image:url('${this.urlCapaEvento(evento.imagemCapa)}')"` : ''}>
+                    <div class="evento-card-capa ${evento.imagemCapa ? '' : 'evento-card-capa-vazia'}" ${imagemCapaUrl ? `style="background-image:url('${imagemCapaUrl}')"` : ''}>
                         ${!evento.imagemCapa ? '<i class="material-icons">event</i>' : ''}
-                        <span>${evento.categoria || 'Comunidade'}</span>
+                        <span>${categoriaExibida}</span>
                     </div>
                     <div class="evento-card-body">
-                        <div class="evento-card-meta"><span>${horarioInicioFormatado} - ${horarioFimFormatado}</span><b>${statusExibido}</b></div>
-                        <h3>${evento.titulo}</h3>
-                        <p>${evento.descricao || 'Sem descrição informada.'}</p>
+                        <div class="evento-card-meta"><span>${horarioInicioFormatado} - ${horarioFimFormatado}</span><b>${this.escaparHtmlDestaque(statusExibido)}</b></div>
+                        <h3>${tituloExibido}</h3>
+                        <p>${descricaoExibida}</p>
                        <div class="evento-card-info">
 
     <span>
-        📍 ${evento.localEvento}
+    📍 ${localExibido}
     </span>
 
     <span>
@@ -3894,6 +3957,8 @@ ${ApiService.getIdUsuarioLogado() ? `
     <span>
         🎟 ${precoFormatado}
     </span>
+
+    ${badgeDistanciaHtml}
 
 </div>
                         <button class="btn-primary evento-card-action" onclick="app.abrirDetalhesEvento(${evento.id})">${acao}</button>
@@ -3928,13 +3993,37 @@ ${ApiService.getIdUsuarioLogado() ? `
             return;
         }
         const data = evento.dataEvento ? new Date(`${evento.dataEvento}T00:00:00`).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '') : '--';
+        const categoria = this.escaparHtmlDestaque(evento.categoria || 'Em destaque');
+        const titulo = this.escaparHtmlDestaque(evento.titulo || 'Evento');
+        const descricao = this.escaparHtmlDestaque(
+            evento.descricao || 'Uma nova experiência está esperando por você.'
+        );
+        const local = this.escaparHtmlDestaque(evento.localEvento || 'Local a confirmar');
+        const imagemCapaUrl = evento.imagemCapa
+            ? this.escaparHtmlDestaque(this.urlCapaEvento(evento.imagemCapa))
+            : '';
+        const idEvento = Number(evento.idEvento || evento.id);
         container.innerHTML = `
-            <div class="evento-destaque-copy"><span class="section-kicker">${evento.categoria || 'Em destaque'}</span><h2>${evento.titulo}</h2><p>${evento.descricao || 'Uma nova experiência está esperando por você.'}</p><div class="evento-destaque-details"><span>📅 ${data} · ${evento.horarioInicio?.substring(0, 5) || '--:--'}</span><span>📍 ${evento.localEvento || 'Local a confirmar'}</span></div><button class="btn-primary" onclick="app.abrirDetalhesEvento(${evento.id})">Ver detalhes <i class="material-icons">arrow_forward</i></button></div><div class="evento-destaque-art" ${evento.imagemCapa ? `style="background-image:linear-gradient(135deg,rgba(43,23,32,.2),rgba(234,63,116,.5)),url('${this.urlCapaEvento(evento.imagemCapa)}');background-size:cover;background-position:center;"` : ''}><i class="material-icons">celebration</i></div>
+            <div class="evento-destaque-copy"><span class="section-kicker">${categoria}</span><h2>${titulo}</h2><p>${descricao}</p><div class="evento-destaque-details"><span>📅 ${this.escaparHtmlDestaque(data)} · ${this.escaparHtmlDestaque(evento.horarioInicio?.substring(0, 5) || '--:--')}</span><span>📍 ${local}</span></div><button class="btn-primary" onclick="app.abrirDetalhesEvento(${idEvento})">Ver detalhes <i class="material-icons">arrow_forward</i></button></div><div class="evento-destaque-art" ${imagemCapaUrl ? `style="background-image:linear-gradient(135deg,rgba(43,23,32,.2),rgba(234,63,116,.5)),url('${imagemCapaUrl}');background-size:cover;background-position:center;"` : ''}><i class="material-icons">celebration</i></div>
         `;
     }
 
     urlCapaEvento(caminho) {
-        return caminho?.startsWith('http') ? caminho : `${ApiService.API_URL}/${caminho}`;
+        if (typeof caminho !== 'string' || !caminho.trim()) return '';
+
+        try {
+            const baseUrl = `${ApiService.API_URL.replace(/\/$/, '')}/`;
+            const url = new URL(caminho, baseUrl);
+            const origemApi = new URL(baseUrl).origin;
+            const eUrlAbsoluta = /^https?:\/\//i.test(caminho);
+
+            if (!['http:', 'https:'].includes(url.protocol)) return '';
+            if (!eUrlAbsoluta && url.origin !== origemApi) return '';
+
+            return url.href;
+        } catch {
+            return '';
+        }
     }
 
     async mudarVisaoEventos(visao) {
@@ -3961,7 +4050,7 @@ ${ApiService.getIdUsuarioLogado() ? `
             const eventos = await ApiService.listarEventosParticipando(idUsuario);
             this.listaEventos = eventos;
             await this.carregarEventoDestaqueMaisPopular();
-            container.innerHTML = eventos.length ? eventos.map(evento => `<div class="meu-evento-row"><div><strong>${evento.titulo}</strong><span>${this.formatarDataEvento(evento.dataEvento)} · ${evento.localEvento}</span></div><button class="btn-primary" onclick="app.abrirDetalhesEvento(${evento.id})">Ver evento</button></div>`).join('') : '<div class="evento-destaque-vazio">Você ainda não está participando de nenhum evento.</div>';
+            container.innerHTML = eventos.length ? eventos.map(evento => `<div class="meu-evento-row"><div><strong>${this.escaparHtmlDestaque(evento.titulo || 'Evento')}</strong><span>${this.escaparHtmlDestaque(this.formatarDataEvento(evento.dataEvento))} · ${this.escaparHtmlDestaque(evento.localEvento || 'Local a confirmar')}</span></div><button class="btn-primary" onclick="app.abrirDetalhesEvento(${Number(evento.idEvento || evento.id)})">Ver evento</button></div>`).join('') : '<div class="evento-destaque-vazio">Você ainda não está participando de nenhum evento.</div>';
         } catch (erro) {
             console.error(erro);
             container.innerHTML = '<div class="evento-destaque-vazio">Não foi possível carregar seus eventos.</div>';
@@ -5149,6 +5238,21 @@ ${ApiService.getIdUsuarioLogado() ? `
                 : situacaoEvento;
 
         const isLink = /^(https?:\/\/|www\.)/i.test(evento.localEvento || '');
+        let urlTransmissao = '';
+        if (isLink) {
+            try {
+                const url = new URL(
+                    /^https?:\/\//i.test(evento.localEvento)
+                        ? evento.localEvento
+                        : `https://${evento.localEvento}`
+                );
+                if (['http:', 'https:'].includes(url.protocol)) {
+                    urlTransmissao = this.escaparHtmlDestaque(url.href);
+                }
+            } catch {
+                urlTransmissao = '';
+            }
+        }
         const eventoEncerrado =
             situacaoEvento === 'ENCERRADO';
 
@@ -5178,13 +5282,13 @@ ${ApiService.getIdUsuarioLogado() ? `
         container.innerHTML = `
     <article class="evento-detalhes-card">
 
-        ${evento.imagemCapa
+                        ${evento.imagemCapa
                 ? `
                 <div
                     class="evento-detalhes-hero"
                     style="
                         background-image:
-                        url('${this.urlCapaEvento(evento.imagemCapa)}');
+                        url('${this.escaparHtmlDestaque(this.urlCapaEvento(evento.imagemCapa))}');
                     "
                 >
                     <div class="evento-detalhes-hero-overlay"></div>
@@ -5300,8 +5404,8 @@ ${ApiService.getIdUsuarioLogado() ? `
                 'A confirmar'
             )}
                         </strong>
-                        ${isLink
-                ? `<a href="${evento.localEvento.startsWith('http') ? evento.localEvento : 'https://' + evento.localEvento}" target="_blank" rel="noopener noreferrer" class="evento-rota-btn">
+                        ${urlTransmissao
+                    ? `<a href="${urlTransmissao}" target="_blank" rel="noopener noreferrer" class="evento-rota-btn">
                     <i class="material-icons">launch</i> Acessar transmissão
                 </a>`
                 : (evento.latitude != null && evento.longitude != null
@@ -6212,13 +6316,19 @@ ${ApiService.getIdUsuarioLogado() ? `
                 'Evento'
             );
 
-        const imagem = evento.imagemCapa
+        const imagemUrl = evento.imagemCapa
+            ? this.escaparHtmlDestaque(
+                this.urlCapaEvento(evento.imagemCapa)
+            )
+            : '';
+
+        const imagem = imagemUrl
             ? `
             <div
                 class="evento-destaque-imagem"
                 style="
                     background-image:
-                    url('${this.urlCapaEvento(evento.imagemCapa)}');
+                    url('${imagemUrl}');
                 "
             ></div>
         `
@@ -6233,6 +6343,8 @@ ${ApiService.getIdUsuarioLogado() ? `
             </div>
         `;
 
+        const idEvento = Number(evento.idEvento || evento.id);
+
         container.innerHTML = `
         <div class="evento-destaque-container">
 
@@ -6246,7 +6358,7 @@ ${ApiService.getIdUsuarioLogado() ? `
                     </span>
 
                     <span class="evento-destaque-data">
-                        ${data}
+                        ${this.escaparHtmlDestaque(data)}
                     </span>
                 </div>
 
@@ -6264,7 +6376,7 @@ ${ApiService.getIdUsuarioLogado() ? `
                         <i class="material-icons">
                             schedule
                         </i>
-                        ${horario}
+                        ${this.escaparHtmlDestaque(horario)}
                     </span>
 
                     <span>
@@ -6280,7 +6392,7 @@ ${ApiService.getIdUsuarioLogado() ? `
                     type="button"
                     class="evento-destaque-btn"
                     onclick="
-                        app.abrirDetalhesEvento(${evento.id})
+                        app.abrirDetalhesEvento(${idEvento})
                     "
                 >
                     Ver detalhes
@@ -6410,18 +6522,18 @@ ${ApiService.getIdUsuarioLogado() ? `
                 ">
 
                     <h3 style="margin:0;">
-                        ${evento.nome || evento.titulo || 'Evento'}
+                        ${this.escaparHtmlDestaque(evento.nome || evento.titulo || 'Evento')}
                     </h3>
 
                 </div>
 
                 <p>
-                    ${evento.descricao || 'Sem descrição.'}
+                    ${this.escaparHtmlDestaque(evento.descricao || 'Sem descrição.')}
                 </p>
 
                 ${dataFormatada ? `
                     <small style="color:var(--text-muted);">
-                        ${dataFormatada}
+                        ${this.escaparHtmlDestaque(dataFormatada)}
                     </small>
                 ` : ''}
 
@@ -6727,6 +6839,12 @@ ${ApiService.getIdUsuarioLogado() ? `
                 .toUpperCase();
 
         janela.classList.add('active');
+        const mobileToggle = document.getElementById('chat-mobile-toggle');
+        if (mobileToggle && window.matchMedia('(max-width: 760px)').matches) {
+            mobileToggle.hidden = true;
+            document.getElementById('chat-sidebar')?.classList.remove('mobile-open');
+            mobileToggle.setAttribute('aria-expanded', 'false');
+        }
 
         await this.carregarMensagens(
             conversa.idConversa

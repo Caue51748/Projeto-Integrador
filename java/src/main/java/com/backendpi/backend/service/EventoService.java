@@ -12,7 +12,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import com.backendpi.backend.dto.EventoResumoDTO;
@@ -197,13 +196,7 @@ public class EventoService {
             categoria = null;
         }
 
-        Pageable pageable = PageRequest.of(
-                pagina,
-                tamanho,
-                Sort.by("dataEvento")
-                        .ascending()
-                        .and(Sort.by("horarioInicio").ascending())
-        );
+        Pageable pageable = PageRequest.of(pagina, tamanho);
 
         Page<Evento> paginaEventos
                 = eventoRepository.buscarComFiltros(
