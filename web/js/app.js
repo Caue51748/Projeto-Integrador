@@ -1,10 +1,15 @@
-import { ApiService } from './api_service.js';
+import { ApiService } from './api_service.js?v=post-images-1';
 
+// Controlador central da interface: mantém o estado em memória, atualiza o DOM e delega o acesso ao servidor ao ApiService.
 class AppController {
     constructor() {
         this.listaUsuariosCompleta = [];
         this.usuariosMap = {};
         this.usuariosFotosMap = {};
+        this.imagensPorPost = {};
+        this.previewPostUrls = [];
+        this.imagensPostSelecionadas = [];
+        this.previewFotoPerfilUrl = null;
         this.comunidadesMap = {}; // Guarda id -> nome da comunidade
         this.carregarFiltroComunidadesEventos();
         this.listaComunidades = [];
@@ -49,7 +54,10 @@ class AppController {
         this.chatSocket = null;
         this.chatSidebarAberto = true;
         this.filtroPessoas = 'todas';
+        this.coordenadasUsuario = null;
+        this.filtroProximidadeAtivo = false;
     }
+    // Ponto de entrada da aplicação: registra eventos da interface e decide entre boas-vindas e sessão existente.
     async inicializar() {
 
         // Listener para Scroll Infinito no Feed
@@ -120,6 +128,16 @@ class AppController {
             );
         }
 
+        document.getElementById('editar-perfil-foto')?.addEventListener(
+            'change',
+            (evento) => this.previsualizarFotoPerfil(evento.target.files?.[0])
+        );
+
+        document.getElementById('post-imagens')?.addEventListener(
+            'change',
+            (evento) => this.previsualizarImagensPost(evento.target.files)
+        );
+
         const usuarioLogado =
             ApiService.getUsuarioLogado();
 
@@ -185,6 +203,8 @@ class AppController {
         }
 
         this.conversaAtiva = null;
+        const mobileToggle = document.getElementById('chat-mobile-toggle');
+        if (mobileToggle) mobileToggle.hidden = false;
     }
 
     alternarChatSidebar() {
@@ -192,6 +212,17 @@ class AppController {
         const toggleBtn = document.getElementById('chat-toggle-btn');
 
         if (!sidebar || !toggleBtn) {
+            return;
+        }
+
+        if (window.matchMedia('(max-width: 760px)').matches) {
+            sidebar.classList.remove('collapsed');
+            const aberto = sidebar.classList.toggle('mobile-open');
+            const mobileToggle = document.getElementById('chat-mobile-toggle');
+            mobileToggle?.setAttribute('aria-expanded', String(aberto));
+            toggleBtn.textContent = '×';
+            toggleBtn.setAttribute('title', 'Fechar mensagens');
+            toggleBtn.setAttribute('aria-label', 'Fechar mensagens');
             return;
         }
 
@@ -242,12 +273,26 @@ class AppController {
             const resultado = await ApiService.buscarEventos({
                 status: 'AGENDADO',
                 page: 0,
-                size: 3
+                size: 100
             });
-            const eventos = (resultado.content || []).slice(0, 3);
+            const agora = new Date();
+            const eventos = (resultado.content || [])
+                .filter(evento => {
+                    if (!evento.dataEvento) return false;
+                    const dataHora = new Date(
+                        `${evento.dataEvento}T${evento.horarioInicio || '00:00'}`
+                    );
+                    return !Number.isNaN(dataHora.getTime()) && dataHora >= agora;
+                })
+                .sort((a, b) => {
+                    const dataA = new Date(`${a.dataEvento}T${a.horarioInicio || '00:00'}`);
+                    const dataB = new Date(`${b.dataEvento}T${b.horarioInicio || '00:00'}`);
+                    return dataA - dataB;
+                })
+                .slice(0, 3);
 
             if (!eventos.length) {
-                container.innerHTML = '<div class="preview-empty">Nenhum evento agendado por enquanto.</div>';
+                container.innerHTML = '<div class="preview-empty">Nenhum evento futuro agendado por enquanto.</div>';
                 dataContainer.innerHTML = '<strong>--</strong><span>AGENDA<br><b>em breve</b></span>';
                 return;
             }
@@ -294,6 +339,7 @@ class AppController {
         };
     }
 
+    // Escapa caracteres especiais antes de interpolar dados da API em innerHTML, reduzindo risco de injeção de marcação.
     escaparHtmlDestaque(valor) {
         return String(valor).replace(/[&<>'"]/g, caractere => ({
             '&': '&amp;',
@@ -603,6 +649,212 @@ class AppController {
         botao.innerText = carregando ? 'Agendando evento...' : 'Agendar Evento';
     }
 
+
+    // ============================================================
+    // GEOLOCALIZAÇÃO E ENDEREÇO REAL DE EVENTOS
+    // ============================================================
+
+    atualizarBadgeCoordsEvento(badgeId, lat, lng, textoStatus = null) {
+        const badge = document.getElementById(badgeId);
+        if (!badge) return;
+        const textoEl = badge.querySelector('span');
+
+        badge.classList.remove('com-coords', 'sem-coords', 'buscando');
+
+        if (textoStatus === 'buscando') {
+            badge.classList.add('buscando');
+            badge.querySelector('.material-icons').innerText = 'hourglass_empty';
+            if (textoEl) textoEl.innerText = 'Localizando endereço no mapa...';
+        } else if (lat !== null && lat !== undefined && lat !== '' && lng !== null && lng !== undefined && lng !== '') {
+            badge.classList.add('com-coords');
+            badge.querySelector('.material-icons').innerText = 'check_circle';
+            const latFmt = Number(lat).toFixed(4);
+            const lngFmt = Number(lng).toFixed(4);
+            if (textoEl) textoEl.innerText = `Localizado! Coordenadas para o mapa: ${latFmt}, ${lngFmt}`;
+        } else {
+            badge.classList.add('sem-coords');
+            badge.querySelector('.material-icons').innerText = 'location_off';
+            if (textoEl) textoEl.innerText = textoStatus || 'Nenhuma coordenada detectada. Digite o endereço ou clique em "Usar meu GPS".';
+        }
+    }
+
+    alternarFormatoCriacaoEvento(formato) {
+        const label = document.getElementById('evento-local-label');
+        const input = document.getElementById('evento-local');
+        const icone = document.getElementById('evento-local-icone');
+        const wrapCoords = document.getElementById('wrap-evento-coordenadas');
+        const btnBuscar = document.getElementById('btn-buscar-coords-evento');
+
+        if (formato === 'online') {
+            if (label) label.innerHTML = 'Link da transmissão / Plataforma <span class="required">*</span>';
+            if (input) input.placeholder = 'Ex: https://meet.google.com/xyz ou Link do YouTube';
+            if (icone) icone.innerText = 'videocam';
+            if (wrapCoords) wrapCoords.style.display = 'none';
+            if (btnBuscar) btnBuscar.style.display = 'none';
+            const lat = document.getElementById('evento-latitude');
+            const lng = document.getElementById('evento-longitude');
+            if (lat) lat.value = '';
+            if (lng) lng.value = '';
+        } else {
+            if (label) label.innerHTML = 'Endereço do evento <span class="required">*</span>';
+            if (input) input.placeholder = 'Ex: Av. Paulista, 1000 - Bela Vista, São Paulo';
+            if (icone) icone.innerText = 'place';
+            if (wrapCoords) wrapCoords.style.display = 'flex';
+            if (btnBuscar) btnBuscar.style.display = 'flex';
+        }
+    }
+
+    alternarFormatoEdicaoEvento(formato) {
+        const label = document.getElementById('editar-evento-local-label');
+        const input = document.getElementById('editar-evento-local');
+        const icone = document.getElementById('editar-evento-local-icone');
+        const wrapCoords = document.getElementById('wrap-editar-evento-coordenadas');
+        const btnBuscar = document.getElementById('btn-buscar-coords-edicao');
+
+        if (formato === 'online') {
+            if (label) label.innerHTML = 'Link da transmissão / Plataforma <span class="required">*</span>';
+            if (input) input.placeholder = 'Ex: https://meet.google.com/xyz ou Link do YouTube';
+            if (icone) icone.innerText = 'videocam';
+            if (wrapCoords) wrapCoords.style.display = 'none';
+            if (btnBuscar) btnBuscar.style.display = 'none';
+            const lat = document.getElementById('editar-evento-latitude');
+            const lng = document.getElementById('editar-evento-longitude');
+            if (lat) lat.value = '';
+            if (lng) lng.value = '';
+        } else {
+            if (label) label.innerHTML = 'Endereço do evento <span class="required">*</span>';
+            if (input) input.placeholder = 'Ex: Av. Paulista, 1000 - Bela Vista, São Paulo';
+            if (icone) icone.innerText = 'place';
+            if (wrapCoords) wrapCoords.style.display = 'flex';
+            if (btnBuscar) btnBuscar.style.display = 'flex';
+        }
+    }
+
+    async capturarCoordenadasEvento() {
+        this.atualizarBadgeCoordsEvento('evento-coords-badge', null, null, 'buscando');
+        const coords = await ApiService.obterLocalizacaoAtual();
+        if (!coords) {
+            this.atualizarBadgeCoordsEvento('evento-coords-badge', null, null, 'Permissão de GPS negada ou indisponível.');
+            alert('Não foi possível obter sua localização via GPS. Verifique a permissão do seu navegador.');
+            return;
+        }
+
+        const latInput = document.getElementById('evento-latitude');
+        const lngInput = document.getElementById('evento-longitude');
+        if (latInput) latInput.value = coords.lat;
+        if (lngInput) lngInput.value = coords.lng;
+        this.atualizarBadgeCoordsEvento('evento-coords-badge', coords.lat, coords.lng);
+
+        const inputLocal = document.getElementById('evento-local');
+        if (inputLocal && !inputLocal.value.trim()) {
+            const endereco = await ApiService.buscarEnderecoPorCoordenadas(coords.lat, coords.lng);
+            if (endereco) inputLocal.value = endereco;
+        }
+    }
+
+    async capturarCoordenadasEdicaoEvento() {
+        this.atualizarBadgeCoordsEvento('editar-evento-coords-badge', null, null, 'buscando');
+        const coords = await ApiService.obterLocalizacaoAtual();
+        if (!coords) {
+            this.atualizarBadgeCoordsEvento('editar-evento-coords-badge', null, null, 'Permissão de GPS negada ou indisponível.');
+            alert('Não foi possível obter sua localização via GPS. Verifique a permissão do seu navegador.');
+            return;
+        }
+
+        const latInput = document.getElementById('editar-evento-latitude');
+        const lngInput = document.getElementById('editar-evento-longitude');
+        if (latInput) latInput.value = coords.lat;
+        if (lngInput) lngInput.value = coords.lng;
+        this.atualizarBadgeCoordsEvento('editar-evento-coords-badge', coords.lat, coords.lng);
+
+        const inputLocal = document.getElementById('editar-evento-local');
+        if (inputLocal && !inputLocal.value.trim()) {
+            const endereco = await ApiService.buscarEnderecoPorCoordenadas(coords.lat, coords.lng);
+            if (endereco) inputLocal.value = endereco;
+        }
+    }
+
+    async buscarCoordenadasPorEnderecoDigitado() {
+        const inputLocal = document.getElementById('evento-local');
+        const endereco = inputLocal ? inputLocal.value.trim() : '';
+        if (!endereco || /^(https?:\/\/|www\.)/i.test(endereco)) return;
+
+        this.atualizarBadgeCoordsEvento('evento-coords-badge', null, null, 'buscando');
+        const res = await ApiService.buscarCoordenadasPorEndereco(endereco);
+        if (res) {
+            const latInput = document.getElementById('evento-latitude');
+            const lngInput = document.getElementById('evento-longitude');
+            if (latInput) latInput.value = res.lat;
+            if (lngInput) lngInput.value = res.lng;
+            this.atualizarBadgeCoordsEvento('evento-coords-badge', res.lat, res.lng);
+        } else {
+            this.atualizarBadgeCoordsEvento('evento-coords-badge', null, null, 'Endereço não localizado no mapa. Ajuste o texto ou use o GPS.');
+        }
+    }
+
+    async buscarCoordenadasEdicaoEvento() {
+        const inputLocal = document.getElementById('editar-evento-local');
+        const endereco = inputLocal ? inputLocal.value.trim() : '';
+        if (!endereco || /^(https?:\/\/|www\.)/i.test(endereco)) return;
+
+        this.atualizarBadgeCoordsEvento('editar-evento-coords-badge', null, null, 'buscando');
+        const res = await ApiService.buscarCoordenadasPorEndereco(endereco);
+        if (res) {
+            const latInput = document.getElementById('editar-evento-latitude');
+            const lngInput = document.getElementById('editar-evento-longitude');
+            if (latInput) latInput.value = res.lat;
+            if (lngInput) lngInput.value = res.lng;
+            this.atualizarBadgeCoordsEvento('editar-evento-coords-badge', res.lat, res.lng);
+        } else {
+            this.atualizarBadgeCoordsEvento('editar-evento-coords-badge', null, null, 'Endereço não localizado no mapa. Ajuste o texto ou use o GPS.');
+        }
+    }
+
+    aoAlterarEnderecoEvento() {
+        const formato = document.getElementById('evento-formato-local')?.value;
+        if (formato !== 'online') {
+            this.buscarCoordenadasPorEnderecoDigitado();
+        }
+    }
+
+    aoAlterarEnderecoEdicaoEvento() {
+        const formato = document.getElementById('editar-evento-formato-local')?.value;
+        if (formato !== 'online') {
+            this.buscarCoordenadasEdicaoEvento();
+        }
+    }
+
+    async alternarFiltroProximidade() {
+        this.filtroProximidadeAtivo = !this.filtroProximidadeAtivo;
+        const btn = document.getElementById('btn-localizacao-filtro');
+        const selectRaio = document.getElementById('filtro-evento-raio');
+
+        if (this.filtroProximidadeAtivo) {
+            btn?.classList.add('ativo');
+            if (selectRaio) selectRaio.style.display = 'block';
+
+            if (!this.coordenadasUsuario) {
+                if (btn) btn.innerHTML = '<i class="material-icons">hourglass_empty</i> Obtendo GPS...';
+                this.coordenadasUsuario = await ApiService.obterLocalizacaoAtual();
+                if (!this.coordenadasUsuario) {
+                    alert("Não foi possível acessar a localização. Verifique se o GPS está ativo e permitido no navegador.");
+                    this.filtroProximidadeAtivo = false;
+                    btn?.classList.remove('ativo');
+                    if (selectRaio) selectRaio.style.display = 'none';
+                    if (btn) btn.innerHTML = '<i class="material-icons">my_location</i> Perto de mim';
+                    return;
+                }
+            }
+            if (btn) btn.innerHTML = '<i class="material-icons">check_circle</i> Perto de mim';
+        } else {
+            btn?.classList.remove('ativo');
+            if (selectRaio) selectRaio.style.display = 'none';
+            if (btn) btn.innerHTML = '<i class="material-icons">my_location</i> Perto de mim';
+        }
+
+        await this.filtrarEventos();
+    }
+
     limparFormularioEvento() {
         const titulo = document.getElementById('evento-titulo');
         if (titulo) titulo.value = '';
@@ -635,10 +887,25 @@ class AppController {
             preco.value = '';
         }
         this.atualizarPreviewCapaEvento(capaInput);
+        const fmt = document.getElementById('evento-formato-local');
+        if (fmt) fmt.value = 'presencial';
+        this.alternarFormatoCriacaoEvento('presencial');
+        const lat = document.getElementById('evento-latitude');
+        if (lat) lat.value = '';
+        const lng = document.getElementById('evento-longitude');
+        if (lng) lng.value = '';
+        this.atualizarBadgeCoordsEvento('evento-coords-badge', null, null);
         this.mostrarEventoFeedback('');
     }
 
-    fecharModal(id) { document.getElementById(id).style.display = 'none'; }
+    fecharModal(id) {
+        document.getElementById(id).style.display = 'none';
+        if (id === 'post-modal') {
+            const inputImagens = document.getElementById('post-imagens');
+            if (inputImagens) inputImagens.value = '';
+            this.limparPrevisualizacoesPost();
+        }
+    }
 
     abrirModalPost() {
 
@@ -1007,14 +1274,18 @@ class AppController {
     }
 
     // --- CARREGAMENTO GLOBAL E PAGINADO ---
+    // Carrega em paralelo os dados compartilhados por várias telas para reduzir esperas e chamadas sequenciais.
     async carregarDadosGlobais() {
         try {
-            const [usuarios, comunidades, comentarios, votos, salvos] = await Promise.all([
+            const [usuarios, comunidades, comentarios, votos, salvos, imagensPost] = await Promise.all([
                 ApiService.listarUsuarios(),
                 ApiService.listarComunidades().catch(() => []),
                 ApiService.listarComentarios().catch(() => []),
                 ApiService.listarVotos().catch(() => []),
-                ApiService.listarPostsSalvos().catch(() => [])
+                ApiService.listarPostsSalvos().catch(() => []),
+                typeof ApiService.listarImagensPost === 'function'
+                    ? ApiService.listarImagensPost().catch(() => [])
+                    : Promise.resolve([])
             ]);
 
             this.listaUsuariosCompleta = usuarios;
@@ -1039,6 +1310,13 @@ class AppController {
 
             this.votos = votos;
             this.postsSalvos = salvos;
+            this.imagensPorPost = imagensPost.reduce((porPost, imagem) => {
+                // Agrupar por ID permite montar a galeria de cada post sem consultar a API a cada card.
+                const idPost = imagem.idPost || imagem.id_post;
+                if (!porPost[idPost]) porPost[idPost] = [];
+                porPost[idPost].push(imagem);
+                return porPost;
+            }, {});
             this.renderizarSugestoesPessoas();
 
             // Carrega os primeiros posts sob demanda (primeira página)
@@ -1055,7 +1333,29 @@ class AppController {
 
         } catch (e) {
             console.error(e);
-            document.getElementById('feed-container').innerHTML = `Erro de conexão com servidor.`;
+            const activeView = document.querySelector('.view-section.active');
+            if (activeView) {
+                activeView.querySelector('.global-load-error')?.remove();
+
+                const feedback = document.createElement('div');
+                feedback.className = 'global-load-error';
+                feedback.setAttribute('role', 'alert');
+
+                const message = document.createElement('span');
+                message.textContent = 'Não foi possível carregar os dados. Verifique a conexão e tente novamente.';
+
+                const retryButton = document.createElement('button');
+                retryButton.type = 'button';
+                retryButton.className = 'btn-ghost';
+                retryButton.textContent = 'Tentar novamente';
+                retryButton.addEventListener('click', () => {
+                    feedback.remove();
+                    this.carregarDadosGlobais();
+                });
+
+                feedback.append(message, retryButton);
+                activeView.prepend(feedback);
+            }
         }
     }
 
@@ -2654,21 +2954,221 @@ class AppController {
     }
 
     // --- FUNÇÕES DE POSTS/COMENTARIOS REUTILIZÁVEIS ---
+    // O post é criado primeiro para obter seu ID; cada arquivo é enviado depois em multipart associado a esse ID.
     async enviarPost() {
         const idLogado = ApiService.getIdUsuarioLogado();
         const titulo = document.getElementById('post-titulo').value.trim();
         const conteudo = document.getElementById('post-conteudo').value.trim();
         const comunidadeSelecionada = document.getElementById('post-comunidade-id')?.value;
+        const inputImagens = document.getElementById('post-imagens');
+        const imagens = [...(inputImagens?.files || [])];
+        const botaoPublicar = document.getElementById('post-publicar-btn');
 
-        // Se this.comunidadeAtivaId existir, envia o post vinculado à comunidade
-        const res = await ApiService.criarPost(titulo, conteudo, idLogado, comunidadeSelecionada || null);
-        if (res.ok) {
+        if (!idLogado) return alert('Entre para publicar.');
+        if (imagens.length > 4) return alert('Escolha no máximo quatro imagens.');
+        if (imagens.some(imagem => !['image/jpeg', 'image/png', 'image/webp'].includes(imagem.type))) {
+            return alert('Use imagens JPG, PNG ou WEBP.');
+        }
+        if (imagens.some(imagem => imagem.size > 5 * 1024 * 1024)) {
+            return alert('Cada imagem deve ter no máximo 5 MB.');
+        }
+        if (imagens.length && typeof ApiService.enviarImagemPost !== 'function') {
+            return alert('Atualize a página para habilitar o envio de imagens.');
+        }
+
+        if (botaoPublicar) {
+            botaoPublicar.disabled = true;
+            botaoPublicar.textContent = 'Publicando...';
+        }
+
+        try {
+            const resposta = await ApiService.criarPost(
+                titulo,
+                conteudo,
+                idLogado,
+                comunidadeSelecionada || null
+            );
+            if (!resposta.ok) {
+                return alert('Não foi possível publicar o post.');
+            }
+
+            const post = await resposta.json();
+            const idPost = post.idPost || post.id;
+            const falhasUpload = [];
+
+            for (const [indice, imagem] of imagens.entries()) {
+                try {
+                    const respostaImagem = await ApiService.enviarImagemPost(idPost, imagem);
+                    if (!respostaImagem.ok) {
+                        falhasUpload.push(`${imagem.name}: ${await respostaImagem.text()}`);
+                    }
+                } catch (erroUpload) {
+                    falhasUpload.push(`${imagem.name}: ${erroUpload.message}`);
+                }
+            }
+
             this.fecharModal('post-modal');
             document.getElementById('post-titulo').value = '';
             document.getElementById('post-conteudo').value = '';
             document.getElementById('post-comunidade-id').value = '';
+            if (inputImagens) inputImagens.value = '';
+            this.limparPrevisualizacoesPost();
             await this.carregarDadosGlobais();
-        } else alert(`Não foi possível publicar o post.`);
+
+            if (falhasUpload.length) {
+                alert(`O post foi publicado, mas ${falhasUpload.length} imagem(ns) não foram enviadas:\n${falhasUpload.join('\n')}`);
+            }
+        } catch (erro) {
+            console.error('Erro ao publicar post:', erro);
+            alert('Não foi possível publicar. Verifique a conexão e tente novamente.');
+        } finally {
+            if (botaoPublicar) {
+                botaoPublicar.disabled = false;
+                botaoPublicar.textContent = 'Publicar';
+            }
+        }
+    }
+
+    previsualizarFotoPerfil(foto) {
+        if (!foto) return;
+        if (!['image/jpeg', 'image/png', 'image/webp'].includes(foto.type)) {
+            alert('Use uma foto JPG, PNG ou WEBP.');
+            return;
+        }
+        if (foto.size > 5 * 1024 * 1024) {
+            alert('A foto deve ter no máximo 5 MB.');
+            return;
+        }
+
+        if (this.previewFotoPerfilUrl) URL.revokeObjectURL(this.previewFotoPerfilUrl);
+        this.previewFotoPerfilUrl = URL.createObjectURL(foto);
+        this.mostrarPreviewFotoPerfil(this.previewFotoPerfilUrl);
+    }
+
+    mostrarPreviewFotoPerfil(url) {
+        const imagem = document.getElementById('editar-perfil-avatar-preview');
+        const icone = document.getElementById('editar-perfil-avatar-icon');
+        if (!imagem || !icone) return;
+
+        if (url) {
+            let urlComCacheBust = url;
+            if (!url.startsWith('blob:')) {
+                try {
+                    const endereco = new URL(url, window.location.href);
+                    endereco.searchParams.set('v', Date.now());
+                    urlComCacheBust = endereco.href;
+                } catch {
+                    urlComCacheBust = url;
+                }
+            }
+            imagem.src = urlComCacheBust;
+            imagem.hidden = false;
+            icone.hidden = true;
+        } else {
+            imagem.removeAttribute('src');
+            imagem.hidden = true;
+            icone.hidden = false;
+        }
+    }
+
+    // Novas escolhas são acumuladas no estado até quatro arquivos; DataTransfer sincroniza a seleção do input.
+    previsualizarImagensPost(arquivos) {
+        const novasImagens = [...(arquivos || [])]
+            .filter(arquivo => arquivo.type.startsWith('image/'));
+        const assinaturasExistentes = new Set(
+            this.imagensPostSelecionadas.map(arquivo =>
+                `${arquivo.name}:${arquivo.size}:${arquivo.lastModified}`
+            )
+        );
+        const novasUnicas = novasImagens.filter(arquivo => {
+            const assinatura = `${arquivo.name}:${arquivo.size}:${arquivo.lastModified}`;
+            if (assinaturasExistentes.has(assinatura)) return false;
+            assinaturasExistentes.add(assinatura);
+            return true;
+        });
+
+        const vagas = Math.max(0, 4 - this.imagensPostSelecionadas.length);
+        if (novasUnicas.length > vagas) {
+            alert('Cada publicação aceita até quatro imagens. As primeiras disponíveis foram adicionadas.');
+        }
+        this.imagensPostSelecionadas.push(...novasUnicas.slice(0, vagas));
+
+        const input = document.getElementById('post-imagens');
+        if (input) {
+            const transferencia = new DataTransfer();
+            this.imagensPostSelecionadas.forEach(arquivo => transferencia.items.add(arquivo));
+            input.files = transferencia.files;
+        }
+
+        this.renderizarPrevisualizacoesPost();
+    }
+
+    renderizarPrevisualizacoesPost() {
+        this.previewPostUrls.forEach(url => URL.revokeObjectURL(url));
+        this.previewPostUrls = [];
+        const container = document.getElementById('post-imagens-preview');
+        if (!container) return;
+        container.replaceChildren();
+
+        this.imagensPostSelecionadas.forEach((arquivo, indice) => {
+            const url = URL.createObjectURL(arquivo);
+            this.previewPostUrls.push(url);
+            const item = document.createElement('div');
+            item.className = 'post-image-preview-item';
+            const imagem = document.createElement('img');
+            imagem.src = url;
+            imagem.alt = `Prévia: ${arquivo.name}`;
+            const remover = document.createElement('button');
+            remover.type = 'button';
+            remover.className = 'post-image-remove';
+            remover.setAttribute('aria-label', `Remover ${arquivo.name}`);
+            remover.textContent = '×';
+            remover.addEventListener('click', () => this.removerImagemPost(indice));
+            item.append(imagem, remover);
+            container.appendChild(item);
+        });
+    }
+
+    removerImagemPost(indice) {
+        this.imagensPostSelecionadas.splice(indice, 1);
+        const input = document.getElementById('post-imagens');
+        if (input) {
+            const transferencia = new DataTransfer();
+            this.imagensPostSelecionadas.forEach(arquivo => transferencia.items.add(arquivo));
+            input.files = transferencia.files;
+        }
+        this.renderizarPrevisualizacoesPost();
+    }
+
+    limparPrevisualizacoesPost() {
+        this.previewPostUrls.forEach(url => URL.revokeObjectURL(url));
+        this.previewPostUrls = [];
+        this.imagensPostSelecionadas = [];
+        const input = document.getElementById('post-imagens');
+        if (input) input.value = '';
+        const container = document.getElementById('post-imagens-preview');
+        if (container) container.replaceChildren();
+    }
+
+    // Converte os caminhos devolvidos pela API em URLs e gera a galeria usada no feed e no detalhe do post.
+    renderizarImagensPost(idPost) {
+        const imagens = (this.imagensPorPost[idPost] || []).slice(0, 4);
+        const elementos = imagens.map((imagem, indice) => {
+            const url = ApiService.formatarUrlFotoPerfil(imagem.url);
+            if (!url) return '';
+
+            try {
+                const urlSegura = new URL(url, window.location.href);
+                if (!['http:', 'https:'].includes(urlSegura.protocol)) return '';
+                return `<img src="${this.escaparHtmlDestaque(urlSegura.href)}" alt="Imagem ${indice + 1} da publicação" loading="lazy">`;
+            } catch {
+                return '';
+            }
+        }).filter(Boolean);
+
+        return elementos.length
+            ? `<div class="post-images" role="group" aria-label="Imagens da publicação">${elementos.join('')}</div>`
+            : '';
     }
 
     async enviarComentario(idPost, botao) {
@@ -2753,6 +3253,7 @@ class AppController {
             const curtido = this.votoDoUsuario(idPost);
             const salvo = this.postEstaSalvo(idPost);
             const totalCurtidas = this.contarVotos(idPost);
+            const htmlImagensPost = this.renderizarImagensPost(idPost);
             const origemPostHtml =
                 idComunidade && nomeComunidade
                     ? (
@@ -2839,6 +3340,7 @@ class AppController {
                 </div>
                 <div class="post-title">${this.escaparHtmlDestaque(post.titulo)}</div>
                <div class="post-body">${this.escaparHtmlDestaque(post.conteudo)}</div>
+               ${htmlImagensPost}
                ${htmlComentarios}
 
                 <div class="post-actions">
@@ -2924,6 +3426,7 @@ ${ApiService.getIdUsuarioLogado() ? `
         const dataPostagem = post.dataPostagem
             ? new Date(post.dataPostagem).toLocaleDateString('pt-BR')
             : 'Agora';
+        const htmlImagensPost = this.renderizarImagensPost(idPost);
 
         container.innerHTML = `
             <article class="post-detail-card">
@@ -2999,6 +3502,7 @@ ${ApiService.getIdUsuarioLogado() ? `
 </div>
                 <h1>${this.escaparHtmlDestaque(post.titulo)}</h1>
                 <div class="post-detail-body">${this.escaparHtmlDestaque(post.conteudo)}</div>
+                ${htmlImagensPost}
                 <div class="post-actions post-detail-actions">
                     <button class="post-action ${curtido ? 'active' : ''}" onclick="app.alternarCurtidaDetalhe(${idPost})"><i class="material-icons">${curtido ? 'favorite' : 'favorite_border'}</i><span>${this.contarVotos(idPost)}</span></button>
                     <button class="post-action ${salvo ? 'active' : ''}" onclick="app.alternarPostSalvoDetalhe(${idPost})"><i class="material-icons">${salvo ? 'bookmark' : 'bookmark_border'}</i><span>${salvo ? 'Salvo' : 'Salvar'}</span></button>
@@ -3518,6 +4022,7 @@ ${ApiService.getIdUsuarioLogado() ? `
         });
     }
 
+    // Busca somente a página atual com os filtros ativos; a API mantém a ordenação global entre páginas.
     async carregarEventos() {
 
         const container = document.getElementById('eventos-container');
@@ -3582,6 +4087,22 @@ ${ApiService.getIdUsuarioLogado() ? `
                     const div = document.createElement('div');
                     div.className = 'evento-card';
 
+                    let badgeDistanciaHtml = '';
+                    if (this.coordenadasUsuario && evento.latitude != null && evento.longitude != null) {
+                        const distKm = ApiService.calcularDistanciaKm(
+                            this.coordenadasUsuario.lat,
+                            this.coordenadasUsuario.lng,
+                            evento.latitude,
+                            evento.longitude
+                        );
+                        if (distKm !== null) {
+                            const textoDist = distKm < 1
+                                ? `${Math.round(distKm * 1000)} m`
+                                : `${distKm.toFixed(1)} km`;
+                            badgeDistanciaHtml = `<span class="badge-distancia" title="Distância estimada de você"><i class="material-icons">near_me</i> ${textoDist}</span>`;
+                        }
+                    }
+
                     const statusDetalhes =
                         evento.situacaoTemporal ||
                         evento.status ||
@@ -3597,6 +4118,18 @@ ${ApiService.getIdUsuarioLogado() ? `
                         statusDetalhes === 'ACONTECENDO_AGORA'
                             ? 'ACONTECENDO AGORA'
                             : statusDetalhes;
+
+                    const categoriaExibida =
+                        this.escaparHtmlDestaque(evento.categoria || 'Comunidade');
+                    const tituloExibido =
+                        this.escaparHtmlDestaque(evento.titulo || 'Evento');
+                    const descricaoExibida =
+                        this.escaparHtmlDestaque(evento.descricao || 'Sem descrição informada.');
+                    const localExibido =
+                        this.escaparHtmlDestaque(evento.localEvento || 'Local a confirmar');
+                    const imagemCapaUrl = evento.imagemCapa
+                        ? this.escaparHtmlDestaque(this.urlCapaEvento(evento.imagemCapa))
+                        : '';
 
                     const dataFormatada = evento.dataEvento
                         ? evento.dataEvento.split('-').reverse().join('/')
@@ -3641,18 +4174,18 @@ ${ApiService.getIdUsuarioLogado() ? `
                     const ehCriador = idUsuario && idUsuario == evento.criadorId;
                     const acao = ehCriador ? 'Organizador' : eventoLotado ? 'Evento lotado' : idUsuario ? 'Ver detalhes' : 'Entrar para participar';
                     div.innerHTML = `
-                    <div class="evento-card-capa ${evento.imagemCapa ? '' : 'evento-card-capa-vazia'}" ${evento.imagemCapa ? `style="background-image:url('${this.urlCapaEvento(evento.imagemCapa)}')"` : ''}>
+                    <div class="evento-card-capa ${evento.imagemCapa ? '' : 'evento-card-capa-vazia'}" ${imagemCapaUrl ? `style="background-image:url('${imagemCapaUrl}')"` : ''}>
                         ${!evento.imagemCapa ? '<i class="material-icons">event</i>' : ''}
-                        <span>${evento.categoria || 'Comunidade'}</span>
+                        <span>${categoriaExibida}</span>
                     </div>
                     <div class="evento-card-body">
-                        <div class="evento-card-meta"><span>${horarioInicioFormatado} - ${horarioFimFormatado}</span><b>${statusExibido}</b></div>
-                        <h3>${evento.titulo}</h3>
-                        <p>${evento.descricao || 'Sem descrição informada.'}</p>
+                        <div class="evento-card-meta"><span>${horarioInicioFormatado} - ${horarioFimFormatado}</span><b>${this.escaparHtmlDestaque(statusExibido)}</b></div>
+                        <h3>${tituloExibido}</h3>
+                        <p>${descricaoExibida}</p>
                        <div class="evento-card-info">
 
     <span>
-        📍 ${evento.localEvento}
+    📍 ${localExibido}
     </span>
 
     <span>
@@ -3664,6 +4197,8 @@ ${ApiService.getIdUsuarioLogado() ? `
     <span>
         🎟 ${precoFormatado}
     </span>
+
+    ${badgeDistanciaHtml}
 
 </div>
                         <button class="btn-primary evento-card-action" onclick="app.abrirDetalhesEvento(${evento.id})">${acao}</button>
@@ -3698,13 +4233,37 @@ ${ApiService.getIdUsuarioLogado() ? `
             return;
         }
         const data = evento.dataEvento ? new Date(`${evento.dataEvento}T00:00:00`).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '') : '--';
+        const categoria = this.escaparHtmlDestaque(evento.categoria || 'Em destaque');
+        const titulo = this.escaparHtmlDestaque(evento.titulo || 'Evento');
+        const descricao = this.escaparHtmlDestaque(
+            evento.descricao || 'Uma nova experiência está esperando por você.'
+        );
+        const local = this.escaparHtmlDestaque(evento.localEvento || 'Local a confirmar');
+        const imagemCapaUrl = evento.imagemCapa
+            ? this.escaparHtmlDestaque(this.urlCapaEvento(evento.imagemCapa))
+            : '';
+        const idEvento = Number(evento.idEvento || evento.id);
         container.innerHTML = `
-            <div class="evento-destaque-copy"><span class="section-kicker">${evento.categoria || 'Em destaque'}</span><h2>${evento.titulo}</h2><p>${evento.descricao || 'Uma nova experiência está esperando por você.'}</p><div class="evento-destaque-details"><span>📅 ${data} · ${evento.horarioInicio?.substring(0, 5) || '--:--'}</span><span>📍 ${evento.localEvento || 'Local a confirmar'}</span></div><button class="btn-primary" onclick="app.abrirDetalhesEvento(${evento.id})">Ver detalhes <i class="material-icons">arrow_forward</i></button></div><div class="evento-destaque-art" ${evento.imagemCapa ? `style="background-image:linear-gradient(135deg,rgba(43,23,32,.2),rgba(234,63,116,.5)),url('${this.urlCapaEvento(evento.imagemCapa)}');background-size:cover;background-position:center;"` : ''}><i class="material-icons">celebration</i></div>
+            <div class="evento-destaque-copy"><span class="section-kicker">${categoria}</span><h2>${titulo}</h2><p>${descricao}</p><div class="evento-destaque-details"><span>📅 ${this.escaparHtmlDestaque(data)} · ${this.escaparHtmlDestaque(evento.horarioInicio?.substring(0, 5) || '--:--')}</span><span>📍 ${local}</span></div><button class="btn-primary" onclick="app.abrirDetalhesEvento(${idEvento})">Ver detalhes <i class="material-icons">arrow_forward</i></button></div><div class="evento-destaque-art" ${imagemCapaUrl ? `style="background-image:linear-gradient(135deg,rgba(43,23,32,.2),rgba(234,63,116,.5)),url('${imagemCapaUrl}');background-size:cover;background-position:center;"` : ''}><i class="material-icons">celebration</i></div>
         `;
     }
 
     urlCapaEvento(caminho) {
-        return caminho?.startsWith('http') ? caminho : `${ApiService.API_URL}/${caminho}`;
+        if (typeof caminho !== 'string' || !caminho.trim()) return '';
+
+        try {
+            const baseUrl = `${ApiService.API_URL.replace(/\/$/, '')}/`;
+            const url = new URL(caminho, baseUrl);
+            const origemApi = new URL(baseUrl).origin;
+            const eUrlAbsoluta = /^https?:\/\//i.test(caminho);
+
+            if (!['http:', 'https:'].includes(url.protocol)) return '';
+            if (!eUrlAbsoluta && url.origin !== origemApi) return '';
+
+            return url.href;
+        } catch {
+            return '';
+        }
     }
 
     async mudarVisaoEventos(visao) {
@@ -3731,7 +4290,7 @@ ${ApiService.getIdUsuarioLogado() ? `
             const eventos = await ApiService.listarEventosParticipando(idUsuario);
             this.listaEventos = eventos;
             await this.carregarEventoDestaqueMaisPopular();
-            container.innerHTML = eventos.length ? eventos.map(evento => `<div class="meu-evento-row"><div><strong>${evento.titulo}</strong><span>${this.formatarDataEvento(evento.dataEvento)} · ${evento.localEvento}</span></div><button class="btn-primary" onclick="app.abrirDetalhesEvento(${evento.id})">Ver evento</button></div>`).join('') : '<div class="evento-destaque-vazio">Você ainda não está participando de nenhum evento.</div>';
+            container.innerHTML = eventos.length ? eventos.map(evento => `<div class="meu-evento-row"><div><strong>${this.escaparHtmlDestaque(evento.titulo || 'Evento')}</strong><span>${this.escaparHtmlDestaque(this.formatarDataEvento(evento.dataEvento))} · ${this.escaparHtmlDestaque(evento.localEvento || 'Local a confirmar')}</span></div><button class="btn-primary" onclick="app.abrirDetalhesEvento(${Number(evento.idEvento || evento.id)})">Ver evento</button></div>`).join('') : '<div class="evento-destaque-vazio">Você ainda não está participando de nenhum evento.</div>';
         } catch (erro) {
             console.error(erro);
             container.innerHTML = '<div class="evento-destaque-vazio">Não foi possível carregar seus eventos.</div>';
@@ -3793,6 +4352,14 @@ ${ApiService.getIdUsuarioLogado() ? `
             return this.mostrarEventoFeedback("Selecione uma categoria para o evento.");
         }
 
+        if (capa && !['image/jpeg', 'image/png', 'image/webp'].includes(capa.type)) {
+            return this.mostrarEventoFeedback('O banner deve ser uma imagem JPG, PNG ou WEBP.');
+        }
+
+        if (capa && capa.size > 5 * 1024 * 1024) {
+            return this.mostrarEventoFeedback('O banner deve ter no máximo 5 MB.');
+        }
+
         const inicioEvento = new Date(`${dataEvento}T${horarioInicio}`);
         const fimEvento = new Date(`${dataEvento}T${horarioFim}`);
         const agora = new Date();
@@ -3835,6 +4402,28 @@ ${ApiService.getIdUsuarioLogado() ? `
             );
         }
 
+        let latitude = null;
+        let longitude = null;
+        const latValor = document.getElementById('evento-latitude')?.value;
+        const lngValor = document.getElementById('evento-longitude')?.value;
+        if (latValor && lngValor) {
+            latitude = parseFloat(latValor);
+            longitude = parseFloat(lngValor);
+        } else {
+            const formatoLocal = document.getElementById('evento-formato-local')?.value;
+            if (formatoLocal !== 'online' && localEvento) {
+                try {
+                    const coords = await ApiService.buscarCoordenadasPorEndereco(localEvento);
+                    if (coords) {
+                        latitude = coords.lat;
+                        longitude = coords.lng;
+                    }
+                } catch (e) {
+                    console.warn('GeocodificaÃ§Ã£o automÃ¡tica:', e);
+                }
+            }
+        }
+
         const novoEvento = {
             titulo,
             descricao,
@@ -3846,6 +4435,8 @@ ${ApiService.getIdUsuarioLogado() ? `
                 ? encerramentoInscricoes + ":00"
                 : null,
             localEvento,
+            latitude,
+            longitude,
             criadorId: parseInt(idUsuario),
             comunidadeId: comunidadeValor
                 ? parseInt(comunidadeValor)
@@ -3867,10 +4458,13 @@ ${ApiService.getIdUsuarioLogado() ? `
             if (res.ok) {
                 const eventoCriado = await res.json();
                 const eventoId = eventoCriado.id || eventoCriado.idEvento;
+                let bannerEnviado = true;
                 if (capa && eventoId) {
                     try {
-                        await ApiService.enviarCapaEvento(eventoId, capa);
+                        const respostaCapa = await ApiService.enviarCapaEvento(eventoId, capa);
+                        bannerEnviado = respostaCapa.ok;
                     } catch (capaErr) {
+                        bannerEnviado = false;
                         console.error("Erro ao enviar capa do evento:", capaErr);
                     }
                 }
@@ -3878,7 +4472,9 @@ ${ApiService.getIdUsuarioLogado() ? `
                 this.fecharModal('evento-modal');
                 this.limparFormularioEvento();
                 await this.carregarEventos();
-                alert("🎉 Evento publicado com sucesso!");
+                alert(capa && !bannerEnviado
+                    ? "Evento publicado, mas o banner não foi enviado. Você pode tentar novamente editando o evento."
+                    : "🎉 Evento publicado com sucesso!");
             } else {
                 this.mostrarEventoFeedback("Não foi possível criar o evento. Verifique os dados e tente novamente.");
             }
@@ -3955,30 +4551,31 @@ ${ApiService.getIdUsuarioLogado() ? `
 
 
 
-    async excluirComunidade() {
+    async excluirComunidade(confirmado = false) {
+        const idComunidade = this.comunidadeEditando?.idComunidade || this.comunidadeEditando?.id;
+        const idUsuario = ApiService.getIdUsuarioLogado();
 
-        if (!confirm("Tem certeza que deseja excluir esta comunidade?")) {
+        if (!idComunidade) return;
+
+        if (!confirmado) {
+            this.abrirModalConfirmacao({
+                titulo: 'Excluir Comunidade',
+                mensagem: 'Tem certeza que deseja excluir esta comunidade? Esta ação não pode ser desfeita.',
+                textoConfirmar: 'Excluir',
+                classeBotao: 'btn-danger',
+                onSuccess: () => this.excluirComunidade(true)
+            });
             return;
         }
 
-        const idComunidade =
-            this.comunidadeEditando.idComunidade || this.comunidadeEditando.id;
-
-        const idUsuario = ApiService.getIdUsuarioLogado();
-
-        const resposta = await ApiService.excluirComunidade(
-            idComunidade,
-            idUsuario
-        );
+        const resposta = await ApiService.excluirComunidade(idComunidade, idUsuario);
 
         if (resposta.ok) {
             this.fecharModal("gerenciar-comunidade-modal");
-
             await this.carregarComunidades();
-
-            alert("Comunidade excluída com sucesso!");
+            this.mostrarFeedbackGlobal("Comunidade excluída com sucesso!");
         } else {
-            alert("Você não tem permissão para excluir esta comunidade.");
+            this.mostrarFeedbackGlobal("Você não tem permissão para excluir esta comunidade.");
         }
     }
 
@@ -4013,16 +4610,22 @@ ${ApiService.getIdUsuarioLogado() ? `
         this.abrirModal("gerenciar-membros-modal");
     }
 
-    async removerMembro(idUsuario) {
+    async removerMembro(idUsuario, confirmado = false) {
+        const idComunidade = this.comunidadeEditando?.idComunidade || this.comunidadeEditando?.id;
+        const idSolicitante = ApiService.getIdUsuarioLogado();
 
-        if (!confirm("Deseja remover este membro da comunidade?")) {
+        if (!idComunidade || !idUsuario) return;
+
+        if (!confirmado) {
+            this.abrirModalConfirmacao({
+                titulo: 'Remover Membro',
+                mensagem: 'Deseja realmente remover este membro da comunidade?',
+                textoConfirmar: 'Remover',
+                classeBotao: 'btn-danger',
+                onSuccess: () => this.removerMembro(idUsuario, true)
+            });
             return;
         }
-
-        const idComunidade =
-            this.comunidadeEditando.idComunidade || this.comunidadeEditando.id;
-
-        const idSolicitante = ApiService.getIdUsuarioLogado();
 
         const resposta = await ApiService.removerMembro(
             idComunidade,
@@ -4031,8 +4634,7 @@ ${ApiService.getIdUsuarioLogado() ? `
         );
 
         if (resposta.ok) {
-            alert("Membro removido com sucesso!");
-
+            this.mostrarFeedbackGlobal("Membro removido com sucesso!");
             await this.carregarComunidades();
 
             this.comunidadeEditando = this.listaComunidades.find(
@@ -4041,7 +4643,7 @@ ${ApiService.getIdUsuarioLogado() ? `
 
             this.abrirGerenciarMembros();
         } else {
-            alert("Você não tem permissão para remover este membro.");
+            this.mostrarFeedbackGlobal("Você não tem permissão para remover este membro.");
         }
     }
     alternarMenuPost(evento) {
@@ -4099,9 +4701,15 @@ ${ApiService.getIdUsuarioLogado() ? `
         }
     }
 
-    async excluirPost(idPost) {
-
-        if (!confirm("Deseja realmente excluir esta publicação?")) {
+    async excluirPost(idPost, confirmado = false) {
+        if (!confirmado) {
+            this.abrirModalConfirmacao({
+                titulo: 'Excluir Publicação',
+                mensagem: 'Deseja realmente excluir esta publicação?',
+                textoConfirmar: 'Excluir',
+                classeBotao: 'btn-danger',
+                onSuccess: () => this.excluirPost(idPost, true)
+            });
             return;
         }
 
@@ -4115,7 +4723,7 @@ ${ApiService.getIdUsuarioLogado() ? `
                 this.renderizarSubreddit(this.comunidadeAtivaId);
             }
         } else {
-            alert("Você não tem permissão para excluir esta publicação.");
+            this.mostrarFeedbackGlobal("Você não tem permissão para excluir esta publicação.");
         }
     }
 
@@ -4168,6 +4776,22 @@ ${ApiService.getIdUsuarioLogado() ? `
 
         document.getElementById('editar-evento-checkin').checked =
             evento.exigeCheckin === true;
+
+        const latEdit = document.getElementById('editar-evento-latitude');
+        const lngEdit = document.getElementById('editar-evento-longitude');
+        if (latEdit) latEdit.value = (evento.latitude != null) ? evento.latitude : '';
+        if (lngEdit) lngEdit.value = (evento.longitude != null) ? evento.longitude : '';
+
+        const isOnline = /^(https?:\/\/|www\.)/i.test(evento.localEvento || '');
+        const formatoSelect = document.getElementById('editar-evento-formato-local');
+        if (formatoSelect) formatoSelect.value = isOnline ? 'online' : 'presencial';
+        this.alternarFormatoEdicaoEvento(isOnline ? 'online' : 'presencial');
+
+        if (evento.latitude != null && evento.longitude != null) {
+            this.atualizarBadgeCoordsEvento('editar-evento-coords-badge', evento.latitude, evento.longitude);
+        } else {
+            this.atualizarBadgeCoordsEvento('editar-evento-coords-badge', null, null);
+        }
 
         this.abrirModal('gerenciar-evento-modal');
     }
@@ -4256,6 +4880,28 @@ ${ApiService.getIdUsuarioLogado() ? `
             }
         }
 
+        let latitude = null;
+        let longitude = null;
+        const latValor = document.getElementById('editar-evento-latitude')?.value;
+        const lngValor = document.getElementById('editar-evento-longitude')?.value;
+        if (latValor && lngValor) {
+            latitude = parseFloat(latValor);
+            longitude = parseFloat(lngValor);
+        } else {
+            const formatoLocal = document.getElementById('editar-evento-formato-local')?.value;
+            if (formatoLocal !== 'online' && localEvento) {
+                try {
+                    const coords = await ApiService.buscarCoordenadasPorEndereco(localEvento);
+                    if (coords) {
+                        latitude = coords.lat;
+                        longitude = coords.lng;
+                    }
+                } catch (e) {
+                    console.warn('GeocodificaÃ§Ã£o automÃ¡tica na ediÃ§Ã£o:', e);
+                }
+            }
+        }
+
         const eventoAtualizado = {
             titulo,
             descricao,
@@ -4271,6 +4917,8 @@ ${ApiService.getIdUsuarioLogado() ? `
                     : null,
 
             localEvento,
+            latitude,
+            longitude,
 
             comunidadeId:
                 comunidadeValor
@@ -4304,71 +4952,61 @@ ${ApiService.getIdUsuarioLogado() ? `
         }
     }
 
-    async excluirEvento() {
+    async excluirEvento(confirmado = false) {
+        if (!this.eventoEditando) return;
 
-        if (!this.eventoEditando) {
-            return;
-        }
-
-        if (!confirm("Tem certeza que deseja excluir este evento?")) {
+        if (!confirmado) {
+            this.abrirModalConfirmacao({
+                titulo: 'Excluir Evento',
+                mensagem: 'Tem certeza que deseja excluir este evento?',
+                textoConfirmar: 'Excluir',
+                classeBotao: 'btn-danger',
+                onSuccess: () => this.excluirEvento(true)
+            });
             return;
         }
 
         const idUsuario = ApiService.getIdUsuarioLogado();
+        const idEvento = this.eventoEditando.idEvento || this.eventoEditando.id;
 
-        const idEvento =
-            this.eventoEditando.idEvento || this.eventoEditando.id;
-
-        const resposta = await ApiService.excluirEvento(
-            idEvento,
-            idUsuario
-        );
+        const resposta = await ApiService.excluirEvento(idEvento, idUsuario);
 
         if (resposta.ok) {
             this.fecharModal('gerenciar-evento-modal');
-
             this.eventoEditando = null;
-
             await this.carregarEventos();
-
-            alert("Evento excluído com sucesso!");
+            this.mostrarFeedbackGlobal("Evento excluído com sucesso!");
         } else {
-            alert("Não foi possível excluir o evento.");
+            this.mostrarFeedbackGlobal("Não foi possível excluir o evento.");
         }
     }
 
-    async cancelarEvento() {
+    async cancelarEvento(confirmado = false) {
+        if (!this.eventoEditando) return;
 
-        if (!this.eventoEditando) {
+        if (!confirmado) {
+            this.abrirModalConfirmacao({
+                titulo: 'Cancelar Evento',
+                mensagem: 'Tem certeza que deseja cancelar este evento?',
+                textoConfirmar: 'Confirmar Cancelamento',
+                classeBotao: 'btn-danger',
+                onSuccess: () => this.cancelarEvento(true)
+            });
             return;
         }
 
-        if (!confirm("Tem certeza que deseja cancelar este evento?")) {
-            return;
-        }
+        const idEvento = this.eventoEditando.idEvento || this.eventoEditando.id;
+        const idUsuario = ApiService.getIdUsuarioLogado();
 
-        const idEvento =
-            this.eventoEditando.idEvento || this.eventoEditando.id;
-
-        const idUsuario =
-            ApiService.getIdUsuarioLogado();
-
-        const resposta =
-            await ApiService.cancelarEvento(
-                idEvento,
-                idUsuario
-            );
+        const resposta = await ApiService.cancelarEvento(idEvento, idUsuario);
 
         if (resposta.ok) {
             this.fecharModal('gerenciar-evento-modal');
-
             this.eventoEditando = null;
-
             await this.carregarEventos();
-
-            alert("Evento cancelado com sucesso!");
+            this.mostrarFeedbackGlobal("Evento cancelado com sucesso!");
         } else {
-            alert("Não foi possível cancelar o evento.");
+            this.mostrarFeedbackGlobal("Não foi possível cancelar o evento.");
         }
     }
 
@@ -4396,31 +5034,28 @@ ${ApiService.getIdUsuarioLogado() ? `
         }
     }
 
-    async sairDoEvento(idEvento) {
-
+    async sairDoEvento(idEvento, confirmado = false) {
         const idUsuario = ApiService.getIdUsuarioLogado();
+        if (!idUsuario) return;
 
-        if (!idUsuario) {
+        if (!confirmado) {
+            this.abrirModalConfirmacao({
+                titulo: 'Sair do Evento',
+                mensagem: 'Deseja cancelar sua participação neste evento?',
+                textoConfirmar: 'Sair',
+                classeBotao: 'btn-danger',
+                onSuccess: () => this.sairDoEvento(idEvento, true)
+            });
             return;
         }
 
-        if (!confirm("Deseja cancelar sua participação neste evento?")) {
-            return;
-        }
-
-        const resposta = await ApiService.sairEvento(
-            idEvento,
-            idUsuario
-        );
+        const resposta = await ApiService.sairEvento(idEvento, idUsuario);
 
         if (resposta.ok) {
-
             await this.carregarEventos();
-
             await this.abrirDetalhesEvento(idEvento);
-
         } else {
-            alert("Não foi possível cancelar sua participação.");
+            this.mostrarFeedbackGlobal("Não foi possível cancelar sua participação.");
         }
     }
 
@@ -4488,39 +5123,35 @@ ${ApiService.getIdUsuarioLogado() ? `
         this.abrirModal('participantes-evento-modal');
     }
 
-    async removerParticipanteEvento(idParticipante) {
+    async removerParticipanteEvento(idParticipante, confirmado = false) {
+        if (!this.eventoEditando) return;
 
-        if (!this.eventoEditando) {
+        if (!confirmado) {
+            this.abrirModalConfirmacao({
+                titulo: 'Remover Participante',
+                mensagem: 'Deseja remover este participante do evento?',
+                textoConfirmar: 'Remover',
+                classeBotao: 'btn-danger',
+                onSuccess: () => this.removerParticipanteEvento(idParticipante, true)
+            });
             return;
         }
 
-        if (!confirm("Deseja remover este participante do evento?")) {
-            return;
-        }
+        const idEvento = this.eventoEditando.idEvento || this.eventoEditando.id;
+        const idSolicitante = ApiService.getIdUsuarioLogado();
 
-        const idEvento =
-            this.eventoEditando.idEvento || this.eventoEditando.id;
-
-        const idSolicitante =
-            ApiService.getIdUsuarioLogado();
-
-        const resposta =
-            await ApiService.removerParticipanteEvento(
-                idEvento,
-                idParticipante,
-                idSolicitante
-            );
+        const resposta = await ApiService.removerParticipanteEvento(
+            idEvento,
+            idParticipante,
+            idSolicitante
+        );
 
         if (resposta.ok) {
-
-            alert("Participante removido com sucesso!");
-
+            this.mostrarFeedbackGlobal("Participante removido com sucesso!");
             await this.abrirParticipantesEvento();
-
             await this.carregarEventos();
-
         } else {
-            alert("Não foi possível remover o participante.");
+            this.mostrarFeedbackGlobal("Não foi possível remover o participante.");
         }
     }
 
@@ -4684,6 +5315,10 @@ ${ApiService.getIdUsuarioLogado() ? `
             intervalo.style.display = 'none';
         }
 
+        const latFiltro = (this.filtroProximidadeAtivo && this.coordenadasUsuario) ? this.coordenadasUsuario.lat : null;
+        const lngFiltro = (this.filtroProximidadeAtivo && this.coordenadasUsuario) ? this.coordenadasUsuario.lng : null;
+        const raioFiltro = Number(document.getElementById('filtro-evento-raio')?.value || 50);
+
         this.filtrosEventos = {
             texto: texto || null,
 
@@ -4699,7 +5334,10 @@ ${ApiService.getIdUsuarioLogado() ? `
                 categoria || null,
 
             dataInicio,
-            dataFim
+            dataFim,
+            lat: latFiltro,
+            lng: lngFiltro,
+            raioKm: raioFiltro
         };
 
         this.paginaEventos = 0;
@@ -4821,15 +5459,15 @@ ${ApiService.getIdUsuarioLogado() ? `
 
         const precoIngresso = Number(evento.precoIngresso || 0);
 
-const eventoPago = precoIngresso > 0;
+        const eventoPago = precoIngresso > 0;
 
-const precoFormatado =
-    eventoPago
-        ? precoIngresso.toLocaleString('pt-BR', {
-            style: 'currency',
-            currency: 'BRL'
-        })
-        : 'Gratuito';
+        const precoFormatado =
+            eventoPago
+                ? precoIngresso.toLocaleString('pt-BR', {
+                    style: 'currency',
+                    currency: 'BRL'
+                })
+                : 'Gratuito';
 
         if (evento.encerramentoInscricoes) {
             limiteInscricao = new Date(evento.encerramentoInscricoes);
@@ -4852,6 +5490,22 @@ const precoFormatado =
                 ? 'ACONTECENDO AGORA'
                 : situacaoEvento;
 
+        const isLink = /^(https?:\/\/|www\.)/i.test(evento.localEvento || '');
+        let urlTransmissao = '';
+        if (isLink) {
+            try {
+                const url = new URL(
+                    /^https?:\/\//i.test(evento.localEvento)
+                        ? evento.localEvento
+                        : `https://${evento.localEvento}`
+                );
+                if (['http:', 'https:'].includes(url.protocol)) {
+                    urlTransmissao = this.escaparHtmlDestaque(url.href);
+                }
+            } catch {
+                urlTransmissao = '';
+            }
+        }
         const eventoEncerrado =
             situacaoEvento === 'ENCERRADO';
 
@@ -4881,13 +5535,13 @@ const precoFormatado =
         container.innerHTML = `
     <article class="evento-detalhes-card">
 
-        ${evento.imagemCapa
+                        ${evento.imagemCapa
                 ? `
                 <div
                     class="evento-detalhes-hero"
                     style="
                         background-image:
-                        url('${this.urlCapaEvento(evento.imagemCapa)}');
+                        url('${this.escaparHtmlDestaque(this.urlCapaEvento(evento.imagemCapa))}');
                     "
                 >
                     <div class="evento-detalhes-hero-overlay"></div>
@@ -5003,6 +5657,19 @@ const precoFormatado =
                 'A confirmar'
             )}
                         </strong>
+                        ${urlTransmissao
+                    ? `<a href="${urlTransmissao}" target="_blank" rel="noopener noreferrer" class="evento-rota-btn">
+                    <i class="material-icons">launch</i> Acessar transmissão
+                </a>`
+                : (evento.latitude != null && evento.longitude != null
+                    ? `<a href="https://www.google.com/maps/search/?api=1&query=${evento.latitude},${evento.longitude}" target="_blank" rel="noopener noreferrer" class="evento-rota-btn">
+                        <i class="material-icons">directions</i> Ver rota no Google Maps
+                    </a>`
+                    : (evento.localEvento
+                        ? `<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(evento.localEvento)}" target="_blank" rel="noopener noreferrer" class="evento-rota-btn">
+                            <i class="material-icons">directions</i> Ver no Google Maps
+                        </a>`
+                        : ''))}
                     </div>
                 </div>
 
@@ -5053,9 +5720,9 @@ const precoFormatado =
 
                 <p class="evento-detalhes-descricao">
                     ${this.escaparHtmlDestaque(
-                evento.descricao ||
-                'Nenhuma descrição foi adicionada para este evento.'
-            )}
+                            evento.descricao ||
+                            'Nenhuma descrição foi adicionada para este evento.'
+                        )}
                 </p>
 
             </section>
@@ -5196,8 +5863,8 @@ const precoFormatado =
   onclick="app.acaoIngressoEvento(${idEvento})">
     <i class="material-icons">person_add_alt</i>
    ${eventoPago
-    ? `Comprar ingresso — ${precoFormatado}`
-    : 'Participar gratuitamente'}
+                                ? `Comprar ingresso — ${precoFormatado}`
+                                : 'Participar gratuitamente'}
 </button>
                                     `
                 : ''
@@ -5601,6 +6268,10 @@ const precoFormatado =
                 'editar-perfil-bio'
             ).value = usuario.bio || '';
 
+            const fotoUrl = ApiService.formatarUrlFotoPerfil(usuario.fotoPerfil);
+            this.mostrarPreviewFotoPerfil(fotoUrl);
+            document.getElementById('editar-perfil-foto').value = '';
+
             this.abrirModal('editar-perfil-modal');
 
         } catch (erro) {
@@ -5902,13 +6573,19 @@ const precoFormatado =
                 'Evento'
             );
 
-        const imagem = evento.imagemCapa
+        const imagemUrl = evento.imagemCapa
+            ? this.escaparHtmlDestaque(
+                this.urlCapaEvento(evento.imagemCapa)
+            )
+            : '';
+
+        const imagem = imagemUrl
             ? `
             <div
                 class="evento-destaque-imagem"
                 style="
                     background-image:
-                    url('${this.urlCapaEvento(evento.imagemCapa)}');
+                    url('${imagemUrl}');
                 "
             ></div>
         `
@@ -5923,6 +6600,8 @@ const precoFormatado =
             </div>
         `;
 
+        const idEvento = Number(evento.idEvento || evento.id);
+
         container.innerHTML = `
         <div class="evento-destaque-container">
 
@@ -5936,7 +6615,7 @@ const precoFormatado =
                     </span>
 
                     <span class="evento-destaque-data">
-                        ${data}
+                        ${this.escaparHtmlDestaque(data)}
                     </span>
                 </div>
 
@@ -5954,7 +6633,7 @@ const precoFormatado =
                         <i class="material-icons">
                             schedule
                         </i>
-                        ${horario}
+                        ${this.escaparHtmlDestaque(horario)}
                     </span>
 
                     <span>
@@ -5970,7 +6649,7 @@ const precoFormatado =
                     type="button"
                     class="evento-destaque-btn"
                     onclick="
-                        app.abrirDetalhesEvento(${evento.id})
+                        app.abrirDetalhesEvento(${idEvento})
                     "
                 >
                     Ver detalhes
@@ -6100,18 +6779,18 @@ const precoFormatado =
                 ">
 
                     <h3 style="margin:0;">
-                        ${evento.nome || evento.titulo || 'Evento'}
+                        ${this.escaparHtmlDestaque(evento.nome || evento.titulo || 'Evento')}
                     </h3>
 
                 </div>
 
                 <p>
-                    ${evento.descricao || 'Sem descrição.'}
+                    ${this.escaparHtmlDestaque(evento.descricao || 'Sem descrição.')}
                 </p>
 
                 ${dataFormatada ? `
                     <small style="color:var(--text-muted);">
-                        ${dataFormatada}
+                        ${this.escaparHtmlDestaque(dataFormatada)}
                     </small>
                 ` : ''}
 
@@ -6200,47 +6879,33 @@ const precoFormatado =
         );
     }
 
+    // Envia a foto em multipart; a API persiste o arquivo e devolve o caminho salvo na sessão do navegador.
     async salvarFotoPerfil() {
-
-        console.log("1 - salvarFotoPerfil foi chamada");
-
         const idUsuario =
             ApiService.getIdUsuarioLogado();
-
-        console.log("2 - ID:", idUsuario);
 
         const input =
             document.getElementById('editar-perfil-foto');
 
-        console.log("3 - input:", input);
-
         const foto = input?.files?.[0];
-
-        console.log("4 - foto:", foto);
 
         if (!foto) {
             return alert("Selecione uma imagem.");
         }
 
-        if (!foto.type.startsWith('image/')) {
-            return alert("Selecione um arquivo de imagem.");
+        if (!['image/jpeg', 'image/png', 'image/webp'].includes(foto.type)) {
+            return alert("Use uma foto JPG, PNG ou WEBP.");
         }
 
         if (foto.size > 5 * 1024 * 1024) {
             return alert("A imagem deve ter no máximo 5 MB.");
         }
         try {
-
-            console.log("5 - chamando ApiService");
-
             const resposta =
                 await ApiService.atualizarFotoPerfil(
                     idUsuario,
                     foto
                 );
-
-            console.log("6 - resposta:", resposta);
-            console.log("7 - status:", resposta.status);
 
             if (!resposta.ok) {
 
@@ -6267,12 +6932,21 @@ const precoFormatado =
             this.usuariosFotosMap[idUsuario] = usuarioAtualizado.fotoPerfil;
 
             input.value = '';
+            if (this.previewFotoPerfilUrl) {
+                URL.revokeObjectURL(this.previewFotoPerfilUrl);
+                this.previewFotoPerfilUrl = null;
+            }
+            const fotoAtualizadaUrl = ApiService.formatarUrlFotoPerfil(
+                usuarioAtualizado.fotoPerfil
+            );
+            this.mostrarPreviewFotoPerfil(fotoAtualizadaUrl);
 
             this.fecharModal('editar-perfil-modal');
 
             await this.abrirPerfil(idUsuario);
 
             this.atualizarMenuLateral();
+            this.renderizarFeedGeral();
 
             alert("Foto alterada com sucesso!");
         } catch (erro) {
@@ -6417,6 +7091,12 @@ const precoFormatado =
                 .toUpperCase();
 
         janela.classList.add('active');
+        const mobileToggle = document.getElementById('chat-mobile-toggle');
+        if (mobileToggle && window.matchMedia('(max-width: 760px)').matches) {
+            mobileToggle.hidden = true;
+            document.getElementById('chat-sidebar')?.classList.remove('mobile-open');
+            mobileToggle.setAttribute('aria-expanded', 'false');
+        }
 
         await this.carregarMensagens(
             conversa.idConversa
@@ -6632,6 +7312,7 @@ const precoFormatado =
         }
     }
 
+    // O WebSocket entrega mensagens em tempo real; CONNECTING também é verificado para evitar conexões duplicadas.
     conectarWebSocketChat() {
 
         const idUsuario =
@@ -6643,19 +7324,23 @@ const precoFormatado =
 
         if (
             this.chatSocket &&
-            this.chatSocket.readyState === WebSocket.OPEN
+            (
+                this.chatSocket.readyState === WebSocket.CONNECTING ||
+                this.chatSocket.readyState === WebSocket.OPEN
+            )
         ) {
             return;
         }
 
-        const url =
-            `ws://localhost:8080/ws/chat?usuarioId=${idUsuario}`;
+        const url = new URL('/ws/chat', ApiService.API_URL);
+        url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+        url.searchParams.set('usuarioId', idUsuario);
 
-        this.chatSocket =
-            new WebSocket(url);
+        const socket = new WebSocket(url);
+        this.chatSocket = socket;
 
 
-        this.chatSocket.addEventListener(
+        socket.addEventListener(
             'open',
             () => {
                 console.log(
@@ -6664,7 +7349,7 @@ const precoFormatado =
             }
         );
 
-        this.chatSocket.addEventListener(
+        socket.addEventListener(
             'message',
             (event) => {
 
@@ -6695,17 +7380,24 @@ const precoFormatado =
         );
 
 
-        this.chatSocket.addEventListener(
+        socket.addEventListener(
             'close',
-            () => {
-                console.log(
-                    'CHAT WS: desconectado'
+            (evento) => {
+                const encerramentoNormal =
+                    evento.code === 1000 || evento.code === 1001;
+
+                console[encerramentoNormal ? 'info' : 'warn'](
+                    `CHAT WS: conexão encerrada (${evento.code}${evento.reason ? `: ${evento.reason}` : ''})`
                 );
+
+                if (this.chatSocket === socket) {
+                    this.chatSocket = null;
+                }
             }
         );
 
 
-        this.chatSocket.addEventListener(
+        socket.addEventListener(
             'error',
             (erro) => {
                 console.error(
@@ -7482,82 +8174,149 @@ const precoFormatado =
         this.abrirMeuPerfil();
     }
 
- async acaoIngressoEvento(idEvento) {
+    async acaoIngressoEvento(idEvento) {
 
-    let evento = this.listaEventos.find(
-        e => (e.idEvento || e.id) == idEvento
-    );
+        let evento = this.listaEventos.find(
+            e => (e.idEvento || e.id) == idEvento
+        );
 
-    if (!evento) {
+        if (!evento) {
+            try {
+                evento = await ApiService.buscarEventoPorId(idEvento);
+            } catch (erro) {
+                console.error(erro);
+                return alert(
+                    "Não foi possível carregar os dados do evento."
+                );
+            }
+        }
+
+        const preco = Number(evento.precoIngresso || 0);
+
+        if (preco <= 0) {
+            await this.participarEvento(idEvento);
+            return;
+        }
+
+        this.eventoCompraId = idEvento;
+
+        const precoFormatado =
+            preco.toLocaleString('pt-BR', {
+                style: 'currency',
+                currency: 'BRL'
+            });
+
+        document.getElementById(
+            'compra-ingresso-evento-nome'
+        ).textContent = evento.titulo || 'Evento';
+
+        document.getElementById(
+            'compra-ingresso-preco'
+        ).textContent = precoFormatado;
+
+        this.abrirModal('compra-ingresso-modal');
+    }
+
+    async confirmarCompraIngresso() {
+
+        if (!this.eventoCompraId) {
+            return;
+        }
+
+        const idEvento = this.eventoCompraId;
+
+        this.fecharModal('compra-ingresso-modal');
+
         try {
-            evento = await ApiService.buscarEventoPorId(idEvento);
-        } catch (erro) {
-            console.error(erro);
-            return alert(
-                "Não foi possível carregar os dados do evento."
+
+            await this.participarEvento(idEvento);
+
+            this.eventoCompraId = null;
+
+            alert(
+                "Compra simulada concluída! Seu ingresso foi registrado."
             );
+
+        } catch (erro) {
+
+            console.error(
+                "Erro ao concluir compra:",
+                erro
+            );
+
+            alert(
+                "Não foi possível concluir a compra do ingresso."
+            );
+        }
+
+        // Obtém a posição do usuário no navegador
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const userLat = position.coords.latitude;
+                    const userLng = position.coords.longitude;
+
+                    // Faz a chamada para a sua API enviando as coordenadas
+                    carregarEventosProximos(userLat, userLng);
+                },
+                (error) => {
+                    console.warn("Geolocalização recusada ou indisponível. Carregando sem filtro de distância.");
+                    carregarEventosProximos(null, null);
+                }
+            );
+        } else {
+            carregarEventosProximos(null, null);
+        }
+
+        function carregarEventosProximos(lat, lng) {
+            let url = `/api/eventos/buscar?page=0&size=12`;
+
+            if (lat && lng) {
+                url += `&lat=${lat}&lng=${lng}&raioKm=30`; // Busca eventos num raio de 30km
+            }
+
+            fetch(url)
+                .then(res => res.json())
+                .then(data => {
+                    console.log("Eventos encontrados:", data.content);
+                    // Renderiza os cards na tela
+                });
         }
     }
 
-    const preco = Number(evento.precoIngresso || 0);
+    abrirModalConfirmacao({ titulo, mensagem, textoConfirmar = 'Confirmar', classeBotao = 'btn-primary', onSuccess }) {
+        const modal = document.getElementById('modal-confirmacao');
+        if (!modal) return;
 
-    if (preco <= 0) {
-        await this.participarEvento(idEvento);
-        return;
+        document.getElementById('modal-confirmacao-titulo').innerText = titulo;
+        document.getElementById('modal-confirmacao-mensagem').innerText = mensagem;
+
+        const btnConfirmar = document.getElementById('btn-modal-confirmar');
+        btnConfirmar.innerText = textoConfirmar;
+        btnConfirmar.className = `btn ${classeBotao}`;
+
+        // Limpa listeners antigos atribuindo novo evento
+        btnConfirmar.onclick = () => {
+            this.fecharModal('modal-confirmacao');
+            if (typeof onSuccess === 'function') onSuccess();
+        };
+
+        this.abrirModal('modal-confirmacao');
     }
 
-    this.eventoCompraId = idEvento;
-
-    const precoFormatado =
-        preco.toLocaleString('pt-BR', {
-            style: 'currency',
-            currency: 'BRL'
-        });
-
-    document.getElementById(
-        'compra-ingresso-evento-nome'
-    ).textContent = evento.titulo || 'Evento';
-
-    document.getElementById(
-        'compra-ingresso-preco'
-    ).textContent = precoFormatado;
-
-    this.abrirModal('compra-ingresso-modal');
-}
-
-async confirmarCompraIngresso() {
-
-    if (!this.eventoCompraId) {
-        return;
-    }
-
-    const idEvento = this.eventoCompraId;
-
-    this.fecharModal('compra-ingresso-modal');
-
-    try {
-
-        await this.participarEvento(idEvento);
-
-        this.eventoCompraId = null;
-
-        alert(
-            "Compra simulada concluída! Seu ingresso foi registrado."
-        );
-
-    } catch (erro) {
-
-        console.error(
-            "Erro ao concluir compra:",
-            erro
-        );
-
-        alert(
-            "Não foi possível concluir a compra do ingresso."
-        );
+    mostrarFeedbackGlobal(mensagem) {
+        // Exibe alertas amigáveis sem bloquear a execução da UI
+        const feedbackEl = document.getElementById('global-feedback');
+        if (feedbackEl) {
+            feedbackEl.innerText = mensagem;
+            feedbackEl.classList.add('visible');
+            setTimeout(() => feedbackEl.classList.remove('visible'), 4000);
+        } else {
+            alert(mensagem);
+        }
     }
 }
-}
+
 
 
 window.app = new AppController();

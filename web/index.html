@@ -10,10 +10,11 @@
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap"
         rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="css/style.css?v=post-gallery-3">
 </head>
 
 <body>
+    <!-- A página é declarativa: IDs e handlers conectam os controles visuais aos métodos do AppController em app.js. -->
     <section id="welcome-screen" class="welcome-screen active">
         <div class="welcome-page">
             <header class="welcome-nav">
@@ -88,6 +89,12 @@
         </aside>
 
         <div class="app-content">
+
+            <button id="chat-mobile-toggle" class="chat-mobile-toggle" type="button"
+                aria-label="Abrir mensagens" aria-expanded="false" title="Mensagens"
+                onclick="app.alternarChatSidebar()">
+                <i class="material-icons" aria-hidden="true">chat</i>
+            </button>
 
             <!-- CHAT LATERAL -->
             <section id="chat-sidebar" class="chat-sidebar">
@@ -263,11 +270,24 @@
                             <option value="Networking">Networking</option>
                             <option value="Cultura">Cultura</option>
                         </select>
-                        <select id="filtro-evento-formato" onchange="app.filtrarEventos()">
+                                                <select id="filtro-evento-formato" onchange="app.filtrarEventos()">
                             <option value="">Todos os formatos</option>
                             <option value="presencial">Presenciais</option>
                             <option value="online">Online</option>
                         </select>
+
+                        <div class="filtro-localizacao-wrap" style="display: flex; gap: 8px; align-items: center;">
+                            <button id="btn-localizacao-filtro" class="btn-secondary" onclick="app.alternarFiltroProximidade()" style="white-space: nowrap; height: 38px; display: flex; align-items: center; gap: 5px;">
+                                <i class="material-icons" style="font-size: 18px;">my_location</i>
+                                Perto de mim
+                            </button>
+                            <select id="filtro-evento-raio" onchange="app.filtrarEventos()" style="display: none; width: 100px;">
+                                <option value="10">10 km</option>
+                                <option value="25">25 km</option>
+                                <option value="50" selected>50 km</option>
+                                <option value="100">100 km</option>
+                            </select>
+                        </div>
                     </div>
                     <div id="filtro-evento-intervalo" style="
         display:none;
@@ -697,15 +717,23 @@
         </div>
     </div>
 
+    <!-- O formulário coleta texto e arquivos; o JavaScript envia o post e associa as imagens depois de obter o ID. -->
     <div class="modal-overlay" id="post-modal">
         <div class="modal">
             <h2 id="modal-post-title">Nova Publicação</h2>
             <input type="text" id="post-titulo" placeholder="Título">
             <textarea id="post-conteudo" placeholder="Conteúdo..."></textarea>
+            <label class="post-image-picker" for="post-imagens">
+                <i class="material-icons" aria-hidden="true">add_photo_alternate</i>
+                Adicionar fotos
+            </label>
+            <input type="file" id="post-imagens" accept="image/jpeg,image/png,image/webp" multiple hidden>
+            <small class="form-hint">Escolha várias de uma vez ou adicione mais depois. Até 4 imagens JPG, PNG ou WEBP; máximo de 5 MB cada.</small>
+            <div id="post-imagens-preview" class="post-image-preview" aria-live="polite"></div>
             <select id="post-comunidade-id">
                 <option value="">Publicar no feed global</option>
             </select>
-            <button class="btn-full" onclick="app.enviarPost()">Publicar</button>
+            <button class="btn-full" id="post-publicar-btn" onclick="app.enviarPost()">Publicar</button>
             <button class="btn-cancel" onclick="app.fecharModal('post-modal')">Cancelar</button>
         </div>
     </div>
@@ -855,70 +883,72 @@
                 <!-- Seção 3: Local e Vagas -->
                 <div class="form-section">
                     <div class="form-section-title">
-                        <i class="material-icons">place</i> Local e Capacidade
+                        <i class="material-icons">place</i> Formato, Local e Vagas
                     </div>
 
-                   <div class="form-grid-2">
-    <div class="form-group">
-        <label for="evento-local">
-            Localização / Link
-            <span class="required">*</span>
-        </label>
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label for="evento-formato-local">Formato do evento <span class="required">*</span></label>
+                            <div class="form-input-wrap">
+                                <i class="material-icons">swap_horiz</i>
+                                <select id="evento-formato-local" onchange="app.alternarFormatoCriacaoEvento(this.value)">
+                                    <option value="presencial">Presencial (Endereço Físico)</option>
+                                    <option value="online">Online (Link / Transmissão)</option>
+                                </select>
+                            </div>
+                        </div>
 
-        <div class="form-input-wrap">
-            <i class="material-icons">place</i>
+                        <div class="form-group">
+                            <label for="evento-local" id="evento-local-label">Endereço do evento <span class="required">*</span></label>
+                            <div class="form-input-wrap">
+                                <i class="material-icons" id="evento-local-icone">place</i>
+                                <input type="text" id="evento-local"
+                                    placeholder="Ex: Av. Paulista, 1000 - Bela Vista, São Paulo" required autocomplete="off"
+                                    onchange="app.aoAlterarEnderecoEvento()">
+                                <button type="button" class="btn-input-action" id="btn-buscar-coords-evento" onclick="app.buscarCoordenadasPorEnderecoDigitado()" title="Localizar endereço no mapa">
+                                    <i class="material-icons">search</i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
 
-            <input
-                type="text"
-                id="evento-local"
-                placeholder="Ex: Auditório Bloco A ou Link do Meet"
-                required
-                autocomplete="off"
-            >
-        </div>
-    </div>
+                    <!-- Bloco de Coordenadas & GPS (para eventos presenciais) -->
+                    <div id="wrap-evento-coordenadas" class="evento-coordenadas-box">
+                        <div class="evento-coordenadas-topo">
+                            <div class="evento-coordenadas-texto">
+                                <strong><i class="material-icons">map</i> Geolocalização para o Aplicativo Mobile</strong>
+                                <span>Permite que participantes encontrem este evento no mapa de eventos próximos.</span>
+                            </div>
+                            <button type="button" class="btn-gps" onclick="app.capturarCoordenadasEvento()" title="Usar minha localização atual via GPS">
+                                <i class="material-icons">my_location</i> Usar meu GPS
+                            </button>
+                        </div>
+                        <input type="hidden" id="evento-latitude">
+                        <input type="hidden" id="evento-longitude">
+                        <div id="evento-coords-badge" class="coords-badge sem-coords">
+                            <i class="material-icons">location_off</i>
+                            <span id="evento-coords-badge-texto">Nenhuma coordenada detectada. Digite o endereço ou clique em "Usar meu GPS".</span>
+                        </div>
+                    </div>
 
-    <div class="form-group">
-        <label for="evento-limite">
-            Limite de participantes
-            <span class="optional">(opcional)</span>
-        </label>
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label for="evento-limite">Limite de participantes <span class="optional">(opcional)</span></label>
+                            <div class="form-input-wrap">
+                                <i class="material-icons">people</i>
+                                <input type="number" id="evento-limite" min="1" placeholder="Vazio = Sem limite">
+                            </div>
+                        </div>
 
-        <div class="form-input-wrap">
-            <i class="material-icons">people</i>
-
-            <input
-                type="number"
-                id="evento-limite"
-                min="1"
-                placeholder="Vazio = Sem limite"
-            >
-        </div>
-    </div>
-</div>
-
-<div class="form-group">
-    <label for="evento-preco">
-        Valor do ingresso
-        <span class="optional">(opcional)</span>
-    </label>
-
-    <div class="form-input-wrap">
-        <i class="material-icons">confirmation_number</i>
-
-        <input
-            type="number"
-            id="evento-preco"
-            min="0"
-            step="0.01"
-            placeholder="0,00"
-        >
-    </div>
-
-    <small class="form-hint">
-        Deixe em branco ou informe 0 para um evento gratuito.
-    </small>
-</div>
+                        <div class="form-group">
+                            <label for="evento-preco">Valor do ingresso <span class="optional">(opcional)</span></label>
+                            <div class="form-input-wrap">
+                                <i class="material-icons">confirmation_number</i>
+                                <input type="number" id="evento-preco" min="0" step="0.01" placeholder="0,00">
+                            </div>
+                            <small class="form-hint">Deixe em branco ou informe 0 para um evento gratuito.</small>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Seção 4: Capa e Configurações -->
@@ -928,14 +958,14 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="evento-capa">Imagem de capa <span class="optional">(opcional)</span></label>
+                        <label for="evento-capa">Banner do evento <span class="optional">(opcional)</span></label>
                         <div class="custom-file-upload">
-                            <input type="file" id="evento-capa" accept="image/*"
+                            <input type="file" id="evento-capa" accept="image/jpeg,image/png,image/webp"
                                 onchange="app.atualizarPreviewCapaEvento(this)">
                             <div class="file-upload-visual" id="evento-capa-preview-box">
                                 <i class="material-icons">cloud_upload</i>
                                 <span id="evento-capa-nome">Clique para selecionar uma imagem</span>
-                                <small>Formatos aceitos: JPG, PNG, WEBP</small>
+                                <small>Opcional · JPG, PNG ou WEBP · máximo 5 MB</small>
                             </div>
                         </div>
                     </div>
@@ -1230,7 +1260,8 @@
         <div class="editar-perfil-foto-area">
 
             <div class="editar-perfil-avatar">
-                <i class="material-icons">person</i>
+                <i class="material-icons" id="editar-perfil-avatar-icon">person</i>
+                <img id="editar-perfil-avatar-preview" alt="Prévia da foto de perfil" hidden>
             </div>
 
             <div class="editar-perfil-foto-info">
@@ -1444,22 +1475,57 @@
 
                 <div class="form-section">
                     <div class="form-section-title">
-                        <i class="material-icons">place</i> Local e Capacidade
+                        <i class="material-icons">place</i> Formato, Local e Vagas
                     </div>
 
                     <div class="form-grid-2">
                         <div class="form-group">
-                            <label for="editar-evento-local">Localização / Link <span class="required">*</span></label>
+                            <label for="editar-evento-formato-local">Formato do evento <span class="required">*</span></label>
                             <div class="form-input-wrap">
-                                <i class="material-icons">place</i>
-                                <input type="text" id="editar-evento-local"
-                                    placeholder="Ex: Auditório Bloco A ou Link do Meet" required autocomplete="off">
+                                <i class="material-icons">swap_horiz</i>
+                                <select id="editar-evento-formato-local" onchange="app.alternarFormatoEdicaoEvento(this.value)">
+                                    <option value="presencial">Presencial (Endereço Físico)</option>
+                                    <option value="online">Online (Link / Transmissão)</option>
+                                </select>
                             </div>
                         </div>
 
                         <div class="form-group">
-                            <label for="editar-evento-limite">Limite de participantes <span
-                                    class="optional">(opcional)</span></label>
+                            <label for="editar-evento-local" id="editar-evento-local-label">Endereço do evento <span class="required">*</span></label>
+                            <div class="form-input-wrap">
+                                <i class="material-icons" id="editar-evento-local-icone">place</i>
+                                <input type="text" id="editar-evento-local"
+                                    placeholder="Ex: Av. Paulista, 1000 - Bela Vista, São Paulo" required autocomplete="off"
+                                    onchange="app.aoAlterarEnderecoEdicaoEvento()">
+                                <button type="button" class="btn-input-action" id="btn-buscar-coords-edicao" onclick="app.buscarCoordenadasEdicaoEvento()" title="Localizar endereço no mapa">
+                                    <i class="material-icons">search</i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bloco de Coordenadas & GPS (para edição) -->
+                    <div id="wrap-editar-evento-coordenadas" class="evento-coordenadas-box">
+                        <div class="evento-coordenadas-topo">
+                            <div class="evento-coordenadas-texto">
+                                <strong><i class="material-icons">map</i> Geolocalização para o Aplicativo Mobile</strong>
+                                <span>Permite que participantes encontrem este evento no mapa de eventos próximos.</span>
+                            </div>
+                            <button type="button" class="btn-gps" onclick="app.capturarCoordenadasEdicaoEvento()" title="Usar minha localização atual via GPS">
+                                <i class="material-icons">my_location</i> Usar meu GPS
+                            </button>
+                        </div>
+                        <input type="hidden" id="editar-evento-latitude">
+                        <input type="hidden" id="editar-evento-longitude">
+                        <div id="editar-evento-coords-badge" class="coords-badge sem-coords">
+                            <i class="material-icons">location_off</i>
+                            <span id="editar-evento-coords-badge-texto">Nenhuma coordenada detectada. Digite o endereço ou clique em "Usar meu GPS".</span>
+                        </div>
+                    </div>
+
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label for="editar-evento-limite">Limite de participantes <span class="optional">(opcional)</span></label>
                             <div class="form-input-wrap">
                                 <i class="material-icons">people</i>
                                 <input type="number" id="editar-evento-limite" min="1" placeholder="Vazio = Sem limite">
@@ -1726,7 +1792,8 @@
 
 </div>
 
-    <script type="module" src="app.js"></script>
+    <!-- type="module" permite importar ApiService; servir esta página por HTTP evita bloqueios de módulos em file://. -->
+    <script type="module" src="js/app.js?v=post-multi-3"></script>
 </body>
 
 </html>

@@ -1,0 +1,169 @@
+GUIA DE PREPARACAO PARA A BANCA
+Projeto Integrador - SocialJoin
+
+Este guia resume o que o projeto faz, como demonstrar os fluxos principais e como responder perguntas comuns. Use as respostas como base: adapte com suas palavras e nao afirme que algo esta pronto se nao tiver sido testado no ambiente da apresentacao.
+
+======================================================================
+1. APRESENTACAO EM 30 SEGUNDOS
+======================================================================
+
+"O SocialJoin e uma plataforma de rede social voltada a comunidades e eventos. O projeto integra uma aplicacao web, um aplicativo Flutter, um backend Java com API REST e um painel administrativo desktop. Os usuarios podem criar perfil, publicar e interagir no feed, participar de comunidades, descobrir eventos e conversar. A API e o ponto de integracao entre os clientes e o banco MySQL."
+
+Se a banca perguntar qual e o diferencial, responda com o problema que o grupo quis resolver: aproximar pessoas com interesses em comum e facilitar a descoberta e participacao em encontros presenciais ou online. Relacione esse objetivo com funcionalidades que voce consegue demonstrar.
+
+======================================================================
+2. VISAO DA ARQUITETURA
+======================================================================
+
+- Web: HTML, CSS e JavaScript usando modulos ES. O AppController coordena estado e interface; ApiService concentra as chamadas HTTP.
+- Backend: Java 17 e Spring Boot. Controllers recebem requisicoes, services aplicam regras de negocio e repositories acessam dados com Spring Data JPA/Hibernate.
+- Banco: MySQL. Guarda usuarios, posts, comentarios, votos, comunidades, eventos, participacoes e conversas.
+- Mobile: Flutter/Dart, com servicos que consomem a mesma API REST.
+- Desktop: aplicacao administrativa em C# WinForms, organizada em telas, DAOs e modelos.
+
+Resposta curta para "por que separar assim?":
+"A separacao reduz o acoplamento. A interface cuida da experiencia do usuario, a API centraliza regras e acesso aos dados, e diferentes clientes podem reutilizar os mesmos servicos."
+
+Fluxo tipico de uma operacao:
+1. A pessoa interage com uma tela web ou mobile.
+2. O cliente valida dados simples e chama um endpoint HTTP.
+3. O controller direciona a requisicao para o service.
+4. O service aplica regras e usa o repository.
+5. O resultado volta em JSON e o cliente atualiza a tela.
+
+======================================================================
+3. FUNCIONALIDADES
+======================================================================
+
+USUARIOS E PERFIL
+- Cadastro e login por e-mail ou telefone, perfil com nome, username, bio, interesses e foto.
+- A senha e armazenada/verificada com BCrypt no backend.
+- Na web, os dados basicos da sessao ficam no sessionStorage do navegador.
+
+FEED E PUBLICACOES
+- Criacao de posts globais ou associados a comunidades.
+- Listagem paginada, filtros do feed e ordenacao por recentes, comentarios ou curtidas.
+- Comentarios, votos/curtidas, posts salvos e compartilhamento por link.
+- Um post pode ter ate quatro imagens JPG, PNG ou WEBP, com limite de 5 MB por arquivo.
+- O post e criado primeiro; depois que a API retorna seu ID, os arquivos sao enviados em multipart e associados a ele.
+
+COMUNIDADES
+- Criacao e exploracao de comunidades, participacao, visualizacao de membros e publicacoes relacionadas.
+- Posts podem ser publicados no feed global ou em uma comunidade permitida.
+
+EVENTOS
+- Criacao e edicao de eventos com data, horarios, local, categoria, capacidade, check-in e, quando aplicavel, ingresso.
+- Busca por texto, periodo, status, categoria, comunidade e formato; paginacao no backend.
+- Quando ha localizacao, o sistema pode filtrar por raio e exibir distancia.
+- Eventos futuros aparecem antes dos passados; os passados ficam no final da lista.
+- A participacao e administrada pela API.
+
+MENSAGENS
+- Conversas e historico de mensagens usam endpoints REST.
+- WebSocket e usado para receber notificacoes/mensagens em tempo real, sem precisar consultar o servidor continuamente.
+
+PAINEL ADMINISTRATIVO
+- O repositorio tambem contem uma aplicacao desktop WinForms para tarefas administrativas. Explique e demonstre seus recursos somente se fizerem parte da avaliacao do grupo.
+
+======================================================================
+4. ROTEIRO DE DEMONSTRACAO (4 A 6 MINUTOS)
+======================================================================
+
+Antes de comecar:
+- Inicie o MySQL e confirme que o backend esta conectado.
+- Inicie o backend na pasta java.
+- Sirva a pasta web por HTTP; nao abra index.html como file:// porque o frontend usa modulos ES.
+- Confirme que a URL da API em web/js/api_service.js aponta para o backend em uso.
+- Use uma conta de teste e dados preparados. Nao dependa de criar a conta pela primeira vez diante da banca.
+- Confirme que existe ao menos um evento futuro, um post com imagem, uma comunidade e uma conversa de teste.
+
+Sequencia sugerida:
+1. Mostre a tela inicial e entre com a conta de demonstracao.
+2. Abra Eventos: demonstre busca ou um filtro e explique que a lista e paginada.
+3. Abra um evento e mostre os detalhes; se houver dados, demonstre participacao.
+4. Abra Feed: mostre um post, uma imagem, comentario, curtida e salvamento.
+5. Abra Comunidades: mostre a participacao e como a comunidade contextualiza os posts.
+6. Se o ambiente estiver estavel, encerre mostrando o chat. Nao deixe WebSocket ser o primeiro fluxo da apresentacao.
+
+Se a conexao com banco/API falhar, explique a arquitetura e use capturas de tela ou dados locais de demonstracao autorizados pelo grupo. Nao improvise alteracoes no banco durante a banca.
+
+======================================================================
+5. PERGUNTAS PROVAVEIS E RESPOSTAS-BASE
+======================================================================
+
+P: Qual problema o projeto resolve?
+R: Facilita encontrar pessoas, comunidades e eventos a partir de interesses em comum, reunindo publicacoes, participacao e comunicacao em uma plataforma.
+
+P: Como web, mobile e desktop conversam com o backend?
+R: Web e mobile consomem endpoints REST em JSON. O chat da web usa tambem WebSocket para atualizacoes em tempo real. O desktop e um cliente administrativo separado; explique a integracao exata implementada nele, sem presumir que usa a mesma API se isso nao estiver confirmado.
+
+P: Por que usar uma API REST?
+R: Ela define uma interface independente da tecnologia da tela. A web e o Flutter podem solicitar os mesmos recursos sem duplicar as regras de negocio.
+
+P: O que faz cada camada do backend?
+R: O controller recebe HTTP e converte entrada/saida; o service concentra regras de negocio; o repository consulta e persiste entidades; JPA/Hibernate faz o mapeamento entre objetos Java e tabelas.
+
+P: Como funciona a paginacao?
+R: O cliente envia numero da pagina e tamanho. A API retorna uma pagina com conteudo e metadados, como total de paginas. Isso evita carregar todos os registros de uma vez.
+
+P: Como as fotos sao ligadas a uma publicacao?
+R: Primeiro a API cria o post e devolve o identificador. Cada arquivo e enviado depois como multipart junto desse ID. O backend valida formato/tamanho, salva o arquivo e registra seu caminho associado ao post. A interface busca esses registros e monta a galeria.
+
+P: Por que multipart e nao JSON para arquivo?
+R: Multipart/form-data e adequado para transmitir bytes de arquivo e campos juntos; JSON continua sendo usado para os dados textuais do post.
+
+P: Onde as fotos ficam armazenadas?
+R: No desenvolvimento atual, os arquivos ficam em diretorios uploads do servidor e o banco guarda o caminho. Em hospedagem com disco efemero, eles podem desaparecer quando a instancia reinicia; para producao, seria melhor armazenamento persistente ou objeto (por exemplo, bucket) e backup.
+
+P: Como as senhas sao tratadas?
+R: O backend usa BCrypt para armazenar/verificar hashes. A senha nao deve ser guardada em texto puro. Tambem e importante nao expor credenciais do banco ou chaves no repositorio.
+
+P: A sessao usa JWT?
+R: Nao afirmar isso. Na web atual, os dados basicos do usuario ficam no sessionStorage. Isso permite manter a interface entre navegacoes da aba, mas nao equivale por si so a um mecanismo completo de autorizacao. Para producao, seria necessario fortalecer autenticacao/autorizacao no servidor, transporte HTTPS e gerenciamento seguro da sessao.
+
+P: Como funciona o chat em tempo real?
+R: O navegador abre um WebSocket associado ao usuario. Quando chega uma mensagem, a interface atualiza a lista de conversas e, se a conversa estiver aberta, atualiza o historico. Se a conexao cair, os endpoints REST continuam sendo usados para carregar/enviar dados conforme implementado.
+
+P: O sistema processa pagamentos?
+R: Nao ha integracao com gateway de pagamento. O fluxo de ingresso pago apresentado e uma simulacao de participacao, nao uma cobranca financeira real.
+
+P: Como os eventos proximos sao ordenados?
+R: A consulta do backend separa eventos futuros dos passados antes da paginacao. Os futuros vem por data/horario crescente; os passados ficam no fim, do mais recente para o mais antigo.
+
+P: O que acontece se uma parte da API falhar?
+R: A interface tem estados de erro e, para o carregamento global, permite tentar novamente. Algumas listas auxiliares usam fallback vazio para que uma falha parcial nao impeça toda a tela.
+
+P: Como o sistema protege conteudo inserido por usuarios?
+R: A interface escapa caracteres HTML em campos exibidos dentro de innerHTML e valida tipo/tamanho de arquivos. Isso e uma defesa da interface, nao substitui validacao no servidor; toda regra importante deve ser repetida no backend.
+
+P: Quais testes foram feitos?
+R: Cite apenas o que o grupo executou. No backend, a suite Maven existente inclui teste de contexto da aplicacao e testes de service; tambem podem ser demonstrados testes manuais de fluxos web. Nao diga que ha testes automatizados de upload ou WebSocket se eles nao foram adicionados.
+
+P: O que falta para producao?
+R: Persistencia externa para arquivos em hospedagem efemera, configuracao de segredos por variaveis de ambiente, autorizacao robusta por usuario, HTTPS, monitoramento, testes de integracao dos uploads/WebSocket e revisao de acessibilidade/desempenho.
+
+======================================================================
+6. LIMITES E CUIDADOS PARA A APRESENTACAO
+======================================================================
+
+- O backend precisa de MySQL ativo e configurado. A API web usa localhost:8080 por padrao e precisa ser iniciada antes da demonstracao.
+- O frontend deve ser servido por HTTP em localhost:5500; abrir diretamente como arquivo pode bloquear imports ES.
+- A busca de eventos e recursos de proximidade dependem da API, dos dados existentes e, para GPS, da permissao do navegador.
+- A galeria permite quatro imagens, mas o espaco em disco e finito; a hospedagem precisa de armazenamento persistente.
+- O ingresso pago e uma simulacao, nao pagamento real.
+- O estado "seguir" na interface web deve ser apresentado com cautela: confirme se esta persistido na API antes de afirmar que e uma relacao permanente.
+- A tabela/arquivo de dados de demonstracao deve ter exemplos com datas atuais, usuarios de teste e imagens acessiveis.
+- application.properties contem configuracao sensivel do banco neste workspace. Nao mostre valores de senha na apresentacao; antes de publicar o repositorio, mover segredos para variaveis de ambiente e rotacionar credenciais que tenham sido expostas.
+
+======================================================================
+7. COMO RESPONDER BEM
+======================================================================
+
+- Responda primeiro em uma frase objetiva; depois explique o fluxo tecnico.
+- Diferencie o que esta implementado, o que foi testado e o que e uma melhoria futura.
+- Se nao souber um detalhe, diga como verificaria no codigo ou em um teste. Nao invente uma capacidade.
+- Ao demonstrar, use uma conta de teste e dados que o grupo pode compartilhar.
+- Evite abrir arquivos de configuracao com credenciais na tela do projetor.
+
+Frase de encerramento sugerida:
+"O projeto integra diferentes clientes em torno de uma API comum e cobre os fluxos centrais de uma comunidade: perfil, publicacao, interacao e eventos. A proxima etapa para producao seria fortalecer autorizacao, persistencia de arquivos e testes de integracao, mantendo a arquitetura modular atual."

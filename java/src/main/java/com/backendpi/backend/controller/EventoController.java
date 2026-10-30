@@ -74,8 +74,16 @@ public class EventoController {
             @PathVariable Long idEvento,
             @RequestParam("capa") MultipartFile capa) {
         try {
-            if (capa.isEmpty() || capa.getContentType() == null
-                    || !capa.getContentType().startsWith("image/")) {
+            if (capa.isEmpty() || capa.getContentType() == null) {
+                return ResponseEntity.badRequest().build();
+            }
+
+            if (!List.of("image/jpeg", "image/png", "image/webp")
+                    .contains(capa.getContentType())) {
+                return ResponseEntity.badRequest().build();
+            }
+
+            if (capa.getSize() > 5 * 1024 * 1024) {
                 return ResponseEntity.badRequest().build();
             }
 
@@ -83,8 +91,13 @@ public class EventoController {
                     .orElseThrow(() -> new IllegalArgumentException("Evento não encontrado"));
             Path pasta = Paths.get("uploads", "eventos");
             Files.createDirectories(pasta);
-            String nome = UUID.randomUUID() + "-" +
-                    (capa.getOriginalFilename() == null ? "capa" : capa.getOriginalFilename());
+            String extensao = switch (capa.getContentType()) {
+                case "image/jpeg" -> ".jpg";
+                case "image/png" -> ".png";
+                case "image/webp" -> ".webp";
+                default -> throw new IllegalArgumentException("Formato de banner inválido");
+            };
+            String nome = UUID.randomUUID() + extensao;
             Files.copy(capa.getInputStream(), pasta.resolve(nome));
             evento.setImagemCapa("uploads/eventos/" + nome);
             return ResponseEntity.ok(eventoService.salvar(evento));
@@ -134,6 +147,9 @@ public class EventoController {
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataInicio,
             @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataFim,
+            @RequestParam(required = false) Double lat,
+        @RequestParam(required = false) Double lng,
+        @RequestParam(required = false, defaultValue = "50") Double raioKm, // Raio padrão: 50km
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "12") int size) {
 
@@ -144,6 +160,9 @@ public class EventoController {
                 comunidadeId,
                 dataInicio,
                 dataFim,
+                lat,
+                lng,
+                raioKm,
                 page,
                 size
         );

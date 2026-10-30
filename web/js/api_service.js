@@ -1,5 +1,7 @@
 // api_service.js
+// Camada de comunicação do frontend: concentra URLs, sessão e conversões HTTP para separar rede da lógica de tela.
 export class ApiService {
+    // Em desenvolvimento, a interface roda em outra porta e consome a API Spring Boot nesta origem.
     static API_URL = 'http://localhost:8080';
     //static API_URL = 'https://projeto-integrador-m4jn.onrender.com';
     //static API_URL = 'http://143.106.241.xx:8080';
@@ -11,6 +13,7 @@ export class ApiService {
     }
 
     static getUsuarioLogado() {
+        // A sessão fica no sessionStorage; a leitura de localStorage migra sessões antigas uma única vez.
         const storage = this.getStorage('session');
         const raw = storage ? storage.getItem(this.STORAGE_KEY) : null;
 
@@ -115,6 +118,24 @@ export class ApiService {
         return await fetch(`${this.API_URL}/posts`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(bodyObj)
+        });
+    }
+
+    // As imagens são recursos separados do post: primeiro se cria a publicação, depois cada arquivo é enviado como multipart.
+    static async listarImagensPost() {
+        const resposta = await fetch(`${this.API_URL}/imagens-post`);
+        if (!resposta.ok) throw new Error('Não foi possível carregar as imagens dos posts.');
+        return resposta.json();
+    }
+
+    static async enviarImagemPost(idPost, imagem) {
+        const formData = new FormData();
+        formData.append('idPost', idPost);
+        formData.append('imagem', imagem);
+
+        return fetch(`${this.API_URL}/imagens-post/upload`, {
+            method: 'POST',
+            body: formData
         });
     }
 
@@ -346,34 +367,27 @@ export class ApiService {
         comunidadeId = null,
         dataInicio = null,
         dataFim = null,
+        lat = null,       // <--- Novo: Latitude do usuário
+        lng = null,       // <--- Novo: Longitude do usuário
+        raioKm = 50,      // <--- Novo: Raio de busca em km (padrão 50km)
         page = 0,
         size = 12
     } = {}) {
 
         const params = new URLSearchParams();
 
-        if (texto) {
-            params.append("texto", texto);
-        }
+        if (texto) params.append("texto", texto);
+        if (status) params.append("status", status);
+        if (categoria) params.append("categoria", categoria);
+        if (comunidadeId) params.append("comunidadeId", comunidadeId);
+        if (dataInicio) params.append("dataInicio", dataInicio);
+        if (dataFim) params.append("dataFim", dataFim);
 
-        if (status) {
-            params.append("status", status);
-        }
-
-        if (categoria) {
-            params.append("categoria", categoria);
-        }
-
-        if (comunidadeId) {
-            params.append("comunidadeId", comunidadeId);
-        }
-
-        if (dataInicio) {
-            params.append("dataInicio", dataInicio);
-        }
-
-        if (dataFim) {
-            params.append("dataFim", dataFim);
+        // Envia a geolocalização se estiver disponível
+        if (lat !== null && lng !== null) {
+            params.append("lat", lat);
+            params.append("lng", lng);
+            params.append("raioKm", raioKm);
         }
 
         params.append("page", page);
@@ -388,6 +402,96 @@ export class ApiService {
         }
 
         return await response.json();
+    }
+
+    static async buscarCoordenadasPorEndereco(endereco) {
+        if (!endereco || !endereco.trim()) return null;
+        try {
+            const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(endereco.trim())}&limit=1`;
+            const resp = await fetch(url, { headers: { 'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8' } });
+            if (!resp.ok) return null;
+            const dados = await resp.json();
+            if (dados && dados.length > 0) {
+                return {
+                    lat: parseFloat(dados[0].lat),
+                    lng: parseFloat(dados[0].lon),
+                    displayName: dados[0].display_name
+                };
+            }
+            return null;
+        } catch (e) {
+            console.warn("Erro ao buscar coordenadas por endere�o:", e);
+            return null;
+        }
+    }
+
+    static async buscarEnderecoPorCoordenadas(lat, lng) {
+        if (lat === null || lat === undefined || lng === null || lng === undefined) return null;
+        try {
+            const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`;
+            const resp = await fetch(url, { headers: { 'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8' } });
+            if (!resp.ok) return null;
+            const dados = await resp.json();
+            if (dados && dados.display_name) {
+                const addr = dados.address || {};
+                const rua = addr.road || addr.street || addr.pedestrian || addr.suburb || '';
+                const num = addr.house_number ? `, ${addr.house_number}` : '';
+                const bairro = addr.neighbourhood || addr.suburb ? ` - ${addr.neighbourhood || addr.suburb}` : '';
+                const cidade = addr.city || addr.town || addr.village || addr.municipality || '';
+                const estado = addr.state ? ` - ${addr.state}` : '';
+                if (rua && cidade) {
+                    return `${rua}${num}${bairro}, ${cidade}${estado}`;
+                }
+                return dados.display_name;
+            }
+            return null;
+        } catch (e) {
+            console.warn("Erro ao buscar endere�o reverso:", e);
+            return null;
+        }
+    }
+
+    static calcularDistanciaKm(lat1, lon1, lat2, lon2) {
+        if (lat1 == null || lon1 == null || lat2 == null || lon2 == null) return null;
+        const nLat1 = Number(lat1);
+        const nLon1 = Number(lon1);
+        const nLat2 = Number(lat2);
+        const nLon2 = Number(lon2);
+        if (isNaN(nLat1) || isNaN(nLon1) || isNaN(nLat2) || isNaN(nLon2)) return null;
+
+        const R = 6371; // Raio m�dio da Terra em km
+        const dLat = (nLat2 - nLat1) * Math.PI / 180;
+        const dLon = (nLon2 - nLon1) * Math.PI / 180;
+        const a = 
+            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(nLat1 * Math.PI / 180) * Math.cos(nLat2 * Math.PI / 180) * 
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
+    }
+
+    static obterLocalizacaoAtual() {
+        return new Promise((resolve) => {
+            if (!navigator.geolocation) {
+                console.warn("Geolocalização não é suportada pelo navegador.");
+                resolve(null);
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                (posicao) => {
+                    resolve({
+                        lat: posicao.coords.latitude,
+                        lng: posicao.coords.longitude
+                    });
+                },
+                (erro) => {
+                    console.warn("Permissão de localização negada ou indisponível:", erro.message);
+                    resolve(null); // Retorna null sem quebrar a aplicação
+                },
+                { timeout: 10000 } // Tempo limite de 10 segundos
+            );
+        });
     }
 
     static async buscarUsuarioPorId(idUsuario) {

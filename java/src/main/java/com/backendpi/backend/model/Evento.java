@@ -55,6 +55,12 @@ public class Evento {
     @Column(name = "local_evento", nullable = false)
     private String localEvento;
 
+    @Column(name = "latitude", precision = 10, scale = 7)
+    private BigDecimal latitude;
+
+    @Column(name = "longitude", precision = 10, scale = 7)
+    private BigDecimal longitude;
+
     @Column(name = "comunidade_id")
     private Long comunidadeId;
 
@@ -150,6 +156,22 @@ public class Evento {
         this.localEvento = localEvento;
     }
 
+    public BigDecimal getLatitude() {
+    return latitude;
+}
+
+public void setLatitude(BigDecimal latitude) {
+    this.latitude = latitude;
+}
+
+public BigDecimal getLongitude() {
+    return longitude;
+}
+
+public void setLongitude(BigDecimal longitude) {
+    this.longitude = longitude;
+}
+
     public void setComunidadeId(Long comunidadeId) {
         this.comunidadeId = comunidadeId;
     }
@@ -231,11 +253,11 @@ public class Evento {
     private BigDecimal precoIngresso;
 
     public BigDecimal getPrecoIngresso() {
-    return precoIngresso;
-}
+        return precoIngresso;
+    }
 
-public void setPrecoIngresso(BigDecimal precoIngresso) {
-    this.precoIngresso = precoIngresso;
-}
+    public void setPrecoIngresso(BigDecimal precoIngresso) {
+        this.precoIngresso = precoIngresso;
+    }
 
 }
