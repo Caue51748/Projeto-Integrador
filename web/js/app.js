@@ -1,5 +1,6 @@
 import { ApiService } from './api_service.js?v=post-images-1';
 
+// Controlador central da interface: mantém o estado em memória, atualiza o DOM e delega o acesso ao servidor ao ApiService.
 class AppController {
     constructor() {
         this.listaUsuariosCompleta = [];
@@ -56,6 +57,7 @@ class AppController {
         this.coordenadasUsuario = null;
         this.filtroProximidadeAtivo = false;
     }
+    // Ponto de entrada da aplicação: registra eventos da interface e decide entre boas-vindas e sessão existente.
     async inicializar() {
 
         // Listener para Scroll Infinito no Feed
@@ -337,6 +339,7 @@ class AppController {
         };
     }
 
+    // Escapa caracteres especiais antes de interpolar dados da API em innerHTML, reduzindo risco de injeção de marcação.
     escaparHtmlDestaque(valor) {
         return String(valor).replace(/[&<>'"]/g, caractere => ({
             '&': '&amp;',
@@ -1271,6 +1274,7 @@ class AppController {
     }
 
     // --- CARREGAMENTO GLOBAL E PAGINADO ---
+    // Carrega em paralelo os dados compartilhados por várias telas para reduzir esperas e chamadas sequenciais.
     async carregarDadosGlobais() {
         try {
             const [usuarios, comunidades, comentarios, votos, salvos, imagensPost] = await Promise.all([
@@ -1307,6 +1311,7 @@ class AppController {
             this.votos = votos;
             this.postsSalvos = salvos;
             this.imagensPorPost = imagensPost.reduce((porPost, imagem) => {
+                // Agrupar por ID permite montar a galeria de cada post sem consultar a API a cada card.
                 const idPost = imagem.idPost || imagem.id_post;
                 if (!porPost[idPost]) porPost[idPost] = [];
                 porPost[idPost].push(imagem);
@@ -2949,6 +2954,7 @@ class AppController {
     }
 
     // --- FUNÇÕES DE POSTS/COMENTARIOS REUTILIZÁVEIS ---
+    // O post é criado primeiro para obter seu ID; cada arquivo é enviado depois em multipart associado a esse ID.
     async enviarPost() {
         const idLogado = ApiService.getIdUsuarioLogado();
         const titulo = document.getElementById('post-titulo').value.trim();
@@ -3065,6 +3071,7 @@ class AppController {
         }
     }
 
+    // Novas escolhas são acumuladas no estado até quatro arquivos; DataTransfer sincroniza a seleção do input.
     previsualizarImagensPost(arquivos) {
         const novasImagens = [...(arquivos || [])]
             .filter(arquivo => arquivo.type.startsWith('image/'));
@@ -3143,6 +3150,7 @@ class AppController {
         if (container) container.replaceChildren();
     }
 
+    // Converte os caminhos devolvidos pela API em URLs e gera a galeria usada no feed e no detalhe do post.
     renderizarImagensPost(idPost) {
         const imagens = (this.imagensPorPost[idPost] || []).slice(0, 4);
         const elementos = imagens.map((imagem, indice) => {
@@ -4014,6 +4022,7 @@ ${ApiService.getIdUsuarioLogado() ? `
         });
     }
 
+    // Busca somente a página atual com os filtros ativos; a API mantém a ordenação global entre páginas.
     async carregarEventos() {
 
         const container = document.getElementById('eventos-container');
@@ -4343,6 +4352,14 @@ ${ApiService.getIdUsuarioLogado() ? `
             return this.mostrarEventoFeedback("Selecione uma categoria para o evento.");
         }
 
+        if (capa && !['image/jpeg', 'image/png', 'image/webp'].includes(capa.type)) {
+            return this.mostrarEventoFeedback('O banner deve ser uma imagem JPG, PNG ou WEBP.');
+        }
+
+        if (capa && capa.size > 5 * 1024 * 1024) {
+            return this.mostrarEventoFeedback('O banner deve ter no máximo 5 MB.');
+        }
+
         const inicioEvento = new Date(`${dataEvento}T${horarioInicio}`);
         const fimEvento = new Date(`${dataEvento}T${horarioFim}`);
         const agora = new Date();
@@ -4441,10 +4458,13 @@ ${ApiService.getIdUsuarioLogado() ? `
             if (res.ok) {
                 const eventoCriado = await res.json();
                 const eventoId = eventoCriado.id || eventoCriado.idEvento;
+                let bannerEnviado = true;
                 if (capa && eventoId) {
                     try {
-                        await ApiService.enviarCapaEvento(eventoId, capa);
+                        const respostaCapa = await ApiService.enviarCapaEvento(eventoId, capa);
+                        bannerEnviado = respostaCapa.ok;
                     } catch (capaErr) {
+                        bannerEnviado = false;
                         console.error("Erro ao enviar capa do evento:", capaErr);
                     }
                 }
@@ -4452,7 +4472,9 @@ ${ApiService.getIdUsuarioLogado() ? `
                 this.fecharModal('evento-modal');
                 this.limparFormularioEvento();
                 await this.carregarEventos();
-                alert("🎉 Evento publicado com sucesso!");
+                alert(capa && !bannerEnviado
+                    ? "Evento publicado, mas o banner não foi enviado. Você pode tentar novamente editando o evento."
+                    : "🎉 Evento publicado com sucesso!");
             } else {
                 this.mostrarEventoFeedback("Não foi possível criar o evento. Verifique os dados e tente novamente.");
             }
@@ -6857,6 +6879,7 @@ ${ApiService.getIdUsuarioLogado() ? `
         );
     }
 
+    // Envia a foto em multipart; a API persiste o arquivo e devolve o caminho salvo na sessão do navegador.
     async salvarFotoPerfil() {
         const idUsuario =
             ApiService.getIdUsuarioLogado();
@@ -7289,6 +7312,7 @@ ${ApiService.getIdUsuarioLogado() ? `
         }
     }
 
+    // O WebSocket entrega mensagens em tempo real; CONNECTING também é verificado para evitar conexões duplicadas.
     conectarWebSocketChat() {
 
         const idUsuario =

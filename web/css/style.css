@@ -1388,6 +1388,7 @@ main {
     margin-bottom: 16px;
 }
 
+/* A galeria fica contida no card: altura máxima e object-fit evitam que fotos grandes cubram o conteúdo seguinte. */
 .post-images {
     display: grid;
     width: 100%;

@@ -14,6 +14,7 @@
 </head>
 
 <body>
+    <!-- A página é declarativa: IDs e handlers conectam os controles visuais aos métodos do AppController em app.js. -->
     <section id="welcome-screen" class="welcome-screen active">
         <div class="welcome-page">
             <header class="welcome-nav">
@@ -716,6 +717,7 @@
         </div>
     </div>
 
+    <!-- O formulário coleta texto e arquivos; o JavaScript envia o post e associa as imagens depois de obter o ID. -->
     <div class="modal-overlay" id="post-modal">
         <div class="modal">
             <h2 id="modal-post-title">Nova Publicação</h2>
@@ -956,14 +958,14 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="evento-capa">Imagem de capa <span class="optional">(opcional)</span></label>
+                        <label for="evento-capa">Banner do evento <span class="optional">(opcional)</span></label>
                         <div class="custom-file-upload">
-                            <input type="file" id="evento-capa" accept="image/*"
+                            <input type="file" id="evento-capa" accept="image/jpeg,image/png,image/webp"
                                 onchange="app.atualizarPreviewCapaEvento(this)">
                             <div class="file-upload-visual" id="evento-capa-preview-box">
                                 <i class="material-icons">cloud_upload</i>
                                 <span id="evento-capa-nome">Clique para selecionar uma imagem</span>
-                                <small>Formatos aceitos: JPG, PNG, WEBP</small>
+                                <small>Opcional · JPG, PNG ou WEBP · máximo 5 MB</small>
                             </div>
                         </div>
                     </div>
@@ -1790,6 +1792,7 @@
 
 </div>
 
+    <!-- type="module" permite importar ApiService; servir esta página por HTTP evita bloqueios de módulos em file://. -->
     <script type="module" src="js/app.js?v=post-multi-3"></script>
 </body>
 

@@ -1,5 +1,7 @@
 // api_service.js
+// Camada de comunicação do frontend: concentra URLs, sessão e conversões HTTP para separar rede da lógica de tela.
 export class ApiService {
+    // Em desenvolvimento, a interface roda em outra porta e consome a API Spring Boot nesta origem.
     static API_URL = 'http://localhost:8080';
     //static API_URL = 'https://projeto-integrador-m4jn.onrender.com';
     //static API_URL = 'http://143.106.241.xx:8080';
@@ -11,6 +13,7 @@ export class ApiService {
     }
 
     static getUsuarioLogado() {
+        // A sessão fica no sessionStorage; a leitura de localStorage migra sessões antigas uma única vez.
         const storage = this.getStorage('session');
         const raw = storage ? storage.getItem(this.STORAGE_KEY) : null;
 
@@ -118,6 +121,7 @@ export class ApiService {
         });
     }
 
+    // As imagens são recursos separados do post: primeiro se cria a publicação, depois cada arquivo é enviado como multipart.
     static async listarImagensPost() {
         const resposta = await fetch(`${this.API_URL}/imagens-post`);
         if (!resposta.ok) throw new Error('Não foi possível carregar as imagens dos posts.');
