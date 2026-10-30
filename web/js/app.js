@@ -49,6 +49,8 @@ class AppController {
         this.chatSocket = null;
         this.chatSidebarAberto = true;
         this.filtroPessoas = 'todas';
+        this.coordenadasUsuario = null;
+        this.filtroProximidadeAtivo = false;
     }
     async inicializar() {
 
@@ -603,6 +605,212 @@ class AppController {
         botao.innerText = carregando ? 'Agendando evento...' : 'Agendar Evento';
     }
 
+
+    // ============================================================
+    // GEOLOCALIZAÇÃO E ENDEREÇO REAL DE EVENTOS
+    // ============================================================
+
+    atualizarBadgeCoordsEvento(badgeId, lat, lng, textoStatus = null) {
+        const badge = document.getElementById(badgeId);
+        if (!badge) return;
+        const textoEl = badge.querySelector('span');
+
+        badge.classList.remove('com-coords', 'sem-coords', 'buscando');
+
+        if (textoStatus === 'buscando') {
+            badge.classList.add('buscando');
+            badge.querySelector('.material-icons').innerText = 'hourglass_empty';
+            if (textoEl) textoEl.innerText = 'Localizando endereço no mapa...';
+        } else if (lat !== null && lat !== undefined && lat !== '' && lng !== null && lng !== undefined && lng !== '') {
+            badge.classList.add('com-coords');
+            badge.querySelector('.material-icons').innerText = 'check_circle';
+            const latFmt = Number(lat).toFixed(4);
+            const lngFmt = Number(lng).toFixed(4);
+            if (textoEl) textoEl.innerText = `Localizado! Coordenadas para o mapa: ${latFmt}, ${lngFmt}`;
+        } else {
+            badge.classList.add('sem-coords');
+            badge.querySelector('.material-icons').innerText = 'location_off';
+            if (textoEl) textoEl.innerText = textoStatus || 'Nenhuma coordenada detectada. Digite o endereço ou clique em "Usar meu GPS".';
+        }
+    }
+
+    alternarFormatoCriacaoEvento(formato) {
+        const label = document.getElementById('evento-local-label');
+        const input = document.getElementById('evento-local');
+        const icone = document.getElementById('evento-local-icone');
+        const wrapCoords = document.getElementById('wrap-evento-coordenadas');
+        const btnBuscar = document.getElementById('btn-buscar-coords-evento');
+
+        if (formato === 'online') {
+            if (label) label.innerHTML = 'Link da transmissão / Plataforma <span class="required">*</span>';
+            if (input) input.placeholder = 'Ex: https://meet.google.com/xyz ou Link do YouTube';
+            if (icone) icone.innerText = 'videocam';
+            if (wrapCoords) wrapCoords.style.display = 'none';
+            if (btnBuscar) btnBuscar.style.display = 'none';
+            const lat = document.getElementById('evento-latitude');
+            const lng = document.getElementById('evento-longitude');
+            if (lat) lat.value = '';
+            if (lng) lng.value = '';
+        } else {
+            if (label) label.innerHTML = 'Endereço do evento <span class="required">*</span>';
+            if (input) input.placeholder = 'Ex: Av. Paulista, 1000 - Bela Vista, São Paulo';
+            if (icone) icone.innerText = 'place';
+            if (wrapCoords) wrapCoords.style.display = 'flex';
+            if (btnBuscar) btnBuscar.style.display = 'flex';
+        }
+    }
+
+    alternarFormatoEdicaoEvento(formato) {
+        const label = document.getElementById('editar-evento-local-label');
+        const input = document.getElementById('editar-evento-local');
+        const icone = document.getElementById('editar-evento-local-icone');
+        const wrapCoords = document.getElementById('wrap-editar-evento-coordenadas');
+        const btnBuscar = document.getElementById('btn-buscar-coords-edicao');
+
+        if (formato === 'online') {
+            if (label) label.innerHTML = 'Link da transmissão / Plataforma <span class="required">*</span>';
+            if (input) input.placeholder = 'Ex: https://meet.google.com/xyz ou Link do YouTube';
+            if (icone) icone.innerText = 'videocam';
+            if (wrapCoords) wrapCoords.style.display = 'none';
+            if (btnBuscar) btnBuscar.style.display = 'none';
+            const lat = document.getElementById('editar-evento-latitude');
+            const lng = document.getElementById('editar-evento-longitude');
+            if (lat) lat.value = '';
+            if (lng) lng.value = '';
+        } else {
+            if (label) label.innerHTML = 'Endereço do evento <span class="required">*</span>';
+            if (input) input.placeholder = 'Ex: Av. Paulista, 1000 - Bela Vista, São Paulo';
+            if (icone) icone.innerText = 'place';
+            if (wrapCoords) wrapCoords.style.display = 'flex';
+            if (btnBuscar) btnBuscar.style.display = 'flex';
+        }
+    }
+
+    async capturarCoordenadasEvento() {
+        this.atualizarBadgeCoordsEvento('evento-coords-badge', null, null, 'buscando');
+        const coords = await ApiService.obterLocalizacaoAtual();
+        if (!coords) {
+            this.atualizarBadgeCoordsEvento('evento-coords-badge', null, null, 'Permissão de GPS negada ou indisponível.');
+            alert('Não foi possível obter sua localização via GPS. Verifique a permissão do seu navegador.');
+            return;
+        }
+
+        const latInput = document.getElementById('evento-latitude');
+        const lngInput = document.getElementById('evento-longitude');
+        if (latInput) latInput.value = coords.lat;
+        if (lngInput) lngInput.value = coords.lng;
+        this.atualizarBadgeCoordsEvento('evento-coords-badge', coords.lat, coords.lng);
+
+        const inputLocal = document.getElementById('evento-local');
+        if (inputLocal && !inputLocal.value.trim()) {
+            const endereco = await ApiService.buscarEnderecoPorCoordenadas(coords.lat, coords.lng);
+            if (endereco) inputLocal.value = endereco;
+        }
+    }
+
+    async capturarCoordenadasEdicaoEvento() {
+        this.atualizarBadgeCoordsEvento('editar-evento-coords-badge', null, null, 'buscando');
+        const coords = await ApiService.obterLocalizacaoAtual();
+        if (!coords) {
+            this.atualizarBadgeCoordsEvento('editar-evento-coords-badge', null, null, 'Permissão de GPS negada ou indisponível.');
+            alert('Não foi possível obter sua localização via GPS. Verifique a permissão do seu navegador.');
+            return;
+        }
+
+        const latInput = document.getElementById('editar-evento-latitude');
+        const lngInput = document.getElementById('editar-evento-longitude');
+        if (latInput) latInput.value = coords.lat;
+        if (lngInput) lngInput.value = coords.lng;
+        this.atualizarBadgeCoordsEvento('editar-evento-coords-badge', coords.lat, coords.lng);
+
+        const inputLocal = document.getElementById('editar-evento-local');
+        if (inputLocal && !inputLocal.value.trim()) {
+            const endereco = await ApiService.buscarEnderecoPorCoordenadas(coords.lat, coords.lng);
+            if (endereco) inputLocal.value = endereco;
+        }
+    }
+
+    async buscarCoordenadasPorEnderecoDigitado() {
+        const inputLocal = document.getElementById('evento-local');
+        const endereco = inputLocal ? inputLocal.value.trim() : '';
+        if (!endereco || /^(https?:\/\/|www\.)/i.test(endereco)) return;
+
+        this.atualizarBadgeCoordsEvento('evento-coords-badge', null, null, 'buscando');
+        const res = await ApiService.buscarCoordenadasPorEndereco(endereco);
+        if (res) {
+            const latInput = document.getElementById('evento-latitude');
+            const lngInput = document.getElementById('evento-longitude');
+            if (latInput) latInput.value = res.lat;
+            if (lngInput) lngInput.value = res.lng;
+            this.atualizarBadgeCoordsEvento('evento-coords-badge', res.lat, res.lng);
+        } else {
+            this.atualizarBadgeCoordsEvento('evento-coords-badge', null, null, 'Endereço não localizado no mapa. Ajuste o texto ou use o GPS.');
+        }
+    }
+
+    async buscarCoordenadasEdicaoEvento() {
+        const inputLocal = document.getElementById('editar-evento-local');
+        const endereco = inputLocal ? inputLocal.value.trim() : '';
+        if (!endereco || /^(https?:\/\/|www\.)/i.test(endereco)) return;
+
+        this.atualizarBadgeCoordsEvento('editar-evento-coords-badge', null, null, 'buscando');
+        const res = await ApiService.buscarCoordenadasPorEndereco(endereco);
+        if (res) {
+            const latInput = document.getElementById('editar-evento-latitude');
+            const lngInput = document.getElementById('editar-evento-longitude');
+            if (latInput) latInput.value = res.lat;
+            if (lngInput) lngInput.value = res.lng;
+            this.atualizarBadgeCoordsEvento('editar-evento-coords-badge', res.lat, res.lng);
+        } else {
+            this.atualizarBadgeCoordsEvento('editar-evento-coords-badge', null, null, 'Endereço não localizado no mapa. Ajuste o texto ou use o GPS.');
+        }
+    }
+
+    aoAlterarEnderecoEvento() {
+        const formato = document.getElementById('evento-formato-local')?.value;
+        if (formato !== 'online') {
+            this.buscarCoordenadasPorEnderecoDigitado();
+        }
+    }
+
+    aoAlterarEnderecoEdicaoEvento() {
+        const formato = document.getElementById('editar-evento-formato-local')?.value;
+        if (formato !== 'online') {
+            this.buscarCoordenadasEdicaoEvento();
+        }
+    }
+
+    async alternarFiltroProximidade() {
+        this.filtroProximidadeAtivo = !this.filtroProximidadeAtivo;
+        const btn = document.getElementById('btn-localizacao-filtro');
+        const selectRaio = document.getElementById('filtro-evento-raio');
+
+        if (this.filtroProximidadeAtivo) {
+            btn?.classList.add('ativo');
+            if (selectRaio) selectRaio.style.display = 'block';
+
+            if (!this.coordenadasUsuario) {
+                if (btn) btn.innerHTML = '<i class="material-icons">hourglass_empty</i> Obtendo GPS...';
+                this.coordenadasUsuario = await ApiService.obterLocalizacaoAtual();
+                if (!this.coordenadasUsuario) {
+                    alert("Não foi possível acessar a localização. Verifique se o GPS está ativo e permitido no navegador.");
+                    this.filtroProximidadeAtivo = false;
+                    btn?.classList.remove('ativo');
+                    if (selectRaio) selectRaio.style.display = 'none';
+                    if (btn) btn.innerHTML = '<i class="material-icons">my_location</i> Perto de mim';
+                    return;
+                }
+            }
+            if (btn) btn.innerHTML = '<i class="material-icons">check_circle</i> Perto de mim';
+        } else {
+            btn?.classList.remove('ativo');
+            if (selectRaio) selectRaio.style.display = 'none';
+            if (btn) btn.innerHTML = '<i class="material-icons">my_location</i> Perto de mim';
+        }
+
+        await this.filtrarEventos();
+    }
+
     limparFormularioEvento() {
         const titulo = document.getElementById('evento-titulo');
         if (titulo) titulo.value = '';
@@ -635,6 +843,14 @@ class AppController {
             preco.value = '';
         }
         this.atualizarPreviewCapaEvento(capaInput);
+        const fmt = document.getElementById('evento-formato-local');
+        if (fmt) fmt.value = 'presencial';
+        this.alternarFormatoCriacaoEvento('presencial');
+        const lat = document.getElementById('evento-latitude');
+        if (lat) lat.value = '';
+        const lng = document.getElementById('evento-longitude');
+        if (lng) lng.value = '';
+        this.atualizarBadgeCoordsEvento('evento-coords-badge', null, null);
         this.mostrarEventoFeedback('');
     }
 
@@ -3582,6 +3798,20 @@ ${ApiService.getIdUsuarioLogado() ? `
                     const div = document.createElement('div');
                     div.className = 'evento-card';
 
+                    let badgeDistanciaHtml = '';
+                    if (this.coordenadasUsuario && evento.latitude != null && evento.longitude != null) {
+                        const distKm = ApiService.calcularDistanciaKm(
+                            this.coordenadasUsuario.lat,
+                            this.coordenadasUsuario.lng,
+                            evento.latitude,
+                            evento.longitude
+                        );
+                        if (distKm !== null) {
+                            const textoDist = distKm < 1 ? '${Math.round(distKm * 1000)} m' : '${distKm.toFixed(1)} km';
+                            badgeDistanciaHtml = '<span class="badge-distancia" title="DistÃ¢ncia estimada de vocÃª"><i class="material-icons">near_me</i> ${textoDist}</span>';
+                        }
+                    }
+
                     const statusDetalhes =
                         evento.situacaoTemporal ||
                         evento.status ||
@@ -3835,6 +4065,28 @@ ${ApiService.getIdUsuarioLogado() ? `
             );
         }
 
+        let latitude = null;
+        let longitude = null;
+        const latValor = document.getElementById('evento-latitude')?.value;
+        const lngValor = document.getElementById('evento-longitude')?.value;
+        if (latValor && lngValor) {
+            latitude = parseFloat(latValor);
+            longitude = parseFloat(lngValor);
+        } else {
+            const formatoLocal = document.getElementById('evento-formato-local')?.value;
+            if (formatoLocal !== 'online' && localEvento) {
+                try {
+                    const coords = await ApiService.buscarCoordenadasPorEndereco(localEvento);
+                    if (coords) {
+                        latitude = coords.lat;
+                        longitude = coords.lng;
+                    }
+                } catch (e) {
+                    console.warn('GeocodificaÃ§Ã£o automÃ¡tica:', e);
+                }
+            }
+        }
+
         const novoEvento = {
             titulo,
             descricao,
@@ -3846,6 +4098,8 @@ ${ApiService.getIdUsuarioLogado() ? `
                 ? encerramentoInscricoes + ":00"
                 : null,
             localEvento,
+            latitude,
+            longitude,
             criadorId: parseInt(idUsuario),
             comunidadeId: comunidadeValor
                 ? parseInt(comunidadeValor)
@@ -3955,30 +4209,31 @@ ${ApiService.getIdUsuarioLogado() ? `
 
 
 
-    async excluirComunidade() {
+    async excluirComunidade(confirmado = false) {
+        const idComunidade = this.comunidadeEditando?.idComunidade || this.comunidadeEditando?.id;
+        const idUsuario = ApiService.getIdUsuarioLogado();
 
-        if (!confirm("Tem certeza que deseja excluir esta comunidade?")) {
+        if (!idComunidade) return;
+
+        if (!confirmado) {
+            this.abrirModalConfirmacao({
+                titulo: 'Excluir Comunidade',
+                mensagem: 'Tem certeza que deseja excluir esta comunidade? Esta ação não pode ser desfeita.',
+                textoConfirmar: 'Excluir',
+                classeBotao: 'btn-danger',
+                onSuccess: () => this.excluirComunidade(true)
+            });
             return;
         }
 
-        const idComunidade =
-            this.comunidadeEditando.idComunidade || this.comunidadeEditando.id;
-
-        const idUsuario = ApiService.getIdUsuarioLogado();
-
-        const resposta = await ApiService.excluirComunidade(
-            idComunidade,
-            idUsuario
-        );
+        const resposta = await ApiService.excluirComunidade(idComunidade, idUsuario);
 
         if (resposta.ok) {
             this.fecharModal("gerenciar-comunidade-modal");
-
             await this.carregarComunidades();
-
-            alert("Comunidade excluída com sucesso!");
+            this.mostrarFeedbackGlobal("Comunidade excluída com sucesso!");
         } else {
-            alert("Você não tem permissão para excluir esta comunidade.");
+            this.mostrarFeedbackGlobal("Você não tem permissão para excluir esta comunidade.");
         }
     }
 
@@ -4013,16 +4268,22 @@ ${ApiService.getIdUsuarioLogado() ? `
         this.abrirModal("gerenciar-membros-modal");
     }
 
-    async removerMembro(idUsuario) {
+    async removerMembro(idUsuario, confirmado = false) {
+        const idComunidade = this.comunidadeEditando?.idComunidade || this.comunidadeEditando?.id;
+        const idSolicitante = ApiService.getIdUsuarioLogado();
 
-        if (!confirm("Deseja remover este membro da comunidade?")) {
+        if (!idComunidade || !idUsuario) return;
+
+        if (!confirmado) {
+            this.abrirModalConfirmacao({
+                titulo: 'Remover Membro',
+                mensagem: 'Deseja realmente remover este membro da comunidade?',
+                textoConfirmar: 'Remover',
+                classeBotao: 'btn-danger',
+                onSuccess: () => this.removerMembro(idUsuario, true)
+            });
             return;
         }
-
-        const idComunidade =
-            this.comunidadeEditando.idComunidade || this.comunidadeEditando.id;
-
-        const idSolicitante = ApiService.getIdUsuarioLogado();
 
         const resposta = await ApiService.removerMembro(
             idComunidade,
@@ -4031,8 +4292,7 @@ ${ApiService.getIdUsuarioLogado() ? `
         );
 
         if (resposta.ok) {
-            alert("Membro removido com sucesso!");
-
+            this.mostrarFeedbackGlobal("Membro removido com sucesso!");
             await this.carregarComunidades();
 
             this.comunidadeEditando = this.listaComunidades.find(
@@ -4041,7 +4301,7 @@ ${ApiService.getIdUsuarioLogado() ? `
 
             this.abrirGerenciarMembros();
         } else {
-            alert("Você não tem permissão para remover este membro.");
+            this.mostrarFeedbackGlobal("Você não tem permissão para remover este membro.");
         }
     }
     alternarMenuPost(evento) {
@@ -4099,9 +4359,15 @@ ${ApiService.getIdUsuarioLogado() ? `
         }
     }
 
-    async excluirPost(idPost) {
-
-        if (!confirm("Deseja realmente excluir esta publicação?")) {
+    async excluirPost(idPost, confirmado = false) {
+        if (!confirmado) {
+            this.abrirModalConfirmacao({
+                titulo: 'Excluir Publicação',
+                mensagem: 'Deseja realmente excluir esta publicação?',
+                textoConfirmar: 'Excluir',
+                classeBotao: 'btn-danger',
+                onSuccess: () => this.excluirPost(idPost, true)
+            });
             return;
         }
 
@@ -4115,7 +4381,7 @@ ${ApiService.getIdUsuarioLogado() ? `
                 this.renderizarSubreddit(this.comunidadeAtivaId);
             }
         } else {
-            alert("Você não tem permissão para excluir esta publicação.");
+            this.mostrarFeedbackGlobal("Você não tem permissão para excluir esta publicação.");
         }
     }
 
@@ -4168,6 +4434,22 @@ ${ApiService.getIdUsuarioLogado() ? `
 
         document.getElementById('editar-evento-checkin').checked =
             evento.exigeCheckin === true;
+
+        const latEdit = document.getElementById('editar-evento-latitude');
+        const lngEdit = document.getElementById('editar-evento-longitude');
+        if (latEdit) latEdit.value = (evento.latitude != null) ? evento.latitude : '';
+        if (lngEdit) lngEdit.value = (evento.longitude != null) ? evento.longitude : '';
+
+        const isOnline = /^(https?:\/\/|www\.)/i.test(evento.localEvento || '');
+        const formatoSelect = document.getElementById('editar-evento-formato-local');
+        if (formatoSelect) formatoSelect.value = isOnline ? 'online' : 'presencial';
+        this.alternarFormatoEdicaoEvento(isOnline ? 'online' : 'presencial');
+
+        if (evento.latitude != null && evento.longitude != null) {
+            this.atualizarBadgeCoordsEvento('editar-evento-coords-badge', evento.latitude, evento.longitude);
+        } else {
+            this.atualizarBadgeCoordsEvento('editar-evento-coords-badge', null, null);
+        }
 
         this.abrirModal('gerenciar-evento-modal');
     }
@@ -4256,6 +4538,28 @@ ${ApiService.getIdUsuarioLogado() ? `
             }
         }
 
+        let latitude = null;
+        let longitude = null;
+        const latValor = document.getElementById('editar-evento-latitude')?.value;
+        const lngValor = document.getElementById('editar-evento-longitude')?.value;
+        if (latValor && lngValor) {
+            latitude = parseFloat(latValor);
+            longitude = parseFloat(lngValor);
+        } else {
+            const formatoLocal = document.getElementById('editar-evento-formato-local')?.value;
+            if (formatoLocal !== 'online' && localEvento) {
+                try {
+                    const coords = await ApiService.buscarCoordenadasPorEndereco(localEvento);
+                    if (coords) {
+                        latitude = coords.lat;
+                        longitude = coords.lng;
+                    }
+                } catch (e) {
+                    console.warn('GeocodificaÃ§Ã£o automÃ¡tica na ediÃ§Ã£o:', e);
+                }
+            }
+        }
+
         const eventoAtualizado = {
             titulo,
             descricao,
@@ -4271,6 +4575,8 @@ ${ApiService.getIdUsuarioLogado() ? `
                     : null,
 
             localEvento,
+            latitude,
+            longitude,
 
             comunidadeId:
                 comunidadeValor
@@ -4304,71 +4610,61 @@ ${ApiService.getIdUsuarioLogado() ? `
         }
     }
 
-    async excluirEvento() {
+    async excluirEvento(confirmado = false) {
+        if (!this.eventoEditando) return;
 
-        if (!this.eventoEditando) {
-            return;
-        }
-
-        if (!confirm("Tem certeza que deseja excluir este evento?")) {
+        if (!confirmado) {
+            this.abrirModalConfirmacao({
+                titulo: 'Excluir Evento',
+                mensagem: 'Tem certeza que deseja excluir este evento?',
+                textoConfirmar: 'Excluir',
+                classeBotao: 'btn-danger',
+                onSuccess: () => this.excluirEvento(true)
+            });
             return;
         }
 
         const idUsuario = ApiService.getIdUsuarioLogado();
+        const idEvento = this.eventoEditando.idEvento || this.eventoEditando.id;
 
-        const idEvento =
-            this.eventoEditando.idEvento || this.eventoEditando.id;
-
-        const resposta = await ApiService.excluirEvento(
-            idEvento,
-            idUsuario
-        );
+        const resposta = await ApiService.excluirEvento(idEvento, idUsuario);
 
         if (resposta.ok) {
             this.fecharModal('gerenciar-evento-modal');
-
             this.eventoEditando = null;
-
             await this.carregarEventos();
-
-            alert("Evento excluído com sucesso!");
+            this.mostrarFeedbackGlobal("Evento excluído com sucesso!");
         } else {
-            alert("Não foi possível excluir o evento.");
+            this.mostrarFeedbackGlobal("Não foi possível excluir o evento.");
         }
     }
 
-    async cancelarEvento() {
+    async cancelarEvento(confirmado = false) {
+        if (!this.eventoEditando) return;
 
-        if (!this.eventoEditando) {
+        if (!confirmado) {
+            this.abrirModalConfirmacao({
+                titulo: 'Cancelar Evento',
+                mensagem: 'Tem certeza que deseja cancelar este evento?',
+                textoConfirmar: 'Confirmar Cancelamento',
+                classeBotao: 'btn-danger',
+                onSuccess: () => this.cancelarEvento(true)
+            });
             return;
         }
 
-        if (!confirm("Tem certeza que deseja cancelar este evento?")) {
-            return;
-        }
+        const idEvento = this.eventoEditando.idEvento || this.eventoEditando.id;
+        const idUsuario = ApiService.getIdUsuarioLogado();
 
-        const idEvento =
-            this.eventoEditando.idEvento || this.eventoEditando.id;
-
-        const idUsuario =
-            ApiService.getIdUsuarioLogado();
-
-        const resposta =
-            await ApiService.cancelarEvento(
-                idEvento,
-                idUsuario
-            );
+        const resposta = await ApiService.cancelarEvento(idEvento, idUsuario);
 
         if (resposta.ok) {
             this.fecharModal('gerenciar-evento-modal');
-
             this.eventoEditando = null;
-
             await this.carregarEventos();
-
-            alert("Evento cancelado com sucesso!");
+            this.mostrarFeedbackGlobal("Evento cancelado com sucesso!");
         } else {
-            alert("Não foi possível cancelar o evento.");
+            this.mostrarFeedbackGlobal("Não foi possível cancelar o evento.");
         }
     }
 
@@ -4396,31 +4692,28 @@ ${ApiService.getIdUsuarioLogado() ? `
         }
     }
 
-    async sairDoEvento(idEvento) {
-
+    async sairDoEvento(idEvento, confirmado = false) {
         const idUsuario = ApiService.getIdUsuarioLogado();
+        if (!idUsuario) return;
 
-        if (!idUsuario) {
+        if (!confirmado) {
+            this.abrirModalConfirmacao({
+                titulo: 'Sair do Evento',
+                mensagem: 'Deseja cancelar sua participação neste evento?',
+                textoConfirmar: 'Sair',
+                classeBotao: 'btn-danger',
+                onSuccess: () => this.sairDoEvento(idEvento, true)
+            });
             return;
         }
 
-        if (!confirm("Deseja cancelar sua participação neste evento?")) {
-            return;
-        }
-
-        const resposta = await ApiService.sairEvento(
-            idEvento,
-            idUsuario
-        );
+        const resposta = await ApiService.sairEvento(idEvento, idUsuario);
 
         if (resposta.ok) {
-
             await this.carregarEventos();
-
             await this.abrirDetalhesEvento(idEvento);
-
         } else {
-            alert("Não foi possível cancelar sua participação.");
+            this.mostrarFeedbackGlobal("Não foi possível cancelar sua participação.");
         }
     }
 
@@ -4488,39 +4781,35 @@ ${ApiService.getIdUsuarioLogado() ? `
         this.abrirModal('participantes-evento-modal');
     }
 
-    async removerParticipanteEvento(idParticipante) {
+    async removerParticipanteEvento(idParticipante, confirmado = false) {
+        if (!this.eventoEditando) return;
 
-        if (!this.eventoEditando) {
+        if (!confirmado) {
+            this.abrirModalConfirmacao({
+                titulo: 'Remover Participante',
+                mensagem: 'Deseja remover este participante do evento?',
+                textoConfirmar: 'Remover',
+                classeBotao: 'btn-danger',
+                onSuccess: () => this.removerParticipanteEvento(idParticipante, true)
+            });
             return;
         }
 
-        if (!confirm("Deseja remover este participante do evento?")) {
-            return;
-        }
+        const idEvento = this.eventoEditando.idEvento || this.eventoEditando.id;
+        const idSolicitante = ApiService.getIdUsuarioLogado();
 
-        const idEvento =
-            this.eventoEditando.idEvento || this.eventoEditando.id;
-
-        const idSolicitante =
-            ApiService.getIdUsuarioLogado();
-
-        const resposta =
-            await ApiService.removerParticipanteEvento(
-                idEvento,
-                idParticipante,
-                idSolicitante
-            );
+        const resposta = await ApiService.removerParticipanteEvento(
+            idEvento,
+            idParticipante,
+            idSolicitante
+        );
 
         if (resposta.ok) {
-
-            alert("Participante removido com sucesso!");
-
+            this.mostrarFeedbackGlobal("Participante removido com sucesso!");
             await this.abrirParticipantesEvento();
-
             await this.carregarEventos();
-
         } else {
-            alert("Não foi possível remover o participante.");
+            this.mostrarFeedbackGlobal("Não foi possível remover o participante.");
         }
     }
 
@@ -4684,6 +4973,10 @@ ${ApiService.getIdUsuarioLogado() ? `
             intervalo.style.display = 'none';
         }
 
+        const latFiltro = (this.filtroProximidadeAtivo && this.coordenadasUsuario) ? this.coordenadasUsuario.lat : null;
+        const lngFiltro = (this.filtroProximidadeAtivo && this.coordenadasUsuario) ? this.coordenadasUsuario.lng : null;
+        const raioFiltro = Number(document.getElementById('filtro-evento-raio')?.value || 50);
+
         this.filtrosEventos = {
             texto: texto || null,
 
@@ -4699,7 +4992,10 @@ ${ApiService.getIdUsuarioLogado() ? `
                 categoria || null,
 
             dataInicio,
-            dataFim
+            dataFim,
+            lat: latFiltro,
+            lng: lngFiltro,
+            raioKm: raioFiltro
         };
 
         this.paginaEventos = 0;
@@ -4821,15 +5117,15 @@ ${ApiService.getIdUsuarioLogado() ? `
 
         const precoIngresso = Number(evento.precoIngresso || 0);
 
-const eventoPago = precoIngresso > 0;
+        const eventoPago = precoIngresso > 0;
 
-const precoFormatado =
-    eventoPago
-        ? precoIngresso.toLocaleString('pt-BR', {
-            style: 'currency',
-            currency: 'BRL'
-        })
-        : 'Gratuito';
+        const precoFormatado =
+            eventoPago
+                ? precoIngresso.toLocaleString('pt-BR', {
+                    style: 'currency',
+                    currency: 'BRL'
+                })
+                : 'Gratuito';
 
         if (evento.encerramentoInscricoes) {
             limiteInscricao = new Date(evento.encerramentoInscricoes);
@@ -4852,6 +5148,7 @@ const precoFormatado =
                 ? 'ACONTECENDO AGORA'
                 : situacaoEvento;
 
+        const isLink = /^(https?:\/\/|www\.)/i.test(evento.localEvento || '');
         const eventoEncerrado =
             situacaoEvento === 'ENCERRADO';
 
@@ -5003,6 +5300,19 @@ const precoFormatado =
                 'A confirmar'
             )}
                         </strong>
+                        ${isLink
+                ? `<a href="${evento.localEvento.startsWith('http') ? evento.localEvento : 'https://' + evento.localEvento}" target="_blank" rel="noopener noreferrer" class="evento-rota-btn">
+                    <i class="material-icons">launch</i> Acessar transmissão
+                </a>`
+                : (evento.latitude != null && evento.longitude != null
+                    ? `<a href="https://www.google.com/maps/search/?api=1&query=${evento.latitude},${evento.longitude}" target="_blank" rel="noopener noreferrer" class="evento-rota-btn">
+                        <i class="material-icons">directions</i> Ver rota no Google Maps
+                    </a>`
+                    : (evento.localEvento
+                        ? `<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(evento.localEvento)}" target="_blank" rel="noopener noreferrer" class="evento-rota-btn">
+                            <i class="material-icons">directions</i> Ver no Google Maps
+                        </a>`
+                        : ''))}
                     </div>
                 </div>
 
@@ -5053,9 +5363,9 @@ const precoFormatado =
 
                 <p class="evento-detalhes-descricao">
                     ${this.escaparHtmlDestaque(
-                evento.descricao ||
-                'Nenhuma descrição foi adicionada para este evento.'
-            )}
+                            evento.descricao ||
+                            'Nenhuma descrição foi adicionada para este evento.'
+                        )}
                 </p>
 
             </section>
@@ -5196,8 +5506,8 @@ const precoFormatado =
   onclick="app.acaoIngressoEvento(${idEvento})">
     <i class="material-icons">person_add_alt</i>
    ${eventoPago
-    ? `Comprar ingresso — ${precoFormatado}`
-    : 'Participar gratuitamente'}
+                                ? `Comprar ingresso — ${precoFormatado}`
+                                : 'Participar gratuitamente'}
 </button>
                                     `
                 : ''
@@ -7482,82 +7792,149 @@ const precoFormatado =
         this.abrirMeuPerfil();
     }
 
- async acaoIngressoEvento(idEvento) {
+    async acaoIngressoEvento(idEvento) {
 
-    let evento = this.listaEventos.find(
-        e => (e.idEvento || e.id) == idEvento
-    );
+        let evento = this.listaEventos.find(
+            e => (e.idEvento || e.id) == idEvento
+        );
 
-    if (!evento) {
+        if (!evento) {
+            try {
+                evento = await ApiService.buscarEventoPorId(idEvento);
+            } catch (erro) {
+                console.error(erro);
+                return alert(
+                    "Não foi possível carregar os dados do evento."
+                );
+            }
+        }
+
+        const preco = Number(evento.precoIngresso || 0);
+
+        if (preco <= 0) {
+            await this.participarEvento(idEvento);
+            return;
+        }
+
+        this.eventoCompraId = idEvento;
+
+        const precoFormatado =
+            preco.toLocaleString('pt-BR', {
+                style: 'currency',
+                currency: 'BRL'
+            });
+
+        document.getElementById(
+            'compra-ingresso-evento-nome'
+        ).textContent = evento.titulo || 'Evento';
+
+        document.getElementById(
+            'compra-ingresso-preco'
+        ).textContent = precoFormatado;
+
+        this.abrirModal('compra-ingresso-modal');
+    }
+
+    async confirmarCompraIngresso() {
+
+        if (!this.eventoCompraId) {
+            return;
+        }
+
+        const idEvento = this.eventoCompraId;
+
+        this.fecharModal('compra-ingresso-modal');
+
         try {
-            evento = await ApiService.buscarEventoPorId(idEvento);
-        } catch (erro) {
-            console.error(erro);
-            return alert(
-                "Não foi possível carregar os dados do evento."
+
+            await this.participarEvento(idEvento);
+
+            this.eventoCompraId = null;
+
+            alert(
+                "Compra simulada concluída! Seu ingresso foi registrado."
             );
+
+        } catch (erro) {
+
+            console.error(
+                "Erro ao concluir compra:",
+                erro
+            );
+
+            alert(
+                "Não foi possível concluir a compra do ingresso."
+            );
+        }
+
+        // Obtém a posição do usuário no navegador
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const userLat = position.coords.latitude;
+                    const userLng = position.coords.longitude;
+
+                    // Faz a chamada para a sua API enviando as coordenadas
+                    carregarEventosProximos(userLat, userLng);
+                },
+                (error) => {
+                    console.warn("Geolocalização recusada ou indisponível. Carregando sem filtro de distância.");
+                    carregarEventosProximos(null, null);
+                }
+            );
+        } else {
+            carregarEventosProximos(null, null);
+        }
+
+        function carregarEventosProximos(lat, lng) {
+            let url = `/api/eventos/buscar?page=0&size=12`;
+
+            if (lat && lng) {
+                url += `&lat=${lat}&lng=${lng}&raioKm=30`; // Busca eventos num raio de 30km
+            }
+
+            fetch(url)
+                .then(res => res.json())
+                .then(data => {
+                    console.log("Eventos encontrados:", data.content);
+                    // Renderiza os cards na tela
+                });
         }
     }
 
-    const preco = Number(evento.precoIngresso || 0);
+    abrirModalConfirmacao({ titulo, mensagem, textoConfirmar = 'Confirmar', classeBotao = 'btn-primary', onSuccess }) {
+        const modal = document.getElementById('modal-confirmacao');
+        if (!modal) return;
 
-    if (preco <= 0) {
-        await this.participarEvento(idEvento);
-        return;
+        document.getElementById('modal-confirmacao-titulo').innerText = titulo;
+        document.getElementById('modal-confirmacao-mensagem').innerText = mensagem;
+
+        const btnConfirmar = document.getElementById('btn-modal-confirmar');
+        btnConfirmar.innerText = textoConfirmar;
+        btnConfirmar.className = `btn ${classeBotao}`;
+
+        // Limpa listeners antigos atribuindo novo evento
+        btnConfirmar.onclick = () => {
+            this.fecharModal('modal-confirmacao');
+            if (typeof onSuccess === 'function') onSuccess();
+        };
+
+        this.abrirModal('modal-confirmacao');
     }
 
-    this.eventoCompraId = idEvento;
-
-    const precoFormatado =
-        preco.toLocaleString('pt-BR', {
-            style: 'currency',
-            currency: 'BRL'
-        });
-
-    document.getElementById(
-        'compra-ingresso-evento-nome'
-    ).textContent = evento.titulo || 'Evento';
-
-    document.getElementById(
-        'compra-ingresso-preco'
-    ).textContent = precoFormatado;
-
-    this.abrirModal('compra-ingresso-modal');
-}
-
-async confirmarCompraIngresso() {
-
-    if (!this.eventoCompraId) {
-        return;
-    }
-
-    const idEvento = this.eventoCompraId;
-
-    this.fecharModal('compra-ingresso-modal');
-
-    try {
-
-        await this.participarEvento(idEvento);
-
-        this.eventoCompraId = null;
-
-        alert(
-            "Compra simulada concluída! Seu ingresso foi registrado."
-        );
-
-    } catch (erro) {
-
-        console.error(
-            "Erro ao concluir compra:",
-            erro
-        );
-
-        alert(
-            "Não foi possível concluir a compra do ingresso."
-        );
+    mostrarFeedbackGlobal(mensagem) {
+        // Exibe alertas amigáveis sem bloquear a execução da UI
+        const feedbackEl = document.getElementById('global-feedback');
+        if (feedbackEl) {
+            feedbackEl.innerText = mensagem;
+            feedbackEl.classList.add('visible');
+            setTimeout(() => feedbackEl.classList.remove('visible'), 4000);
+        } else {
+            alert(mensagem);
+        }
     }
 }
-}
+
 
 
 window.app = new AppController();

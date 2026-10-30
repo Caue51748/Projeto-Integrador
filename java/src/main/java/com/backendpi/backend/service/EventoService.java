@@ -71,11 +71,11 @@ public class EventoService {
         }
 
         if (evento.getPrecoIngresso() != null
-        && evento.getPrecoIngresso().signum() < 0) {
-    throw new RuntimeException(
-            "O preço do ingresso não pode ser negativo"
-    );
-}
+                && evento.getPrecoIngresso().signum() < 0) {
+            throw new RuntimeException(
+                    "O preço do ingresso não pode ser negativo"
+            );
+        }
 
         if (evento.getLimiteParticipantes() != null
                 && evento.getLimiteParticipantes() <= 0) {
@@ -124,11 +124,11 @@ public class EventoService {
         }
 
         if (evento.getPrecoIngresso() != null
-        && evento.getPrecoIngresso().signum() < 0) {
-    throw new RuntimeException(
-            "O preço do ingresso não pode ser negativo"
-    );
-}
+                && evento.getPrecoIngresso().signum() < 0) {
+            throw new RuntimeException(
+                    "O preço do ingresso não pode ser negativo"
+            );
+        }
 
         if (novo.getLimiteParticipantes() != null
                 && novo.getLimiteParticipantes() <= 0) {
@@ -145,6 +145,8 @@ public class EventoService {
         evento.setHorarioFim(novo.getHorarioFim());
         evento.setEncerramentoInscricoes(novo.getEncerramentoInscricoes());
         evento.setLocalEvento(novo.getLocalEvento());
+        evento.setLatitude(novo.getLatitude());
+        evento.setLongitude(novo.getLongitude());
         evento.setComunidadeId(novo.getComunidadeId());
         evento.setLimiteParticipantes(novo.getLimiteParticipantes());
         evento.setExigeCheckin(novo.getExigeCheckin());
@@ -177,6 +179,9 @@ public class EventoService {
             Long comunidadeId,
             LocalDate dataInicio,
             LocalDate dataFim,
+            Double lat,
+        Double lng,
+        Double raioKm,
             int pagina,
             int tamanho) {
 
@@ -208,11 +213,13 @@ public class EventoService {
                         comunidadeId,
                         dataInicio,
                         dataFim,
+                        lat,
+                        lng,
+                        raioKm,
                         pageable
                 );
 
         List<Evento> eventosFiltrados = paginaEventos.getContent();
-
 
         List<Long> idsEventos
                 = eventosFiltrados.stream()
@@ -269,7 +276,9 @@ public class EventoService {
                                 quantidadePorEvento.getOrDefault(
                                         evento.getId(),
                                         0L
-                                )
+                                ),
+                                evento.getLatitude() != null ? evento.getLatitude().doubleValue() : null,
+                                evento.getLongitude() != null ? evento.getLongitude().doubleValue() : null
                         )
                         )
                         .collect(Collectors.toList());
@@ -277,7 +286,7 @@ public class EventoService {
         return new PageImpl<>(
                 eventosDTO,
                 pageable,
-                eventosFiltrados.size()
+                paginaEventos.getTotalElements()
         );
     }
 

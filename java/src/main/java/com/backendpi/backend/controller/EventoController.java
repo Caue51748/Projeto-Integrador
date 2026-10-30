@@ -134,6 +134,9 @@ public class EventoController {
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataInicio,
             @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataFim,
+            @RequestParam(required = false) Double lat,
+        @RequestParam(required = false) Double lng,
+        @RequestParam(required = false, defaultValue = "50") Double raioKm, // Raio padrão: 50km
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "12") int size) {
 
@@ -144,6 +147,9 @@ public class EventoController {
                 comunidadeId,
                 dataInicio,
                 dataFim,
+                lat,
+                lng,
+                raioKm,
                 page,
                 size
         );

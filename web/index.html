@@ -10,7 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap"
         rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="css/style.css">
 </head>
 
 <body>
@@ -263,11 +263,24 @@
                             <option value="Networking">Networking</option>
                             <option value="Cultura">Cultura</option>
                         </select>
-                        <select id="filtro-evento-formato" onchange="app.filtrarEventos()">
+                                                <select id="filtro-evento-formato" onchange="app.filtrarEventos()">
                             <option value="">Todos os formatos</option>
                             <option value="presencial">Presenciais</option>
                             <option value="online">Online</option>
                         </select>
+
+                        <div class="filtro-localizacao-wrap" style="display: flex; gap: 8px; align-items: center;">
+                            <button id="btn-localizacao-filtro" class="btn-secondary" onclick="app.alternarFiltroProximidade()" style="white-space: nowrap; height: 38px; display: flex; align-items: center; gap: 5px;">
+                                <i class="material-icons" style="font-size: 18px;">my_location</i>
+                                Perto de mim
+                            </button>
+                            <select id="filtro-evento-raio" onchange="app.filtrarEventos()" style="display: none; width: 100px;">
+                                <option value="10">10 km</option>
+                                <option value="25">25 km</option>
+                                <option value="50" selected>50 km</option>
+                                <option value="100">100 km</option>
+                            </select>
+                        </div>
                     </div>
                     <div id="filtro-evento-intervalo" style="
         display:none;
@@ -855,70 +868,72 @@
                 <!-- Seção 3: Local e Vagas -->
                 <div class="form-section">
                     <div class="form-section-title">
-                        <i class="material-icons">place</i> Local e Capacidade
+                        <i class="material-icons">place</i> Formato, Local e Vagas
                     </div>
 
-                   <div class="form-grid-2">
-    <div class="form-group">
-        <label for="evento-local">
-            Localização / Link
-            <span class="required">*</span>
-        </label>
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label for="evento-formato-local">Formato do evento <span class="required">*</span></label>
+                            <div class="form-input-wrap">
+                                <i class="material-icons">swap_horiz</i>
+                                <select id="evento-formato-local" onchange="app.alternarFormatoCriacaoEvento(this.value)">
+                                    <option value="presencial">Presencial (Endereço Físico)</option>
+                                    <option value="online">Online (Link / Transmissão)</option>
+                                </select>
+                            </div>
+                        </div>
 
-        <div class="form-input-wrap">
-            <i class="material-icons">place</i>
+                        <div class="form-group">
+                            <label for="evento-local" id="evento-local-label">Endereço do evento <span class="required">*</span></label>
+                            <div class="form-input-wrap">
+                                <i class="material-icons" id="evento-local-icone">place</i>
+                                <input type="text" id="evento-local"
+                                    placeholder="Ex: Av. Paulista, 1000 - Bela Vista, São Paulo" required autocomplete="off"
+                                    onchange="app.aoAlterarEnderecoEvento()">
+                                <button type="button" class="btn-input-action" id="btn-buscar-coords-evento" onclick="app.buscarCoordenadasPorEnderecoDigitado()" title="Localizar endereço no mapa">
+                                    <i class="material-icons">search</i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
 
-            <input
-                type="text"
-                id="evento-local"
-                placeholder="Ex: Auditório Bloco A ou Link do Meet"
-                required
-                autocomplete="off"
-            >
-        </div>
-    </div>
+                    <!-- Bloco de Coordenadas & GPS (para eventos presenciais) -->
+                    <div id="wrap-evento-coordenadas" class="evento-coordenadas-box">
+                        <div class="evento-coordenadas-topo">
+                            <div class="evento-coordenadas-texto">
+                                <strong><i class="material-icons">map</i> Geolocalização para o Aplicativo Mobile</strong>
+                                <span>Permite que participantes encontrem este evento no mapa de eventos próximos.</span>
+                            </div>
+                            <button type="button" class="btn-gps" onclick="app.capturarCoordenadasEvento()" title="Usar minha localização atual via GPS">
+                                <i class="material-icons">my_location</i> Usar meu GPS
+                            </button>
+                        </div>
+                        <input type="hidden" id="evento-latitude">
+                        <input type="hidden" id="evento-longitude">
+                        <div id="evento-coords-badge" class="coords-badge sem-coords">
+                            <i class="material-icons">location_off</i>
+                            <span id="evento-coords-badge-texto">Nenhuma coordenada detectada. Digite o endereço ou clique em "Usar meu GPS".</span>
+                        </div>
+                    </div>
 
-    <div class="form-group">
-        <label for="evento-limite">
-            Limite de participantes
-            <span class="optional">(opcional)</span>
-        </label>
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label for="evento-limite">Limite de participantes <span class="optional">(opcional)</span></label>
+                            <div class="form-input-wrap">
+                                <i class="material-icons">people</i>
+                                <input type="number" id="evento-limite" min="1" placeholder="Vazio = Sem limite">
+                            </div>
+                        </div>
 
-        <div class="form-input-wrap">
-            <i class="material-icons">people</i>
-
-            <input
-                type="number"
-                id="evento-limite"
-                min="1"
-                placeholder="Vazio = Sem limite"
-            >
-        </div>
-    </div>
-</div>
-
-<div class="form-group">
-    <label for="evento-preco">
-        Valor do ingresso
-        <span class="optional">(opcional)</span>
-    </label>
-
-    <div class="form-input-wrap">
-        <i class="material-icons">confirmation_number</i>
-
-        <input
-            type="number"
-            id="evento-preco"
-            min="0"
-            step="0.01"
-            placeholder="0,00"
-        >
-    </div>
-
-    <small class="form-hint">
-        Deixe em branco ou informe 0 para um evento gratuito.
-    </small>
-</div>
+                        <div class="form-group">
+                            <label for="evento-preco">Valor do ingresso <span class="optional">(opcional)</span></label>
+                            <div class="form-input-wrap">
+                                <i class="material-icons">confirmation_number</i>
+                                <input type="number" id="evento-preco" min="0" step="0.01" placeholder="0,00">
+                            </div>
+                            <small class="form-hint">Deixe em branco ou informe 0 para um evento gratuito.</small>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Seção 4: Capa e Configurações -->
@@ -1444,22 +1459,57 @@
 
                 <div class="form-section">
                     <div class="form-section-title">
-                        <i class="material-icons">place</i> Local e Capacidade
+                        <i class="material-icons">place</i> Formato, Local e Vagas
                     </div>
 
                     <div class="form-grid-2">
                         <div class="form-group">
-                            <label for="editar-evento-local">Localização / Link <span class="required">*</span></label>
+                            <label for="editar-evento-formato-local">Formato do evento <span class="required">*</span></label>
                             <div class="form-input-wrap">
-                                <i class="material-icons">place</i>
-                                <input type="text" id="editar-evento-local"
-                                    placeholder="Ex: Auditório Bloco A ou Link do Meet" required autocomplete="off">
+                                <i class="material-icons">swap_horiz</i>
+                                <select id="editar-evento-formato-local" onchange="app.alternarFormatoEdicaoEvento(this.value)">
+                                    <option value="presencial">Presencial (Endereço Físico)</option>
+                                    <option value="online">Online (Link / Transmissão)</option>
+                                </select>
                             </div>
                         </div>
 
                         <div class="form-group">
-                            <label for="editar-evento-limite">Limite de participantes <span
-                                    class="optional">(opcional)</span></label>
+                            <label for="editar-evento-local" id="editar-evento-local-label">Endereço do evento <span class="required">*</span></label>
+                            <div class="form-input-wrap">
+                                <i class="material-icons" id="editar-evento-local-icone">place</i>
+                                <input type="text" id="editar-evento-local"
+                                    placeholder="Ex: Av. Paulista, 1000 - Bela Vista, São Paulo" required autocomplete="off"
+                                    onchange="app.aoAlterarEnderecoEdicaoEvento()">
+                                <button type="button" class="btn-input-action" id="btn-buscar-coords-edicao" onclick="app.buscarCoordenadasEdicaoEvento()" title="Localizar endereço no mapa">
+                                    <i class="material-icons">search</i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bloco de Coordenadas & GPS (para edição) -->
+                    <div id="wrap-editar-evento-coordenadas" class="evento-coordenadas-box">
+                        <div class="evento-coordenadas-topo">
+                            <div class="evento-coordenadas-texto">
+                                <strong><i class="material-icons">map</i> Geolocalização para o Aplicativo Mobile</strong>
+                                <span>Permite que participantes encontrem este evento no mapa de eventos próximos.</span>
+                            </div>
+                            <button type="button" class="btn-gps" onclick="app.capturarCoordenadasEdicaoEvento()" title="Usar minha localização atual via GPS">
+                                <i class="material-icons">my_location</i> Usar meu GPS
+                            </button>
+                        </div>
+                        <input type="hidden" id="editar-evento-latitude">
+                        <input type="hidden" id="editar-evento-longitude">
+                        <div id="editar-evento-coords-badge" class="coords-badge sem-coords">
+                            <i class="material-icons">location_off</i>
+                            <span id="editar-evento-coords-badge-texto">Nenhuma coordenada detectada. Digite o endereço ou clique em "Usar meu GPS".</span>
+                        </div>
+                    </div>
+
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label for="editar-evento-limite">Limite de participantes <span class="optional">(opcional)</span></label>
                             <div class="form-input-wrap">
                                 <i class="material-icons">people</i>
                                 <input type="number" id="editar-evento-limite" min="1" placeholder="Vazio = Sem limite">
@@ -1726,7 +1776,7 @@
 
 </div>
 
-    <script type="module" src="app.js"></script>
+    <script type="module" src="js/app.js"></script>
 </body>
 
 </html>

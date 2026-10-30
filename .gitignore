@@ -1,2 +1,7 @@
 GEMINI.md
 desktop/.vs/
+hs_err_pid*.log
+.idea/
+*.iml
+target/
+uploads/
