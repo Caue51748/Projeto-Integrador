@@ -3944,9 +3944,11 @@ button:disabled {
 }
 
 .chat-conversation-avatar {
+    position: relative;
     width: 42px;
     height: 42px;
     border-radius: 14px;
+    overflow: hidden;
     flex-shrink: 0;
 
     display: flex;
@@ -3959,6 +3961,16 @@ button:disabled {
     font-weight: 800;
     font-size: 15px;
     box-shadow: 0 8px 20px rgba(239, 101, 166, 0.16);
+}
+
+.chat-conversation-avatar img,
+.chat-user-avatar img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: inherit;
+    object-fit: cover;
 }
 
 .chat-conversation-info {
@@ -4083,10 +4095,12 @@ button:disabled {
 }
 
 .chat-user-avatar {
+    position: relative;
     width: 42px;
     height: 42px;
 
     border-radius: 14px;
+    overflow: hidden;
 
     display: flex;
     align-items: center;

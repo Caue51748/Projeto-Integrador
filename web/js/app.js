@@ -249,6 +249,22 @@ class AppController {
         this.renderizarConversas(conversasFiltradas, texto);
     }
 
+    atualizarAvatarChat(elemento, nome, fotoPerfil) {
+        const inicial = (nome || 'U').trim().charAt(0).toUpperCase() || 'U';
+        elemento.replaceChildren();
+        elemento.textContent = inicial;
+
+        const urlFoto = ApiService.formatarUrlFotoPerfil(fotoPerfil);
+        if (!urlFoto) return;
+
+        const imagem = document.createElement('img');
+        imagem.src = urlFoto;
+        imagem.alt = '';
+        imagem.loading = 'lazy';
+        imagem.onerror = () => imagem.remove();
+        elemento.appendChild(imagem);
+    }
+
     // --- MENU E NAVEGAÇÃO ---
     mostrarTelaBoasVindas() {
         document.getElementById('welcome-screen').classList.add('active');
@@ -7028,19 +7044,22 @@ ${ApiService.getIdUsuarioLogado() ? `
                     ? `@${conversa.usernameOutroUsuario}`
                     : '';
 
-            const inicial =
-                nome.charAt(0).toUpperCase();
+            const avatar = document.createElement('div');
+            avatar.className = 'chat-conversation-avatar';
+            this.atualizarAvatarChat(
+                avatar,
+                nome,
+                conversa.fotoPerfilOutroUsuario
+            );
 
-            item.innerHTML = `
-            <div class="chat-conversation-avatar">
-                ${inicial}
-            </div>
-
-            <div class="chat-conversation-info">
-                <strong>${nome}</strong>
-                <span>${username}</span>
-            </div>
-        `;
+            const info = document.createElement('div');
+            info.className = 'chat-conversation-info';
+            const nomeElemento = document.createElement('strong');
+            nomeElemento.textContent = nome;
+            const usernameElemento = document.createElement('span');
+            usernameElemento.textContent = username;
+            info.append(nomeElemento, usernameElemento);
+            item.append(avatar, info);
 
             item.addEventListener('click', () => {
                 this.abrirConversa(conversa);
@@ -7085,10 +7104,11 @@ ${ApiService.getIdUsuarioLogado() ? `
         status.textContent = 'online';
         status.classList.add('active');
 
-        avatar.textContent =
-            nomeExibicao
-                .charAt(0)
-                .toUpperCase();
+        this.atualizarAvatarChat(
+            avatar,
+            nomeExibicao,
+            conversa.fotoPerfilOutroUsuario
+        );
 
         janela.classList.add('active');
         const mobileToggle = document.getElementById('chat-mobile-toggle');
