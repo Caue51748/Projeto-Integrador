@@ -4,6 +4,7 @@ import '../models/usuario.dart';
 import '../services/usuario_service.dart';
 import '../services/auth_service.dart';
 import 'home_screen.dart';
+import 'login_screen.dart';
 
 /// Tela de Cadastro Mobile — Fiel à Estilização Real da Tela WEB (.auth-modal, .auth-kicker, .auth-intro, .auth-input-wrap, .auth-submit).
 /// Fonte da Verdade: web/style.css
@@ -126,7 +127,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     if (result['sucesso'] == true) {
       final novoUsuario = result['usuario'] as Usuario?;
-      final id = novoUsuario?.idUsuario ?? 1;
+      if (novoUsuario?.idUsuario == null || novoUsuario!.idUsuario! <= 0) {
+        // Conta pode ter sido criada, mas a resposta não trouxe o identificador.
+        // Nunca autenticar falsamente como o usuário 1.
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Cadastro enviado. Entre com seus dados para continuar.')),
+        );
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+          (route) => false,
+        );
+        return;
+      }
+      final id = novoUsuario.idUsuario!;
       final nomeFinal = novoUsuario?.nome.isNotEmpty == true ? novoUsuario!.nome : nome;
       final usernameFinal = (novoUsuario?.username != null && novoUsuario!.username!.isNotEmpty)
           ? novoUsuario.username!

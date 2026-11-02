@@ -8,74 +8,53 @@ class PostService {
   String get baseUrl => ApiService.baseUrl;
 
   Future<List<Post>> listarPosts({int? page, int size = 10}) async {
+    final uri = page == null
+        ? Uri.parse('$baseUrl/posts')
+        : Uri.parse('$baseUrl/posts?page=$page&size=$size');
     try {
-      final uri = (page != null)
-          ? Uri.parse('$baseUrl/posts?page=$page&size=$size')
-          : Uri.parse('$baseUrl/posts');
-
-      final response = await http.get(uri).timeout(const Duration(seconds: 8));
-
-      if (response.statusCode == 200) {
-        final dynamic data = jsonDecode(utf8.decode(response.bodyBytes));
-        final List lista = (data is List) ? data : (data['content'] ?? []);
-        return lista.map((e) => Post.fromJson(e)).toList();
-      }
+      final response = await http.get(uri).timeout(const Duration(seconds: 15));
+      if (response.statusCode != 200) throw Exception('HTTP ${response.statusCode}');
+      final data = jsonDecode(utf8.decode(response.bodyBytes));
+      final lista = data is List ? data : (data is Map ? data['content'] : null);
+      if (lista is! List) throw const FormatException('Resposta inválida de posts');
+      return lista.whereType<Map>().map((e) => Post.fromJson(Map<String, dynamic>.from(e))).toList();
     } catch (e) {
-      if (kDebugMode) print('Erro ao listar posts: $e');
+      if (kDebugMode) debugPrint('POSTS indisponíveis em $uri: $e');
+      rethrow;
     }
-    return [];
   }
 
   Future<List<Post>> listarPostsPorUsuario(int idUsuario) async {
     try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/posts/usuario/$idUsuario'),
-      ).timeout(const Duration(seconds: 8));
-
-      if (response.statusCode == 200) {
-        final List lista = jsonDecode(utf8.decode(response.bodyBytes));
-        return lista.map((e) => Post.fromJson(e)).toList();
-      }
-    } catch (e) {
-      if (kDebugMode) print('Erro ao listar posts do usuário: $e');
-    }
-    return [];
+      final response = await http.get(Uri.parse('$baseUrl/posts/usuario/$idUsuario'))
+          .timeout(const Duration(seconds: 15));
+      if (response.statusCode != 200) return [];
+      final data = jsonDecode(utf8.decode(response.bodyBytes));
+      final lista = data is List ? data : (data is Map ? data['content'] : null);
+      if (lista is! List) return [];
+      return lista.whereType<Map>().map((e) => Post.fromJson(Map<String, dynamic>.from(e))).toList();
+    } catch (e) { if (kDebugMode) debugPrint('Erro posts do usuário: $e'); return []; }
   }
 
   Future<bool> criarPost(Post post) async {
     try {
-      final corpoJson = jsonEncode(post.toJson());
-
       final response = await http.post(
         Uri.parse('$baseUrl/posts'),
-        headers: {
-          'Content-Type': 'application/json; charset=UTF-8',
-          'Accept': 'application/json',
-        },
-        body: corpoJson,
-      ).timeout(const Duration(seconds: 10));
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        return true;
-      } else {
-        return false;
+        headers: {'Content-Type': 'application/json; charset=UTF-8', 'Accept': 'application/json'},
+        body: jsonEncode(post.toJson()),
+      ).timeout(const Duration(seconds: 15));
+      if (kDebugMode && ![200, 201].contains(response.statusCode)) {
+        debugPrint('FALHA POST: ${response.statusCode} ${response.body}');
       }
-    } catch (e) {
-      if (kDebugMode) print('Erro ao criar post: $e');
-      return false;
-    }
+      return [200, 201].contains(response.statusCode);
+    } catch (e) { if (kDebugMode) debugPrint('Erro ao criar post: $e'); return false; }
   }
 
   Future<bool> deletarPost(int idPost, int idUsuario) async {
     try {
-      final response = await http.delete(
-        Uri.parse('$baseUrl/posts/$idPost/usuario/$idUsuario'),
-      ).timeout(const Duration(seconds: 8));
-
-      return response.statusCode == 200 || response.statusCode == 204;
-    } catch (e) {
-      if (kDebugMode) print('Erro ao deletar post: $e');
-      return false;
-    }
+      final response = await http.delete(Uri.parse('$baseUrl/posts/$idPost/usuario/$idUsuario'))
+          .timeout(const Duration(seconds: 10));
+      return [200, 204].contains(response.statusCode);
+    } catch (e) { if (kDebugMode) debugPrint('Erro ao deletar post: $e'); return false; }
   }
 }

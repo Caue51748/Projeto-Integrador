@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import '../models/evento.dart';
 import '../services/evento_service.dart';
 import '../services/auth_service.dart';
@@ -502,43 +504,49 @@ class _EventosPageState extends State<EventosPage> {
                             if (tituloCtrl.text.trim().isEmpty ||
                                 localCtrl.text.trim().isEmpty ||
                                 dataSelecionada == null ||
-                                horarioInicioSelecionado == null) {
+                                horarioInicioSelecionado == null ||
+                                horarioFimSelecionado == null) {
                               _mostrarSnack('Preencha os campos obrigatórios.', cor: const Color(0xFFC93659));
                               return;
                             }
 
+                            final inicio = horarioInicioSelecionado!;
+                            final fim = horarioFimSelecionado!;
+                            final minutosInicio = inicio.hour * 60 + inicio.minute;
+                            final minutosFim = fim.hour * 60 + fim.minute;
+                            if (minutosFim <= minutosInicio) {
+                              _mostrarSnack('O término precisa ser depois do início.', cor: const Color(0xFFC93659));
+                              return;
+                            }
+                            final agora = DateTime.now();
+                            final data = dataSelecionada!;
+                            final inicioDataHora = DateTime(data.year, data.month, data.day, inicio.hour, inicio.minute);
+                            if (!inicioDataHora.isAfter(agora)) {
+                              _mostrarSnack('Escolha uma data e horário futuros.', cor: const Color(0xFFC93659));
+                              return;
+                            }
                             setModalState(() => salvando = true);
-
-                            final ano = dataSelecionada!.year;
-                            final mes = dataSelecionada!.month.toString().padLeft(2, '0');
-                            final dia = dataSelecionada!.day.toString().padLeft(2, '0');
-                            final dataIso = '$ano-$mes-$dia';
-
-                            final hIni = '${horarioInicioSelecionado!.hour.toString().padLeft(2, '0')}:${horarioInicioSelecionado!.minute.toString().padLeft(2, '0')}:00';
-                            final hFim = horarioFimSelecionado != null
-                                ? '${horarioFimSelecionado!.hour.toString().padLeft(2, '0')}:${horarioFimSelecionado!.minute.toString().padLeft(2, '0')}:00'
-                                : '${(horarioInicioSelecionado!.hour + 2) % 24}:${horarioInicioSelecionado!.minute.toString().padLeft(2, '0')}:00';
-
+                            final dataIso = '${data.year}-${data.month.toString().padLeft(2, '0')}-${data.day.toString().padLeft(2, '0')}';
+                            String tempo(TimeOfDay t) => '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}:00';
                             final novoEvento = await _service.criarEvento({
                               'titulo': tituloCtrl.text.trim(),
                               'localEvento': localCtrl.text.trim(),
                               'descricao': descricaoCtrl.text.trim().isEmpty ? null : descricaoCtrl.text.trim(),
                               'dataEvento': dataIso,
-                              'horarioInicio': hIni,
-                              'horarioFim': hFim,
+                              'horarioInicio': tempo(inicio),
+                              'horarioFim': tempo(fim),
                               'criadorId': AuthService.idUsuario,
                               'status': 'AGENDADO',
                               'exigeCheckin': false,
                             });
-
-                            if (ctx.mounted) {
+                            if (!ctx.mounted) return;
+                            if (novoEvento != null) {
                               Navigator.pop(ctx);
-                              if (novoEvento != null) {
-                                _mostrarSnack('Evento criado com sucesso! 🎉');
-                                _carregarEventos();
-                              } else {
-                                _mostrarSnack('Erro ao criar evento.', cor: const Color(0xFFC93659));
-                              }
+                              _mostrarSnack('Evento criado com sucesso!');
+                              _carregarEventos();
+                            } else {
+                              setModalState(() => salvando = false);
+                              _mostrarSnack('Não foi possível criar o evento. Confira o servidor.', cor: const Color(0xFFC93659));
                             }
                           },
                     child: salvando
@@ -573,6 +581,81 @@ class _EventosPageState extends State<EventosPage> {
     );
   }
 
+  // Mapa real: somente eventos com coordenadas fornecidas pela API.
+  // Não inventamos localizações para parecer que há marcadores.
+  Widget _buildMapaPreview() {
+    final localizados = _eventos.where((e) => e.latitude != null && e.longitude != null).toList();
+    final centro = localizados.isNotEmpty
+        ? LatLng(localizados.first.latitude!, localizados.first.longitude!)
+        : const LatLng(-22.5646, -47.4017); // Centro inicial de Limeira, não é posição de evento.
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      child: Container(
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0xFFE5E7EB)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SizedBox(
+              height: 215,
+              child: FlutterMap(
+                options: MapOptions(initialCenter: centro, initialZoom: 12.5),
+                children: [
+                  TileLayer(
+                    urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    userAgentPackageName: 'socialjoin.mobile',
+                  ),
+                  MarkerLayer(
+                    markers: localizados.map((ev) => Marker(
+                      point: LatLng(ev.latitude!, ev.longitude!),
+                      width: 45,
+                      height: 45,
+                      child: GestureDetector(
+                        onTap: () => _abrirDetalhesEventoModal(ev),
+                        child: const Icon(Icons.location_on_rounded, size: 38, color: Color(0xFFEA3F74)),
+                      ),
+                    )).toList(),
+                  ),
+                  const RichAttributionWidget(
+                    attributions: [TextSourceAttribution('OpenStreetMap contributors')],
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              child: Row(
+                children: [
+                  Expanded(child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Explore no mapa', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                      Text(
+                        localizados.isEmpty
+                            ? 'Os eventos precisam de coordenadas para aparecer aqui.'
+                            : '${localizados.length} evento(s) com localização no mapa',
+                        style: const TextStyle(color: Color(0xFF64748B), fontSize: 12),
+                      ),
+                    ],
+                  )),
+                  IconButton.filledTonal(
+                    tooltip: 'Abrir mapa completo',
+                    onPressed: widget.onVerMapa,
+                    icon: const Icon(Icons.open_in_full_rounded),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -589,7 +672,8 @@ class _EventosPageState extends State<EventosPage> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Column(
+                    Expanded(
+                      child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
@@ -611,7 +695,9 @@ class _EventosPageState extends State<EventosPage> {
                           ),
                         ),
                       ],
+                      ),
                     ),
+                    const SizedBox(width: 8),
                     ElevatedButton.icon(
                       onPressed: _abrirCriarEvento,
                       icon: const Icon(Icons.add_rounded, size: 16),
@@ -628,6 +714,8 @@ class _EventosPageState extends State<EventosPage> {
                 ),
               ),
             ),
+
+            SliverToBoxAdapter(child: _buildMapaPreview()),
 
             // Banner Destaque (Fiel ao .evento-destaque da Web) se houver eventos
             if (_eventos.isNotEmpty)

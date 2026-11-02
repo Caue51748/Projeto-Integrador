@@ -32,6 +32,7 @@ class _FeedPageState extends State<FeedPage> {
   Map<int, List<Comentario>> comentariosPorPost = {};
   Set<int> postsCurtidos = {};
   bool carregando = true;
+  String? erroCarregamento;
   bool carregandoMais = false;
   bool temMaisPosts = true;
   int paginaAtual = 0;
@@ -60,6 +61,7 @@ class _FeedPageState extends State<FeedPage> {
   Future<void> carregarDados() async {
     setState(() {
       carregando = true;
+      erroCarregamento = null;
       paginaAtual = 0;
       temMaisPosts = true;
     });
@@ -95,7 +97,10 @@ class _FeedPageState extends State<FeedPage> {
       }
     } catch (e) {
       if (mounted) {
-        setState(() => carregando = false);
+        setState(() {
+          carregando = false;
+          erroCarregamento = 'Não foi possível carregar o feed. Verifique a API e a conexão.';
+        });
       }
     }
   }
@@ -198,6 +203,17 @@ class _FeedPageState extends State<FeedPage> {
           ? const Center(
               child: CircularProgressIndicator(color: Color(0xFFEA3F74)),
             )
+          : erroCarregamento != null
+            ? Center(child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  const Icon(Icons.wifi_off_rounded, size: 48, color: Color(0xFFEA3F74)),
+                  const SizedBox(height: 16),
+                  Text(erroCarregamento!, textAlign: TextAlign.center),
+                  const SizedBox(height: 12),
+                  FilledButton(onPressed: carregarDados, child: const Text('Tentar novamente')),
+                ]),
+              ))
           : RefreshIndicator(
               onRefresh: carregarDados,
               color: const Color(0xFFEA3F74),

@@ -21,32 +21,40 @@ class Usuario {
     this.fotoPerfil,
   });
 
+  static int? _id(dynamic value) {
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value);
+    return null;
+  }
+
   factory Usuario.fromJson(Map<String, dynamic> json) {
+    // Aceita DTO simples ou resposta com objeto 'usuario'.
+    final dados = json['usuario'] is Map
+        ? Map<String, dynamic>.from(json['usuario'] as Map)
+        : json;
     return Usuario(
-      idUsuario: json['idUsuario'] ?? json['id_usuario'],
-      nome: json['nome'] ?? '',
-      nomeCompleto: json['nomeCompleto'] ?? json['nome_completo'],
-      email: json['email'] ?? '',
-      senha: json['senha'] ?? '',
-      username: json['username'],
-      bio: json['bio'],
-      dataNascimento: json['dataNascimento'] ?? json['data_nascimento'],
-      fotoPerfil: json['fotoPerfil'] ?? json['foto_perfil'],
+      idUsuario: _id(dados['idUsuario'] ?? dados['id_usuario'] ?? dados['id'] ??
+          json['idUsuario'] ?? json['id']),
+      nome: (dados['nome'] ?? dados['nomeCompleto'] ?? '').toString(),
+      nomeCompleto: (dados['nomeCompleto'] ?? dados['nome_completo'])?.toString(),
+      email: (dados['email'] ?? json['email'] ?? '').toString(),
+      senha: (dados['senha'] ?? '').toString(),
+      username: dados['username']?.toString(),
+      bio: dados['bio']?.toString(),
+      dataNascimento: (dados['dataNascimento'] ?? dados['data_nascimento'])?.toString(),
+      fotoPerfil: (dados['fotoPerfil'] ?? dados['foto_perfil'])?.toString(),
     );
   }
 
-  Map<String, dynamic> toJson() {
-    final map = <String, dynamic>{
-      'nome': nome,
-      'email': email,
-      'senha': senha,
-    };
-    if (idUsuario != null) map['idUsuario'] = idUsuario;
-    if (nomeCompleto != null) map['nomeCompleto'] = nomeCompleto;
-    if (username != null) map['username'] = username;
-    if (bio != null) map['bio'] = bio;
-    if (dataNascimento != null) map['dataNascimento'] = dataNascimento;
-    if (fotoPerfil != null) map['fotoPerfil'] = fotoPerfil;
-    return map;
-  }
+  Map<String, dynamic> toJson() => {
+    'nome': nome,
+    'email': email,
+    'senha': senha,
+    if (idUsuario != null) 'idUsuario': idUsuario,
+    if (nomeCompleto != null) 'nomeCompleto': nomeCompleto,
+    if (username != null) 'username': username,
+    if (bio != null) 'bio': bio,
+    if (dataNascimento != null) 'dataNascimento': dataNascimento,
+    if (fotoPerfil != null) 'fotoPerfil': fotoPerfil,
+  };
 }

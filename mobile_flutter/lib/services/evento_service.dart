@@ -1,419 +1,117 @@
 import 'dart:convert';
-
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-
 import '../models/evento.dart';
 import 'api_service.dart';
 
 class EventoService {
   String get baseUrl => ApiService.baseUrl;
 
-  /// Lista todos os eventos do banco.
-  /// Aceita tanto resposta em formato List [...]
-  /// quanto Page { "content": [...] }.
-  Future<List<Evento>> listarEventos() async {
+  /// Ao falhar, NÃO retorna lista vazia: a interface precisa distinguir
+  /// "nenhum evento" de "servidor desligado/CORS".
+  Future<List<Evento>> listarEventos() => _listar('$baseUrl/api/eventos');
+  Future<List<Evento>> listarEventosPorUsuario(int idUsuario) =>
+      _listar('$baseUrl/api/eventos/usuario/$idUsuario');
+
+  Future<List<Evento>> _listar(String url) async {
     try {
-      final response = await http
-          .get(
-            Uri.parse('$baseUrl/api/eventos'),
-          )
-          .timeout(const Duration(seconds: 8));
-
-      if (kDebugMode) {
-        print('EVENTOS STATUS: ${response.statusCode}');
-        print('EVENTOS BODY: ${utf8.decode(response.bodyBytes)}');
+      final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 15));
+      if (response.statusCode != 200) {
+        throw Exception('HTTP ${response.statusCode} em $url');
       }
-
-      if (response.statusCode == 200) {
-        final decoded =
-            jsonDecode(utf8.decode(response.bodyBytes));
-
-        List<dynamic> listaData = [];
-
-        if (decoded is List) {
-          listaData = decoded;
-        } else if (decoded is Map &&
-            decoded['content'] is List) {
-          listaData = decoded['content'];
-        }
-
-        return listaData
-            .whereType<Map<String, dynamic>>()
-            .map((e) => Evento.fromJson(e))
-            .toList();
-      }
+      final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+      final dynamic lista = decoded is List ? decoded :
+          decoded is Map ? decoded['content'] : null;
+      if (lista is! List) throw const FormatException('Esperava lista de eventos da API.');
+      return lista.whereType<Map>().map((e) =>
+          Evento.fromJson(Map<String, dynamic>.from(e))).toList();
     } catch (e) {
-      if (kDebugMode) {
-        print('ERRO LISTAR EVENTOS: $e');
-      }
+      if (kDebugMode) debugPrint('ERRO LISTAR EVENTOS ($url): $e');
+      rethrow;
     }
-
-    return [];
   }
 
-  /// Lista eventos criados pelo usuário.
-  Future<List<Evento>> listarEventosPorUsuario(
-    int idUsuario,
-  ) async {
-    try {
-      final response = await http
-          .get(
-            Uri.parse(
-              '$baseUrl/api/eventos/usuario/$idUsuario',
-            ),
-          )
-          .timeout(const Duration(seconds: 8));
-
-      if (response.statusCode == 200) {
-        final decoded =
-            jsonDecode(utf8.decode(response.bodyBytes));
-
-        List<dynamic> listaData = [];
-
-        if (decoded is List) {
-          listaData = decoded;
-        } else if (decoded is Map &&
-            decoded['content'] is List) {
-          listaData = decoded['content'];
-        }
-
-        return listaData
-            .whereType<Map<String, dynamic>>()
-            .map((e) => Evento.fromJson(e))
-            .toList();
-      }
-
-      if (kDebugMode) {
-        print(
-          'Erro HTTP ao listar eventos do usuário: '
-          '${response.statusCode}',
-        );
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print(
-          'Erro ao listar eventos do usuário: $e',
-        );
-      }
-    }
-
-    return [];
-  }
-
-  /// Busca um evento pelo ID.
   Future<Evento?> buscarEventoPorId(int id) async {
     try {
-      final response = await http
-          .get(
-            Uri.parse(
-              '$baseUrl/api/eventos/$id',
-            ),
-          )
-          .timeout(const Duration(seconds: 8));
-
+      final response = await http.get(Uri.parse('$baseUrl/api/eventos/$id'))
+          .timeout(const Duration(seconds: 15));
       if (response.statusCode == 200) {
-        final decoded =
-            jsonDecode(utf8.decode(response.bodyBytes));
-
-        if (decoded is Map<String, dynamic>) {
-          return Evento.fromJson(decoded);
-        }
-
-        if (decoded is Map) {
-          return Evento.fromJson(
-            Map<String, dynamic>.from(decoded),
-          );
-        }
+        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        if (data is Map) return Evento.fromJson(Map<String, dynamic>.from(data));
       }
-
-      if (kDebugMode) {
-        print(
-          'Erro HTTP ao buscar evento por ID: '
-          '${response.statusCode}',
-        );
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print(
-          'Erro ao buscar evento por ID: $e',
-        );
-      }
-    }
-
+    } catch (e) { if (kDebugMode) debugPrint('Erro ao buscar evento: $e'); }
     return null;
   }
 
-  /// Cria um novo evento no backend.
-  Future<Evento?> criarEvento(
-    Map<String, dynamic> dados,
-  ) async {
+  Future<Evento?> criarEvento(Map<String, dynamic> dados) async {
     try {
-      final response = await http
-          .post(
-            Uri.parse(
-              '$baseUrl/api/eventos',
-            ),
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: jsonEncode(dados),
-          )
-          .timeout(const Duration(seconds: 10));
-
-      if (response.statusCode == 200 ||
-          response.statusCode == 201) {
-        final decoded =
-            jsonDecode(utf8.decode(response.bodyBytes));
-
-        if (decoded is Map<String, dynamic>) {
-          return Evento.fromJson(decoded);
-        }
-
-        if (decoded is Map) {
-          return Evento.fromJson(
-            Map<String, dynamic>.from(decoded),
-          );
-        }
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/eventos'),
+        headers: {'Content-Type': 'application/json; charset=UTF-8'},
+        body: jsonEncode(dados),
+      ).timeout(const Duration(seconds: 15));
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        if (data is Map) return Evento.fromJson(Map<String, dynamic>.from(data));
       }
-
-      if (kDebugMode) {
-        print(
-          'Erro HTTP ao criar evento: '
-          '${response.statusCode}',
-        );
-        print(
-          'Resposta: '
-          '${utf8.decode(response.bodyBytes)}',
-        );
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print(
-          'Erro ao criar evento: $e',
-        );
-      }
-    }
-
+      if (kDebugMode) debugPrint('CRIAR EVENTO: ${response.statusCode} ${response.body}');
+    } catch (e) { if (kDebugMode) debugPrint('Erro criando evento: $e'); }
     return null;
   }
 
-  /// Inscreve o usuário em um evento.
-  Future<bool> participarEvento(
-    int idEvento,
-    int idUsuario,
-  ) async {
+  Future<bool> participarEvento(int idEvento, int idUsuario) async {
     try {
-      final response = await http
-          .post(
-            Uri.parse(
-              '$baseUrl/api/eventos/'
-              '$idEvento/participar/$idUsuario',
-            ),
-          )
-          .timeout(const Duration(seconds: 8));
-
-      if (kDebugMode) {
-        print(
-          'PARTICIPAR EVENTO STATUS: '
-          '${response.statusCode}',
-        );
-      }
-
-      return response.statusCode == 200 ||
-          response.statusCode == 201 ||
-          response.statusCode == 204;
-    } catch (e) {
-      if (kDebugMode) {
-        print(
-          'Erro ao participar do evento: $e',
-        );
-      }
-
-      return false;
-    }
+      final response = await http.post(Uri.parse(
+        '$baseUrl/api/eventos/$idEvento/participar/$idUsuario',
+      )).timeout(const Duration(seconds: 10));
+      return [200, 201, 204].contains(response.statusCode);
+    } catch (e) { if (kDebugMode) debugPrint('Erro ao participar: $e'); return false; }
   }
 
-  /// Remove a inscrição do usuário em um evento.
-  Future<bool> sairEvento(
-    int idEvento,
-    int idUsuario,
-  ) async {
+  Future<bool> sairEvento(int idEvento, int idUsuario) async {
     try {
-      final response = await http
-          .delete(
-            Uri.parse(
-              '$baseUrl/api/eventos/'
-              '$idEvento/participar/$idUsuario',
-            ),
-          )
-          .timeout(const Duration(seconds: 8));
-
-      if (kDebugMode) {
-        print(
-          'SAIR EVENTO STATUS: '
-          '${response.statusCode}',
-        );
-      }
-
-      return response.statusCode == 200 ||
-          response.statusCode == 204;
-    } catch (e) {
-      if (kDebugMode) {
-        print(
-          'Erro ao sair do evento: $e',
-        );
-      }
-
-      return false;
-    }
+      final response = await http.delete(Uri.parse(
+        '$baseUrl/api/eventos/$idEvento/participar/$idUsuario',
+      )).timeout(const Duration(seconds: 10));
+      return [200, 204].contains(response.statusCode);
+    } catch (e) { if (kDebugMode) debugPrint('Erro ao sair do evento: $e'); return false; }
   }
 
-  /// Busca a quantidade de participantes de um evento.
-  Future<int> contarParticipantes(
-    int idEvento,
-  ) async {
+  Future<int> contarParticipantes(int idEvento) async {
     try {
-      final response = await http
-          .get(
-            Uri.parse(
-              '$baseUrl/api/eventos/'
-              '$idEvento/participantes/quantidade',
-            ),
-          )
-          .timeout(const Duration(seconds: 6));
-
-      if (response.statusCode == 200) {
-        final body =
-            utf8.decode(response.bodyBytes).trim();
-
-        final numeroDireto =
-            int.tryParse(body);
-
-        if (numeroDireto != null) {
-          return numeroDireto;
-        }
-
-        try {
-          final decoded = jsonDecode(body);
-
-          if (decoded is int) {
-            return decoded;
-          }
-
-          if (decoded is num) {
-            return decoded.toInt();
-          }
-
-          if (decoded is Map) {
-            final valor =
-                decoded['quantidade'] ??
-                decoded['total'] ??
-                decoded['count'];
-
-            if (valor is num) {
-              return valor.toInt();
-            }
-
-            return int.tryParse(
-                  valor?.toString() ?? '',
-                ) ??
-                0;
-          }
-        } catch (_) {}
+      final response = await http.get(Uri.parse(
+        '$baseUrl/api/eventos/$idEvento/participantes/quantidade',
+      )).timeout(const Duration(seconds: 8));
+      if (response.statusCode != 200) return 0;
+      final body = utf8.decode(response.bodyBytes).trim();
+      final direto = int.tryParse(body);
+      if (direto != null) return direto;
+      final data = jsonDecode(body);
+      if (data is num) return data.toInt();
+      if (data is Map) {
+        final count = data['quantidade'] ?? data['total'] ?? data['count'];
+        return count is num ? count.toInt() : int.tryParse('$count') ?? 0;
       }
-
-      if (kDebugMode) {
-        print(
-          'Erro HTTP ao contar participantes: '
-          '${response.statusCode}',
-        );
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print(
-          'Erro ao contar participantes: $e',
-        );
-      }
-    }
-
+    } catch (e) { if (kDebugMode) debugPrint('Erro ao contar participantes: $e'); }
     return 0;
   }
 
-  /// Lista os IDs dos usuários participantes do evento.
-  Future<List<int>> listarIdsParticipantes(
-    int idEvento,
-  ) async {
+  Future<List<int>> listarIdsParticipantes(int idEvento) async {
     try {
-      final response = await http
-          .get(
-            Uri.parse(
-              '$baseUrl/api/eventos/'
-              '$idEvento/participantes',
-            ),
-          )
-          .timeout(const Duration(seconds: 6));
-
-      if (response.statusCode == 200) {
-        final decoded =
-            jsonDecode(utf8.decode(response.bodyBytes));
-
-        if (decoded is List) {
-          final ids = <int>[];
-
-          for (final item in decoded) {
-            if (item is int) {
-              ids.add(item);
-              continue;
-            }
-
-            if (item is num) {
-              ids.add(item.toInt());
-              continue;
-            }
-
-            if (item is Map) {
-              final valor =
-                  item['usuarioId'] ??
-                  item['idUsuario'] ??
-                  item['id_usuario'] ??
-                  item['id'];
-
-              if (valor is num) {
-                ids.add(valor.toInt());
-              } else {
-                final id =
-                    int.tryParse(
-                      valor?.toString() ?? '',
-                    );
-
-                if (id != null) {
-                  ids.add(id);
-                }
-              }
-            }
-          }
-
-          return ids
-              .where((id) => id > 0)
-              .toList();
-        }
-      }
-
-      if (kDebugMode) {
-        print(
-          'Erro HTTP ao listar participantes: '
-          '${response.statusCode}',
-        );
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print(
-          'Erro ao listar participantes: $e',
-        );
-      }
-    }
-
+      final response = await http.get(Uri.parse(
+        '$baseUrl/api/eventos/$idEvento/participantes',
+      )).timeout(const Duration(seconds: 8));
+      if (response.statusCode != 200) return [];
+      final data = jsonDecode(utf8.decode(response.bodyBytes));
+      if (data is! List) return [];
+      return data.map((e) {
+        final dynamic valor = e is Map
+            ? e['usuarioId'] ?? e['idUsuario'] ?? e['id_usuario'] ?? e['id']
+            : e;
+        if (valor is num) return valor.toInt();
+        return int.tryParse('$valor') ?? 0;
+      }).where((v) => v > 0).toList();
+    } catch (e) { if (kDebugMode) debugPrint('Erro ao listar participantes: $e'); }
     return [];
   }
 }

@@ -50,7 +50,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (usuario == null || usuario.idUsuario == null) {
       setState(() {
-        erro = 'E-mail ou senha incorretos.';
+        erro = 'Não foi possível entrar. Confira as credenciais e se a API está ligada.';
         isLoading = false;
       });
       return;
