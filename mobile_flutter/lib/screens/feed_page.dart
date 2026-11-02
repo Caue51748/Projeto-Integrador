@@ -1,560 +1,211 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../models/post.dart';
-import '../models/comentario.dart';
+import '../models/usuario.dart';
 import '../services/auth_service.dart';
 import '../services/post_service.dart';
 import '../services/usuario_service.dart';
-import '../services/comentario_service.dart';
 import '../services/api_service.dart';
-import 'login_screen.dart';
 import 'create_post_page.dart';
 import 'post_detail_screen.dart';
+import 'login_screen.dart';
 
-/// Feed Social Mobile — Fiel à Estilização Real da Tela WEB (.card, .post-card, .avatar, .feed-tab, .post-action).
-/// Fonte da Verdade: web/style.css
 class FeedPage extends StatefulWidget {
   const FeedPage({super.key});
-
   @override
   State<FeedPage> createState() => _FeedPageState();
 }
 
 class _FeedPageState extends State<FeedPage> {
-  final PostService postService = PostService();
-  final UsuarioService usuarioService = UsuarioService();
-  final ComentarioService comentarioService = ComentarioService();
-  final ScrollController _scrollController = ScrollController();
-
-  List<Post> posts = [];
-  Map<int, String> nomesUsuarios = {};
-  Map<int, String?> fotosUsuarios = {};
-  Map<int, List<Comentario>> comentariosPorPost = {};
-  Set<int> postsCurtidos = {};
-  bool carregando = true;
-  bool carregandoMais = false;
-  bool temMaisPosts = true;
-  int paginaAtual = 0;
-  final int pageSize = 10;
+  static const roxo = Color(0xFFEA3F74);
+  static const escuro = Color(0xFF171B2B);
+  final _postService = PostService();
+  final _usuarioService = UsuarioService();
+  final ScrollController _scroll = ScrollController();
+  final Map<int,String> _nomes = {};
+  final Map<int,String?> _fotos = {};
+  final Set<int> _curtidosLocal = {};
+  List<Post> _posts = [];
+  bool _loading = true;
+  bool _maisLoading = false;
+  bool _temMais = true;
+  String? _erro;
+  int _pagina = 0;
+  static const int _pageSize = 10;
 
   @override
   void initState() {
     super.initState();
-    _scrollController.addListener(_onScroll);
-    carregarDados();
-  }
-
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  void _onScroll() {
-    if (_scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent - 250) {
-      _carregarMaisPosts();
-    }
-  }
-
-  Future<void> carregarDados() async {
-    setState(() {
-      carregando = true;
-      paginaAtual = 0;
-      temMaisPosts = true;
+    _scroll.addListener(() {
+      if (_scroll.hasClients && _scroll.position.pixels > _scroll.position.maxScrollExtent - 220) _carregarMais();
     });
+    _carregar();
+  }
+  @override
+  void dispose() { _scroll.dispose(); super.dispose(); }
+
+  Future<void> _carregar() async {
+    if (mounted) setState(() { _loading = true; _erro = null; });
     try {
-      final listaUsuarios = await usuarioService.listarUsuarios();
-      Map<int, String> mapaUsuarios = {};
-      Map<int, String?> mapaFotos = {};
-      for (var u in listaUsuarios) {
-        if (u.idUsuario != null) {
-          mapaUsuarios[u.idUsuario!] = u.nome;
-          mapaFotos[u.idUsuario!] = u.fotoPerfil;
+      final posts = await _postService.listarPosts(page: 0, size: _pageSize);
+      // A lista de usuários serve apenas para nomes e fotos. Uma falha nela não deve ocultar posts.
+      List<Usuario> usuarios = [];
+      try { usuarios = await _usuarioService.listarUsuarios(); } catch (_) {}
+      if (!mounted) return;
+      setState(() {
+        _posts = posts;
+        _pagina = 1;
+        _temMais = posts.length == _pageSize;
+        _nomes.clear(); _fotos.clear();
+        for (final u in usuarios) {
+          if (u.idUsuario != null) { _nomes[u.idUsuario!] = u.nome; _fotos[u.idUsuario!] = u.fotoPerfil; }
         }
-      }
-
-      final listaPosts = await postService.listarPosts(page: 0, size: pageSize);
-      final listaComentarios = await comentarioService.listarComentarios();
-
-      Map<int, List<Comentario>> mapaComentarios = {};
-      for (var c in listaComentarios) {
-        mapaComentarios.putIfAbsent(c.idPost, () => []).add(c);
-      }
-
-      if (mounted) {
-        setState(() {
-          nomesUsuarios = mapaUsuarios;
-          fotosUsuarios = mapaFotos;
-          comentariosPorPost = mapaComentarios;
-          posts = listaPosts;
-          paginaAtual = 1;
-          temMaisPosts = listaPosts.length >= pageSize;
-          carregando = false;
-        });
-      }
+        _loading = false;
+      });
     } catch (e) {
-      if (mounted) {
-        setState(() => carregando = false);
-      }
+      if (mounted) setState(() { _erro = 'Feed indisponível: $e'; _loading = false; });
     }
   }
 
-  Future<void> _carregarMaisPosts() async {
-    if (carregandoMais || !temMaisPosts || carregando) return;
-
-    setState(() => carregandoMais = true);
+  Future<void> _carregarMais() async {
+    if (_maisLoading || !_temMais || _loading) return;
+    _maisLoading = true;
     try {
-      final novosPosts =
-          await postService.listarPosts(page: paginaAtual, size: pageSize);
-
+      final lista = await _postService.listarPosts(page: _pagina, size: _pageSize);
       if (mounted) {
         setState(() {
-          if (novosPosts.length < pageSize) {
-            temMaisPosts = false;
-          }
-          final idsExistentes = posts.map((p) => p.idPost).toSet();
-          final postsFiltrados =
-              novosPosts.where((p) => !idsExistentes.contains(p.idPost)).toList();
-
-          posts.addAll(postsFiltrados);
-          paginaAtual++;
-          carregandoMais = false;
+          final ids = _posts.map((p) => p.idPost).toSet();
+          final unicos = lista.where((p) => !ids.contains(p.idPost)).toList();
+          _posts.addAll(unicos);
+          _pagina++;
+          _temMais = lista.length == _pageSize && unicos.isNotEmpty;
         });
       }
-    } catch (e) {
-      if (mounted) {
-        setState(() => carregandoMais = false);
-      }
+    } catch (e) { if (mounted) setState(() => _temMais = false); }
+    finally { _maisLoading = false; }
+  }
+
+  Future<void> _criar() async {
+    if (!AuthService.logado) {
+      await Navigator.push(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
+      return;
     }
+    final salvou = await Navigator.push<bool>(context,
+      MaterialPageRoute(builder: (_) => const CreatePostPage()));
+    if (salvou == true) _carregar();
   }
 
-  void irParaDetalhes(Post post, String nomeAutor) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => PostDetailScreen(
-          post: post,
-          nomeAutor: nomeAutor,
-          nomesUsuarios: nomesUsuarios,
-        ),
-      ),
-    ).then((_) => carregarDados());
+  void _detalhes(Post post) {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => PostDetailScreen(
+      post: post, nomeAutor: _nomes[post.idUsuario] ?? 'Membro', nomesUsuarios: _nomes,
+    ))).then((_) => _carregar());
   }
 
-  void _toggleCurtida(int postId) {
-    setState(() {
-      if (postsCurtidos.contains(postId)) {
-        postsCurtidos.remove(postId);
-      } else {
-        postsCurtidos.add(postId);
-      }
-    });
+  Widget _avatar(String nome, String? foto, {double size = 22}) {
+    final url = ApiService.formatarUrlFotoPerfil(foto);
+    return CircleAvatar(radius: size, backgroundColor: const Color(0xFFFFEAF1),
+      backgroundImage: url == null ? null : NetworkImage(url),
+      child: url == null ? Text(nome.isEmpty ? '?' : nome[0].toUpperCase(),
+        style: const TextStyle(color: roxo, fontWeight: FontWeight.w900)) : null);
+  }
+
+  Widget _card(Post post) {
+    final autor = _nomes[post.idUsuario] ?? 'Membro da comunidade';
+    final imagem = ApiService.formatarUrlMidia(post.imagemUrl);
+    final foto = _fotos[post.idUsuario];
+    return Container(margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE5E7EB))),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Padding(padding: const EdgeInsets.fromLTRB(15,14,15,12), child: Row(children: [
+          _avatar(autor, foto, size: 21),
+          const SizedBox(width: 11),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(autor, style: const TextStyle(color: escuro, fontWeight: FontWeight.w800)),
+            const Text('Comunidade SocialJoin', style: TextStyle(color: Color(0xFF8A90A1), fontSize: 11)),
+          ])),
+          const Icon(Icons.more_horiz_rounded, color: Color(0xFF858B9B)),
+        ])),
+        InkWell(onTap: () => _detalhes(post), child: Padding(
+          padding: const EdgeInsets.fromLTRB(15,4,15,14),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(post.titulo, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900,
+              color: escuro, letterSpacing: -.35)),
+            const SizedBox(height: 8),
+            Text(post.conteudo, maxLines: 6, overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: Color(0xFF4E5669), height: 1.55, fontSize: 14)),
+          ]))),
+        if (imagem != null) GestureDetector(onTap: () => _detalhes(post),
+          child: Image.network(imagem, fit: BoxFit.cover, width: double.infinity,
+            height: 230, errorBuilder: (_, __, ___) => const Padding(
+              padding: EdgeInsets.all(20), child: Text('Imagem indisponível')))),
+        Padding(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10), child: Row(children: [
+          TextButton.icon(onPressed: () {
+            // Curtidas apenas visuais: não existe endpoint de curtidas na API fornecida.
+            if (post.idPost == null) return;
+            setState(() {
+              if (!_curtidosLocal.remove(post.idPost)) _curtidosLocal.add(post.idPost!);
+            });
+          }, icon: Icon(_curtidosLocal.contains(post.idPost) ? Icons.favorite : Icons.favorite_border_rounded,
+            color: _curtidosLocal.contains(post.idPost) ? const Color(0xFFED4769) : const Color(0xFF8790A0), size: 21),
+            label: const Text('Curtir')),
+          TextButton.icon(onPressed: () => _detalhes(post),
+            icon: const Icon(Icons.chat_bubble_outline_rounded, size: 20), label: const Text('Comentar')),
+          const Spacer(),
+          IconButton(onPressed: () => _detalhes(post), tooltip: 'Abrir publicação',
+            icon: const Icon(Icons.arrow_outward_rounded, color: Color(0xFF8790A0))),
+        ])),
+      ]),
+    );
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FF),
-      floatingActionButton: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: const [
-            BoxShadow(
-              color: Color.fromRGBO(234, 63, 116, 0.26),
-              blurRadius: 18,
-              offset: Offset(0, 8),
-            ),
-          ],
-        ),
-        child: FloatingActionButton.extended(
-          onPressed: () {
-            if (!AuthService.logado) {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const LoginScreen()),
-              );
-              return;
-            }
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const CreatePostPage()),
-            ).then((_) => carregarDados());
-          },
-          backgroundColor: const Color(0xFFEA3F74),
-          elevation: 0,
-          icon: const Icon(Icons.add_rounded, color: Colors.white, size: 20),
-          label: Text(
-            "Novo Post",
-            style: GoogleFonts.manrope(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-              fontSize: 14,
-            ),
-          ),
-        ),
-      ),
-      body: carregando
-          ? const Center(
-              child: CircularProgressIndicator(color: Color(0xFFEA3F74)),
-            )
-          : RefreshIndicator(
-              onRefresh: carregarDados,
-              color: const Color(0xFFEA3F74),
-              child: ListView.builder(
-                controller: _scrollController,
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 90),
-                itemCount: posts.length + 1 + (carregandoMais ? 1 : 0),
-                itemBuilder: (context, index) {
-                  if (index == 0) {
-                    return _buildInlineCreatePostCard();
-                  }
-
-                  if (index > posts.length) {
-                    return const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 20),
-                      child: Center(
-                        child: SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(
-                            color: Color(0xFFEA3F74),
-                            strokeWidth: 2,
-                          ),
-                        ),
-                      ),
-                    );
-                  }
-
-                  final post = posts[index - 1];
-                  final nomeAutor =
-                      nomesUsuarios[post.idUsuario] ?? 'Desconhecido';
-                  final fotoAutor = fotosUsuarios[post.idUsuario];
-                  final qtdComentarios =
-                      comentariosPorPost[post.idPost]?.length ?? 0;
-                  final inicial =
-                      nomeAutor.isNotEmpty ? nomeAutor[0].toUpperCase() : '?';
-                  final bool curtiu =
-                      post.idPost != null && postsCurtidos.contains(post.idPost!);
-
-                  return _buildWebStylePostCard(
-                    post: post,
-                    nomeAutor: nomeAutor,
-                    fotoAutor: fotoAutor,
-                    inicial: inicial,
-                    qtdComentarios: qtdComentarios,
-                    curtiu: curtiu,
-                  );
-                },
-              ),
-            ),
-    );
-  }
-
-  /// Caixa Superior Fiel ao Estilo `.card` da Web
-  Widget _buildInlineCreatePostCard() {
-    final nomeUsuario = AuthService.logado
-        ? (AuthService.nomeUsuario ?? 'Usuário')
-        : 'Visitante';
-    final inicial = nomeUsuario.isNotEmpty ? nomeUsuario[0].toUpperCase() : 'U';
-    final fotoUrl = ApiService.formatarUrlFotoPerfil(AuthService.fotoPerfil);
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE8ECF5)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color.fromRGBO(17, 24, 39, 0.06),
-            blurRadius: 22,
-            offset: Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          // Avatar (.avatar da Web)
-          CircleAvatar(
-            radius: 20,
-            backgroundColor: const Color(0xFFEA3F74),
-            backgroundImage: (fotoUrl != null) ? NetworkImage(fotoUrl) : null,
-            child: (fotoUrl == null)
-                ? Text(
-                    inicial,
-                    style: GoogleFonts.manrope(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  )
-                : null,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: InkWell(
-              onTap: () {
-                if (!AuthService.logado) {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const LoginScreen()),
-                  );
-                  return;
-                }
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const CreatePostPage()),
-                ).then((_) => carregarDados());
-              },
-              borderRadius: BorderRadius.circular(10),
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF7F8FA),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFFE5E7EB)),
-                ),
-                child: Text(
-                  'No que você está pensando, $nomeUsuario?',
-                  style: GoogleFonts.manrope(
-                    color: const Color(0xFF6B7280),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Card de Post Fiel aos componentes `.card`, `.post-card`, `.post-header-area`, `.post-actions` da Web CSS
-  Widget _buildWebStylePostCard({
-    required Post post,
-    required String nomeAutor,
-    String? fotoAutor,
-    required String inicial,
-    required int qtdComentarios,
-    required bool curtiu,
-  }) {
-    final fotoUrl = ApiService.formatarUrlFotoPerfil(fotoAutor);
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE8ECF5)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color.fromRGBO(17, 24, 39, 0.06),
-            blurRadius: 22,
-            offset: Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(14),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(14),
-          onTap: () => irParaDetalhes(post, nomeAutor),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header Area (.post-header-area da Web)
-                Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 20,
-                      backgroundColor: const Color(0xFFEA3F74),
-                      backgroundImage:
-                          (fotoUrl != null) ? NetworkImage(fotoUrl) : null,
-                      child: (fotoUrl == null)
-                          ? Text(
-                              inicial,
-                              style: GoogleFonts.manrope(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            )
-                          : null,
-                    ),
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: const Color(0xFFF7F8FA),
+    floatingActionButton: FloatingActionButton.extended(
+      onPressed: _criar, icon: const Icon(Icons.edit_square), label: const Text('Publicar')),
+    body: _loading ? const Center(child: CircularProgressIndicator()) :
+      _erro != null ? Center(child: Padding(padding: const EdgeInsets.all(24),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Icon(Icons.cloud_off_outlined, size: 48, color: roxo),
+          const SizedBox(height: 16), Text(_erro!, textAlign: TextAlign.center),
+          const SizedBox(height: 16), FilledButton(onPressed: _carregar, child: const Text('Tentar novamente')),
+        ]))) : RefreshIndicator(onRefresh: _carregar,
+        child: ListView.builder(controller: _scroll,
+          padding: const EdgeInsets.fromLTRB(16,18,16,100),
+          itemCount: _posts.length + 1 + (_maisLoading ? 1 : 0),
+          itemBuilder: (_, i) {
+            if (i == 0) {
+              return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('Feed', style: TextStyle(fontSize: 25, fontWeight: FontWeight.w800,
+                letterSpacing: -.8, color: escuro)),
+              const SizedBox(height: 4),
+              const Text('Descubra e compartilhe momentos da comunidade.',
+                style: TextStyle(color: Color(0xFF858B9B))),
+              const SizedBox(height: 18),
+              Material(color: Colors.white, borderRadius: BorderRadius.circular(20),
+                child: InkWell(borderRadius: BorderRadius.circular(20), onTap: _criar,
+                  child: Padding(padding: const EdgeInsets.all(16), child: Row(children: [
+                    _avatar(AuthService.nomeUsuario ?? 'Você', AuthService.fotoPerfil),
                     const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            nomeAutor,
-                            style: GoogleFonts.manrope(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                              color: const Color(0xFF202124),
-                            ),
-                          ),
-                          Text(
-                            'Publicação',
-                            style: GoogleFonts.manrope(
-                              fontSize: 11,
-                              color: const Color(0xFF6B7280),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const Icon(
-                      Icons.more_horiz_rounded,
-                      color: Color(0xFF6B7280),
-                      size: 20,
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 14),
-
-                // Título do Post (.post-title da Web)
-                Text(
-                  post.titulo,
-                  style: GoogleFonts.manrope(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF202124),
-                  ),
-                ),
-
-                const SizedBox(height: 8),
-
-                // Conteúdo do Post (.post-body da Web)
-                Text(
-                  post.conteudo,
-                  style: GoogleFonts.manrope(
-                    fontSize: 15,
-                    color: const Color(0xFF6B7280),
-                    height: 1.5,
-                  ),
-                  maxLines: 4,
-                  overflow: TextOverflow.ellipsis,
-                ),
-
-                const SizedBox(height: 16),
-
-                // Barra de Ações (.post-actions e .post-action da Web CSS)
-                Container(
-                  padding: const EdgeInsets.only(top: 11),
-                  decoration: const BoxDecoration(
-                    border: Border(
-                      top: BorderSide(color: Color(0xFFE5E7EB), width: 1.0),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      // Curtida / Like
-                      InkWell(
-                        onTap: () {
-                          if (post.idPost != null) {
-                            _toggleCurtida(post.idPost!);
-                          }
-                        },
-                        borderRadius: BorderRadius.circular(8),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
-                          decoration: BoxDecoration(
-                            color: curtiu ? const Color(0xFFF7F8FA) : Colors.transparent,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                curtiu ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                                color: curtiu ? const Color(0xFFEA3F74) : const Color(0xFF6B7280),
-                                size: 19,
-                              ),
-                              const SizedBox(width: 5),
-                              Text(
-                                curtiu ? '1' : '0',
-                                style: GoogleFonts.manrope(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: curtiu ? const Color(0xFFEA3F74) : const Color(0xFF6B7280),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(width: 8),
-
-                      // Comentários
-                      InkWell(
-                        onTap: () => irParaDetalhes(post, nomeAutor),
-                        borderRadius: BorderRadius.circular(8),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
-                          decoration: BoxDecoration(
-                            color: Colors.transparent,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                Icons.chat_bubble_outline_rounded,
-                                color: Color(0xFF6B7280),
-                                size: 19,
-                              ),
-                              const SizedBox(width: 5),
-                              Text(
-                                '$qtdComentarios',
-                                style: GoogleFonts.manrope(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: const Color(0xFF6B7280),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-
-                      const Spacer(),
-
-                      // Botão Abrir (.post-open-button da Web)
-                      InkWell(
-                        onTap: () => irParaDetalhes(post, nomeAutor),
-                        child: Row(
-                          children: [
-                            Text(
-                              'Ver detalhes',
-                              style: GoogleFonts.manrope(
-                                color: const Color(0xFFEA3F74),
-                                fontSize: 12,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            const Icon(Icons.arrow_forward_rounded, color: Color(0xFFEA3F74), size: 16),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+                    const Expanded(child: Text('Compartilhe uma novidade...',
+                      style: TextStyle(color: Color(0xFF808798)))),
+                    const Icon(Icons.add_photo_alternate_outlined, color: roxo),
+                  ])))),
+              const SizedBox(height: 22),
+              if (_posts.isNotEmpty) const Text('Publicações recentes', style: TextStyle(
+                fontSize: 18, color: escuro, fontWeight: FontWeight.w900)),
+              const SizedBox(height: 14),
+              if (_posts.isEmpty) const Padding(padding: EdgeInsets.all(30),
+                child: Center(child: Text('Ainda não há publicações. Crie a primeira!'))),
+              ]);
+            }
+            if (i > _posts.length) {
+              return const Padding(padding: EdgeInsets.all(20),
+                child: Center(child: CircularProgressIndicator()));
+            }
+            return _card(_posts[i-1]);
+          },
+        )),
+  );
 }

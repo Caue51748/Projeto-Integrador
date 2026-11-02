@@ -1,14 +1,13 @@
 class ApiService {
-  //static const String baseUrl = 'http://localhost:8080';
-
-  //PC do COTIL:
-
-  static const String baseUrl = 'http://143.106.241.62:8080';
-
-  //API Render:
-  //static const String baseUrl = 'https://projeto-integrador-m4jn.onrender.com';
-
-  //Só comentar a primeira linha e descomentar a que for usar
+  // Configure sem editar código:
+  // Chrome + backend no mesmo PC: http://localhost:8080
+  // Emulador Android + backend no PC: http://10.0.2.2:8080
+  // Celular na mesma rede: http://IP_DO_PC:8080
+  // Render: https://projeto-integrador-m4jn.onrender.com
+  static const String baseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://localhost:8080',
+  );
 
   static String usuarios = '$baseUrl/usuarios';
   static String posts = '$baseUrl/posts';
@@ -16,22 +15,24 @@ class ApiService {
   static String comunidades = '$baseUrl/comunidades';
   static String eventos = '$baseUrl/api/eventos';
 
-  /// Formata URL de foto de perfil (Google Drive ou caminho local)
+  static String? formatarUrlMidia(String? valor) {
+    if (valor == null || valor.trim().isEmpty) return null;
+    final texto = valor.trim();
+    if (texto.startsWith('https://') || texto.startsWith('http://')) return texto;
+    if (texto.startsWith('/')) return '$baseUrl$texto';
+    return '$baseUrl/$texto';
+  }
+
   static String? formatarUrlFotoPerfil(String? fotoPerfil) {
     if (fotoPerfil == null || fotoPerfil.trim().isEmpty) return null;
     final foto = fotoPerfil.trim();
-    if (foto.startsWith('http://') || foto.startsWith('https://')) {
-      return foto;
-    }
-    if (foto.startsWith('uploads/')) {
-      return '$baseUrl/$foto';
-    }
+    if (foto.startsWith('http://') || foto.startsWith('https://')) return foto;
+    if (foto.startsWith('uploads/')) return '$baseUrl/$foto';
     if (foto.startsWith('/google/drive/image/') ||
         foto.startsWith('google/drive/image/')) {
-      final limpo = foto.startsWith('/') ? foto.substring(1) : foto;
-      return '$baseUrl/$limpo';
+      final caminho = foto.startsWith('/') ? foto.substring(1) : foto;
+      return '$baseUrl/$caminho';
     }
-    // fileId do Google Drive
     return '$baseUrl/google/drive/image/$foto';
   }
 }

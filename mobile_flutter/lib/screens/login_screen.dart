@@ -50,7 +50,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (usuario == null || usuario.idUsuario == null) {
       setState(() {
-        erro = 'E-mail ou senha incorretos.';
+        erro = 'Não foi possível entrar. Confira as credenciais e se a API está ligada.';
         isLoading = false;
       });
       return;
@@ -62,6 +62,7 @@ class _LoginScreenState extends State<LoginScreen> {
       email: usuario.email.isNotEmpty ? usuario.email : emailController.text.trim(),
       username: usuario.username,
       bio: usuario.bio,
+      fotoPerfil: usuario.fotoPerfil,
     );
 
     Navigator.pushReplacement(

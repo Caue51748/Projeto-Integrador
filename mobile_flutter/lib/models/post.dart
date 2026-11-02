@@ -3,29 +3,30 @@ class Post {
   int? idUsuario;
   String titulo;
   String conteudo;
+  String? imagemUrl;
 
-  Post({
-    this.idPost,
-    this.idUsuario,
-    required this.titulo,
-    required this.conteudo,
-  });
+  Post({this.idPost, this.idUsuario, required this.titulo,
+    required this.conteudo, this.imagemUrl});
 
-  factory Post.fromJson(Map<String, dynamic> json) {
-    return Post(
-      idPost: json['idPost'] ?? json['id_post'],
-      idUsuario: json['idUsuario'] ?? json['id_usuario'],
-      titulo: json['titulo'] ?? '',
-      conteudo: json['conteudo'] ?? '',
-    );
+  static int? _id(dynamic raw) {
+    if (raw is num) return raw.toInt();
+    if (raw is String) return int.tryParse(raw);
+    if (raw is Map) return _id(raw['idUsuario'] ?? raw['id'] ?? raw['idPost']);
+    return null;
   }
 
-  Map<String, dynamic> toJson() {
-    // Aqui está o segredo: enviamos APENAS os mesmos nomes das variáveis do Post.java
-    return {
-      'titulo': titulo,
-      'conteudo': conteudo,
-      'idUsuario': idUsuario,
-    };
-  }
+  factory Post.fromJson(Map<String, dynamic> json) => Post(
+    idPost: _id(json['idPost'] ?? json['id_post'] ?? json['id']),
+    idUsuario: _id(json['idUsuario'] ?? json['id_usuario'] ?? json['usuario']),
+    titulo: (json['titulo'] ?? '').toString(),
+    conteudo: (json['conteudo'] ?? '').toString(),
+    imagemUrl: (json['imagemUrl'] ?? json['imagem_url'] ?? json['imagem'] ?? json['imageUrl'])?.toString(),
+  );
+
+  Map<String, dynamic> toJson() => {
+    'titulo': titulo,
+    'conteudo': conteudo,
+    'idUsuario': idUsuario,
+    if (imagemUrl != null && imagemUrl!.isNotEmpty) 'imagemUrl': imagemUrl,
+  };
 }

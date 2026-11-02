@@ -4,6 +4,7 @@ import '../models/post.dart';
 import '../models/comentario.dart';
 import '../services/auth_service.dart';
 import '../services/comentario_service.dart';
+import '../services/api_service.dart';
 
 /// Tela de Detalhes da Publicação & Comentários Mobile — Fiel à Estilização Real da Tela WEB (.post-detail-card, .post-comments-heading, .detail-comment-box, .detail-comment).
 /// Fonte da Verdade: web/style.css
@@ -164,6 +165,13 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                             widget.post.conteudo,
                             style: GoogleFonts.manrope(fontSize: 15, color: const Color(0xFF202124), height: 1.65),
                           ),
+                          if (ApiService.formatarUrlMidia(widget.post.imagemUrl) != null) ...[
+                            const SizedBox(height: 16),
+                            ClipRRect(borderRadius: BorderRadius.circular(16),
+                              child: Image.network(ApiService.formatarUrlMidia(widget.post.imagemUrl)!,
+                                width: double.infinity, fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => const Text('Imagem indisponível'))),
+                          ],
                         ],
                       ),
                     ),

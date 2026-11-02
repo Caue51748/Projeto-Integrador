@@ -1,977 +1,528 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import '../models/evento.dart';
 import '../services/evento_service.dart';
 import '../services/auth_service.dart';
+import '../services/api_service.dart';
+import 'login_screen.dart';
 
-/// Tela de Eventos Mobile — Fiel à Estilização Real da Tela WEB (.page-header, kicker viva mais fora da tela, .card, .btn-primary, modal web-style).
-/// Fonte da Verdade: web/style.css
+/// Redesign mobile: descoberta > mapa > eventos > ações.
 class EventosPage extends StatefulWidget {
   final VoidCallback? onVerMapa;
-
-  const EventosPage({
-    super.key,
-    this.onVerMapa,
-  });
-
+  const EventosPage({super.key, this.onVerMapa});
   @override
   State<EventosPage> createState() => _EventosPageState();
 }
 
 class _EventosPageState extends State<EventosPage> {
+  static const roxo = Color(0xFFEA3F74);
+  static const escuro = Color(0xFF202124);
+  static const cinza = Color(0xFF6B7280);
   final EventoService _service = EventoService();
+  final TextEditingController _busca = TextEditingController();
   List<Evento> _eventos = [];
-  List<Evento> _eventosFiltrados = [];
-  Map<int, int> _totalParticipantesPorEvento = {};
-  Set<int> _eventosInscritos = {};
-
   bool _carregando = true;
   String? _erro;
-  String _filtroStatus = 'TODOS';
-  final TextEditingController _buscaCtrl = TextEditingController();
+  String _categoria = 'Todos';
+  final Set<int> _inscritosConfirmados = <int>{};
+  final Set<int> _operacoesEmAndamento = <int>{};
 
   @override
-  void initState() {
-    super.initState();
-    _carregarEventos();
-  }
-
+  void initState() { super.initState(); _carregar(); }
   @override
-  void dispose() {
-    _buscaCtrl.dispose();
-    super.dispose();
+  void dispose() { _busca.dispose(); super.dispose(); }
+
+  List<Evento> get _filtrados => _eventos.where((e) {
+    final q = _busca.text.trim().toLowerCase();
+    final bate = q.isEmpty || e.titulo.toLowerCase().contains(q) ||
+        e.localEvento.toLowerCase().contains(q) ||
+        (e.descricao ?? '').toLowerCase().contains(q);
+    return bate && (_categoria == 'Todos' || (e.categoria ?? 'Outros') == _categoria);
+  }).toList();
+
+  List<String> get _categorias {
+    final set = _eventos.map((e) => e.categoria?.trim() ?? 'Outros')
+        .where((s) => s.isNotEmpty).toSet().toList()..sort();
+    return ['Todos', ...set];
   }
 
-  Future<void> _carregarEventos() async {
-    setState(() {
-      _carregando = true;
-      _erro = null;
-    });
-
+  Future<void> _carregar() async {
+    if (mounted) setState(() { _carregando = true; _erro = null; });
     try {
       final lista = await _service.listarEventos();
-
-      if (mounted) {
-        setState(() {
-          _eventos = lista;
-          _carregando = false;
-          _aplicarFiltros();
-        });
-      }
-
-      _carregarMetadadosEventos(lista);
+      if (mounted) setState(() { _eventos = lista; _carregando = false; });
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _erro = 'Não foi possível carregar os eventos da rede.';
-          _carregando = false;
-        });
-      }
+      if (mounted) setState(() { _erro = 'Não foi possível carregar os eventos. Confira a API: $e'; _carregando = false; });
     }
   }
 
-  Future<void> _carregarMetadadosEventos(List<Evento> lista) async {
-    final Map<int, int> mapaContagem = Map.from(_totalParticipantesPorEvento);
-    final Set<int> inscritos = Set.from(_eventosInscritos);
+  void _snack(String text) {
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+  }
 
-    await Future.wait(lista.map((ev) async {
-      try {
-        final total = await _service.contarParticipantes(ev.id);
-        mapaContagem[ev.id] = total;
+  bool _cancelado(Evento evento) {
+    final situacao = evento.status.toUpperCase();
+    return situacao == 'CANCELADO' || situacao == 'ENCERRADO' || situacao == 'FINALIZADO';
+  }
 
-        if (AuthService.logado && AuthService.idUsuario != null) {
-          final ids = await _service.listarIdsParticipantes(ev.id);
-          if (ids.contains(AuthService.idUsuario)) {
-            inscritos.add(ev.id);
+  Future<void> _alternarParticipacao(Evento evento) async {
+    if (!AuthService.logado || AuthService.idUsuario == null) {
+      await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const LoginScreen()));
+      return;
+    }
+    if (_operacoesEmAndamento.contains(evento.id) || _cancelado(evento)) return;
+    setState(() => _operacoesEmAndamento.add(evento.id));
+    try {
+      final usuario = AuthService.idUsuario!;
+      final jaInscrito = _inscritosConfirmados.contains(evento.id);
+      final sucesso = jaInscrito
+          ? await _service.sairEvento(evento.id, usuario)
+          : await _service.participarEvento(evento.id, usuario);
+      if (!mounted) return;
+      if (sucesso) {
+        setState(() {
+          if (jaInscrito) {
+            _inscritosConfirmados.remove(evento.id);
+          } else {
+            _inscritosConfirmados.add(evento.id);
           }
+        });
+        _snack(jaInscrito ? 'Você saiu do evento.' : 'Participação confirmada!');
+      } else {
+        _snack('Não foi possível atualizar sua inscrição. Confira a API e as regras do evento.');
+      }
+    } finally {
+      if (mounted) setState(() => _operacoesEmAndamento.remove(evento.id));
+    }
+  }
+
+  Future<void> _abrirDetalhes(Evento evento) async {
+    int? total;
+    bool? inscrito;
+    bool enviando = false;
+    String? erro;
+    if (AuthService.idUsuario != null) {
+      try {
+        final resultados = await Future.wait([
+          _service.listarIdsParticipantes(evento.id),
+          _service.contarParticipantes(evento.id),
+        ]);
+        if (resultados[0] is List<int>) {
+          inscrito = (resultados[0] as List<int>).contains(AuthService.idUsuario);
+          if (mounted) setState(() {
+            if (inscrito == true) {
+              _inscritosConfirmados.add(evento.id);
+            } else {
+              _inscritosConfirmados.remove(evento.id);
+            }
+          });
         }
+        if (resultados[1] is int) total = resultados[1] as int;
       } catch (_) {}
-    }));
-
-    if (mounted) {
-      setState(() {
-        _totalParticipantesPorEvento = mapaContagem;
-        _eventosInscritos = inscritos;
-        _aplicarFiltros();
-      });
     }
-  }
-
-  void _aplicarFiltros() {
-    final query = _buscaCtrl.text.trim().toLowerCase();
-    setState(() {
-      _eventosFiltrados = _eventos.where((ev) {
-        final sit = ev.situacaoCalculada.toUpperCase();
-        final matchStatus = _filtroStatus == 'TODOS' ||
-            (_filtroStatus == 'AGENDADO' && (sit == 'AGENDADO' || sit == 'ATIVO' || sit == 'DISPONIVEL' || sit == 'PUBLICADO' || sit == 'INDEFINIDO')) ||
-            (_filtroStatus == 'ACONTECENDO_AGORA' && (sit == 'ACONTECENDO_AGORA' || sit == 'EM_ANDAMENTO' || sit == 'AO VIVO')) ||
-            (_filtroStatus == 'ENCERRADO' && (sit == 'ENCERRADO' || sit == 'FINALIZADO')) ||
-            (_filtroStatus == 'INSCRITO' && _eventosInscritos.contains(ev.id));
-
-        final matchTexto = query.isEmpty ||
-            ev.titulo.toLowerCase().contains(query) ||
-            ev.localEvento.toLowerCase().contains(query) ||
-            (ev.descricao != null && ev.descricao!.toLowerCase().contains(query));
-
-        return matchStatus && matchTexto;
-      }).toList();
-    });
-  }
-
-  Future<void> _toggleParticipacao(Evento evento) async {
-    if (!AuthService.logado || AuthService.idUsuario == null) {
-      _mostrarSnack('Faça login para participar de eventos.', cor: const Color(0xFFEA3F74));
-      return;
-    }
-
-    final userId = AuthService.idUsuario!;
-    final jaInscrito = _eventosInscritos.contains(evento.id);
-
-    if (jaInscrito) {
-      final ok = await _service.sairEvento(evento.id, userId);
-      if (ok && mounted) {
-        setState(() {
-          _eventosInscritos.remove(evento.id);
-          final atual = _totalParticipantesPorEvento[evento.id] ?? 1;
-          _totalParticipantesPorEvento[evento.id] = (atual > 0) ? atual - 1 : 0;
-        });
-        _mostrarSnack('Você cancelou sua presença no evento.', cor: const Color(0xFF6B7280));
-      } else {
-        _mostrarSnack('Não foi possível cancelar a presença.', cor: const Color(0xFFC93659));
-      }
-    } else {
-      final ok = await _service.participarEvento(evento.id, userId);
-      if (ok && mounted) {
-        setState(() {
-          _eventosInscritos.add(evento.id);
-          final atual = _totalParticipantesPorEvento[evento.id] ?? 0;
-          _totalParticipantesPorEvento[evento.id] = atual + 1;
-        });
-        _mostrarSnack('Presença confirmada em "${evento.titulo}"!', cor: const Color(0xFF10B981));
-      } else {
-        _mostrarSnack('Não foi possível confirmar presença.', cor: const Color(0xFFC93659));
-      }
-    }
-  }
-
-  void _mostrarSnack(String msg, {Color cor = const Color(0xFF10B981)}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg, style: GoogleFonts.manrope(fontWeight: FontWeight.w600)),
-        backgroundColor: cor,
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
-
-  void _abrirDetalhesEventoModal(Evento evento) {
-    final bool jaInscrito = _eventosInscritos.contains(evento.id);
-    final int total = _totalParticipantesPorEvento[evento.id] ?? 0;
-    final sit = evento.situacaoCalculada;
-    final bool emAndamento = sit == 'ACONTECENDO_AGORA';
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        padding: const EdgeInsets.all(24),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Center(
-                child: Container(
-                  width: 36,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE5E7EB),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
+    await showModalBottomSheet<void>(context: context, isScrollControlled: true,
+      useSafeArea: true, backgroundColor: Colors.transparent,
+      builder: (sheetContext) => StatefulBuilder(builder: (ctx, modalSetState) =>
+        Container(constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * .9),
+          decoration: const BoxDecoration(color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
+          child: SingleChildScrollView(padding: const EdgeInsets.fromLTRB(22,12,22,30),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Center(child: Container(width: 42, height: 5,
+                decoration: BoxDecoration(color: const Color(0xFFD9DCE5), borderRadius: BorderRadius.circular(20)))),
+              const SizedBox(height: 22),
+              Text(evento.categoria ?? 'EVENTO LOCAL', style: const TextStyle(
+                color: roxo, fontSize: 11, letterSpacing: 1, fontWeight: FontWeight.w900)),
+              const SizedBox(height: 8),
+              Text(evento.titulo, style: const TextStyle(fontSize: 27,
+                fontWeight: FontWeight.w900, color: escuro, letterSpacing: -.7)),
               const SizedBox(height: 16),
-
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    evento.categoria ?? '🎉 EVENTO',
-                    style: GoogleFonts.manrope(
-                      color: const Color(0xFFEA3F74),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.8,
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: emAndamento ? const Color(0xFFFEF2F2) : const Color(0xFFF7F8FA),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: const Color(0xFFE5E7EB)),
-                    ),
-                    child: Text(
-                      emAndamento ? '🔥 ACONTECENDO AGORA' : 'STATUS: ${evento.status}',
-                      style: GoogleFonts.manrope(
-                        color: emAndamento ? const Color(0xFFC93659) : const Color(0xFF6B7280),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-
-              Text(
-                evento.titulo,
-                style: GoogleFonts.manrope(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                  color: const Color(0xFF202124),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              _buildDetailRow(Icons.calendar_month_outlined, 'Data', evento.dataFormatada),
-              const SizedBox(height: 8),
-              _buildDetailRow(Icons.schedule_outlined, 'Horário', '${evento.horarioFormatado} às ${evento.horarioFim.length >= 5 ? evento.horarioFim.substring(0, 5) : evento.horarioFim}'),
-              const SizedBox(height: 8),
-              _buildDetailRow(Icons.location_on_outlined, 'Local', evento.localEvento),
-              const SizedBox(height: 8),
-              _buildDetailRow(Icons.people_outline_rounded, 'Participantes', '$total confirmados ${evento.limiteParticipantes != null ? "(máx. ${evento.limiteParticipantes})" : ""}'),
-
+              _info(Icons.calendar_month_outlined, evento.dataFormatada),
+              _info(Icons.schedule_rounded, '${evento.horarioFormatado} - ${evento.horarioFim.length >= 5 ? evento.horarioFim.substring(0,5) : evento.horarioFim}'),
+              _info(Icons.location_on_outlined, evento.localEvento),
+              if (total != null) _info(Icons.people_outline, '$total participantes'),
               if (evento.descricao != null && evento.descricao!.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                Text('Sobre o Evento', style: GoogleFonts.manrope(fontSize: 15, fontWeight: FontWeight.w700, color: const Color(0xFF202124))),
-                const SizedBox(height: 6),
-                Text(
-                  evento.descricao!,
-                  style: GoogleFonts.manrope(fontSize: 14, color: const Color(0xFF6B7280), height: 1.5),
-                ),
+                const SizedBox(height: 22),
+                const Text('Sobre o evento', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
+                const SizedBox(height: 9),
+                Text(evento.descricao!, style: const TextStyle(height: 1.5, color: cinza)),
               ],
-
-              const SizedBox(height: 24),
-
-              Row(
-                children: [
-                  if (widget.onVerMapa != null)
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () {
-                          Navigator.pop(ctx);
-                          widget.onVerMapa!();
-                        },
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFF202124),
-                          side: const BorderSide(color: Color(0xFFE5E7EB)),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
-                        child: Text('Ver no Mapa', style: GoogleFonts.manrope(fontWeight: FontWeight.w700)),
-                      ),
-                    ),
-                  if (widget.onVerMapa != null) const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(ctx);
-                        _toggleParticipacao(evento);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: jaInscrito ? const Color(0xFF10B981) : const Color(0xFFEA3F74),
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      ),
-                      child: Text(jaInscrito ? 'Confirmado' : 'Participar', style: GoogleFonts.manrope(fontWeight: FontWeight.w700)),
-                    ),
-                  ),
+              if (erro != null) ...[
+                const SizedBox(height: 12),
+                Text(erro!, style: const TextStyle(color: Color(0xFFCD3459), fontWeight: FontWeight.w600)),
+              ],
+              const SizedBox(height: 26),
+              Row(children: [
+                if (widget.onVerMapa != null) ...[
+                  Expanded(child: OutlinedButton.icon(
+                    onPressed: () { Navigator.pop(ctx); widget.onVerMapa?.call(); },
+                    icon: const Icon(Icons.map_outlined), label: const Text('Mapa'))),
+                  const SizedBox(width: 10),
                 ],
-              ),
-            ],
-          ),
-        ),
+                Expanded(flex: 2, child: FilledButton.icon(
+                  onPressed: (enviando || _cancelado(evento)) ? null : () async {
+                    if (!AuthService.logado || AuthService.idUsuario == null) {
+                      Navigator.pop(ctx);
+                      await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const LoginScreen()));
+                      return;
+                    }
+                    modalSetState(() { enviando = true; erro = null; });
+                    // Não presumir inscrição: confiar apenas no retorno do servidor.
+                    final id = AuthService.idUsuario!;
+                    final ok = inscrito == true
+                      ? await _service.sairEvento(evento.id, id)
+                      : await _service.participarEvento(evento.id, id);
+                    if (!ctx.mounted) return;
+                    if (ok) {
+                      modalSetState(() {
+                        inscrito = !(inscrito ?? false);
+                        total = (total ?? 0) + (inscrito == true ? 1 : -1);
+                        if (total! < 0) total = 0;
+                        enviando = false;
+                      });
+                      if (mounted) setState(() {
+                        if (inscrito == true) {
+                          _inscritosConfirmados.add(evento.id);
+                        } else {
+                          _inscritosConfirmados.remove(evento.id);
+                        }
+                      });
+                      _snack(inscrito == true ? 'Inscrição confirmada!' : 'Inscrição cancelada.');
+                    } else {
+                      modalSetState(() {
+                        enviando = false;
+                        erro = 'A API recusou a participação. Verifique se /api/eventos/${evento.id}/participar/$id existe e se as inscrições estão abertas.';
+                      });
+                    }
+                  },
+                  icon: enviando ? const SizedBox(width: 16, height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) :
+                    Icon(inscrito == true ? Icons.check_circle_outline_rounded : Icons.confirmation_number_outlined),
+                  label: Text(_cancelado(evento) ? 'Evento encerrado' : (inscrito == true ? 'Inscrito · Sair' : 'Participar agora')),
+                )),
+              ]),
+            ]))),
       ),
     );
   }
 
-  Widget _buildDetailRow(IconData icon, String label, String value) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, size: 18, color: const Color(0xFFEA3F74)),
-        const SizedBox(width: 10),
-        Expanded(
-          child: RichText(
-            text: TextSpan(
-              style: GoogleFonts.manrope(fontSize: 14, color: const Color(0xFF6B7280)),
-              children: [
-                TextSpan(text: '$label: ', style: const TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF202124))),
-                TextSpan(text: value),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+  Widget _info(IconData icon, String value) => Padding(
+    padding: const EdgeInsets.only(bottom: 12),
+    child: Row(children: [Icon(icon, color: roxo, size: 19),
+      const SizedBox(width: 12), Expanded(child: Text(value,
+        style: const TextStyle(color: escuro, fontWeight: FontWeight.w600)))]));
 
-  void _abrirCriarEvento() {
+  Future<void> _criarEvento() async {
     if (!AuthService.logado || AuthService.idUsuario == null) {
-      _mostrarSnack('Faça login para criar eventos.', cor: const Color(0xFFEA3F74));
+      await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const LoginScreen()));
       return;
     }
-
-    final tituloCtrl = TextEditingController();
-    final localCtrl = TextEditingController();
-    final descricaoCtrl = TextEditingController();
-    DateTime? dataSelecionada;
-    TimeOfDay? horarioInicioSelecionado;
-    TimeOfDay? horarioFimSelecionado;
+    final titulo = TextEditingController();
+    final descricao = TextEditingController();
+    final local = TextEditingController();
+    DateTime? data;
+    TimeOfDay? inicio;
+    TimeOfDay? fim;
     bool salvando = false;
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setModalState) => Container(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
-            left: 20,
-            right: 20,
-            top: 20,
-          ),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-          ),
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Center(
-                  child: Container(
-                    width: 36,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE5E7EB),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
+    String? erro;
+    try {
+      await showModalBottomSheet<void>(context: context, isScrollControlled: true,
+        useSafeArea: true, backgroundColor: Colors.white,
+        builder: (modalCtx) => StatefulBuilder(builder: (ctx, setModalState) {
+          String hora(TimeOfDay? h) => h == null ? 'Selecionar horário' :
+            '${h.hour.toString().padLeft(2,'0')}:${h.minute.toString().padLeft(2,'0')}';
+          String dataFormatada() => data == null ? 'Escolher data' :
+            '${data!.day.toString().padLeft(2,'0')}/${data!.month.toString().padLeft(2,'0')}/${data!.year}';
+          return Padding(padding: EdgeInsets.fromLTRB(22,24,22,MediaQuery.of(ctx).viewInsets.bottom + 24),
+            child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                const Text('Criar um evento', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900)),
+                const SizedBox(height: 7),
+                const Text('Convide pessoas para um momento especial.',
+                  style: TextStyle(color: cinza)),
                 const SizedBox(height: 20),
-                Text(
-                  'Novo Evento',
-                  style: GoogleFonts.manrope(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF202124),
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                _modalField(tituloCtrl, 'Título do Evento', Icons.event_rounded),
-                const SizedBox(height: 12),
-                _modalField(localCtrl, 'Local do Evento', Icons.location_on_outlined),
-                const SizedBox(height: 12),
-                _modalField(descricaoCtrl, 'Descrição detalhada', Icons.description_outlined, maxLines: 3),
-                const SizedBox(height: 12),
-
-                GestureDetector(
-                  onTap: () async {
-                    final d = await showDatePicker(
-                      context: ctx,
-                      initialDate: DateTime.now().add(const Duration(days: 1)),
-                      firstDate: DateTime.now(),
-                      lastDate: DateTime(2030),
-                    );
-                    if (d != null) setModalState(() => dataSelecionada = d);
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: const Color(0xFFE5E7EB)),
-                      borderRadius: BorderRadius.circular(10),
-                      color: Colors.white,
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.calendar_today_outlined, size: 18, color: Color(0xFFEA3F74)),
-                        const SizedBox(width: 10),
-                        Text(
-                          dataSelecionada != null
-                              ? '${dataSelecionada!.day.toString().padLeft(2, '0')}/${dataSelecionada!.month.toString().padLeft(2, '0')}/${dataSelecionada!.year}'
-                              : 'Selecionar data do evento',
-                          style: GoogleFonts.manrope(
-                            color: dataSelecionada != null ? const Color(0xFF202124) : const Color(0xFF6B7280),
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                Row(
-                  children: [
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () async {
-                          final t = await showTimePicker(
-                              context: ctx,
-                              initialTime: const TimeOfDay(hour: 19, minute: 0));
-                          if (t != null) setModalState(() => horarioInicioSelecionado = t);
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            border: Border.all(color: const Color(0xFFE5E7EB)),
-                            borderRadius: BorderRadius.circular(10),
-                            color: Colors.white,
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.schedule_rounded, size: 16, color: Color(0xFFEA3F74)),
-                              const SizedBox(width: 6),
-                              Text(
-                                horarioInicioSelecionado != null ? horarioInicioSelecionado!.format(ctx) : 'Início',
-                                style: GoogleFonts.manrope(fontSize: 13),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () async {
-                          final t = await showTimePicker(
-                              context: ctx,
-                              initialTime: const TimeOfDay(hour: 22, minute: 0));
-                          if (t != null) setModalState(() => horarioFimSelecionado = t);
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            border: Border.all(color: const Color(0xFFE5E7EB)),
-                            borderRadius: BorderRadius.circular(10),
-                            color: Colors.white,
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.schedule_rounded, size: 16, color: Color(0xFFEA3F74)),
-                              const SizedBox(width: 6),
-                              Text(
-                                horarioFimSelecionado != null ? horarioFimSelecionado!.format(ctx) : 'Fim',
-                                style: GoogleFonts.manrope(fontSize: 13),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-
-                SizedBox(
-                  height: 46,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFEA3F74),
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    ),
-                    onPressed: salvando
-                        ? null
-                        : () async {
-                            if (tituloCtrl.text.trim().isEmpty ||
-                                localCtrl.text.trim().isEmpty ||
-                                dataSelecionada == null ||
-                                horarioInicioSelecionado == null) {
-                              _mostrarSnack('Preencha os campos obrigatórios.', cor: const Color(0xFFC93659));
-                              return;
-                            }
-
-                            setModalState(() => salvando = true);
-
-                            final ano = dataSelecionada!.year;
-                            final mes = dataSelecionada!.month.toString().padLeft(2, '0');
-                            final dia = dataSelecionada!.day.toString().padLeft(2, '0');
-                            final dataIso = '$ano-$mes-$dia';
-
-                            final hIni = '${horarioInicioSelecionado!.hour.toString().padLeft(2, '0')}:${horarioInicioSelecionado!.minute.toString().padLeft(2, '0')}:00';
-                            final hFim = horarioFimSelecionado != null
-                                ? '${horarioFimSelecionado!.hour.toString().padLeft(2, '0')}:${horarioFimSelecionado!.minute.toString().padLeft(2, '0')}:00'
-                                : '${(horarioInicioSelecionado!.hour + 2) % 24}:${horarioInicioSelecionado!.minute.toString().padLeft(2, '0')}:00';
-
-                            final novoEvento = await _service.criarEvento({
-                              'titulo': tituloCtrl.text.trim(),
-                              'localEvento': localCtrl.text.trim(),
-                              'descricao': descricaoCtrl.text.trim().isEmpty ? null : descricaoCtrl.text.trim(),
-                              'dataEvento': dataIso,
-                              'horarioInicio': hIni,
-                              'horarioFim': hFim,
-                              'criadorId': AuthService.idUsuario,
-                              'status': 'AGENDADO',
-                              'exigeCheckin': false,
-                            });
-
-                            if (ctx.mounted) {
-                              Navigator.pop(ctx);
-                              if (novoEvento != null) {
-                                _mostrarSnack('Evento criado com sucesso! 🎉');
-                                _carregarEventos();
-                              } else {
-                                _mostrarSnack('Erro ao criar evento.', cor: const Color(0xFFC93659));
-                              }
-                            }
-                          },
-                    child: salvando
-                        ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                        : Text('Criar Evento', style: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w700)),
-                  ),
-                ),
+                TextField(controller: titulo, maxLength: 120,
+                  decoration: const InputDecoration(labelText: 'Nome do evento', prefixIcon: Icon(Icons.event_note_outlined))),
                 const SizedBox(height: 8),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
+                TextField(controller: local,
+                  decoration: const InputDecoration(labelText: 'Endereço ou local', prefixIcon: Icon(Icons.location_on_outlined))),
+                const SizedBox(height: 14),
+                TextField(controller: descricao, maxLines: 3,
+                  decoration: const InputDecoration(labelText: 'Descrição', alignLabelWithHint: true)),
+                const SizedBox(height: 14),
+                OutlinedButton.icon(onPressed: () async {
+                  final escolhido = await showDatePicker(context: ctx,
+                    initialDate: DateTime.now().add(const Duration(days: 1)),
+                    firstDate: DateTime.now(), lastDate: DateTime.now().add(const Duration(days: 365 * 3)));
+                  if (escolhido != null) setModalState(() => data = escolhido);
+                }, icon: const Icon(Icons.calendar_month_outlined), label: Text(dataFormatada())),
+                const SizedBox(height: 8),
+                Row(children: [
+                  Expanded(child: OutlinedButton(onPressed: () async {
+                    final h = await showTimePicker(context: ctx, initialTime: TimeOfDay.now());
+                    if (h != null) setModalState(() => inicio = h);
+                  }, child: Text('Início ${hora(inicio)}'))),
+                  const SizedBox(width: 8),
+                  Expanded(child: OutlinedButton(onPressed: () async {
+                    final h = await showTimePicker(context: ctx, initialTime: TimeOfDay.now());
+                    if (h != null) setModalState(() => fim = h);
+                  }, child: Text('Fim ${hora(fim)}'))),
+                ]),
+                if (erro != null) Padding(padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: Text(erro!, style: const TextStyle(color: Colors.red))),
+                const SizedBox(height: 12),
+                FilledButton(onPressed: salvando ? null : () async {
+                  if (titulo.text.trim().isEmpty || local.text.trim().isEmpty ||
+                      data == null || inicio == null || fim == null) {
+                    setModalState(() => erro = 'Informe nome, local, data e horários.'); return;
+                  }
+                  final a = inicio!.hour * 60 + inicio!.minute;
+                  final b = fim!.hour * 60 + fim!.minute;
+                  final inicioData = DateTime(data!.year,data!.month,data!.day,inicio!.hour,inicio!.minute);
+                  if (b <= a || !inicioData.isAfter(DateTime.now())) {
+                    setModalState(() => erro = 'Horários inválidos ou evento no passado.'); return;
+                  }
+                  setModalState(() { salvando = true; erro = null; });
+                  String time(TimeOfDay h) => '${h.hour.toString().padLeft(2,'0')}:${h.minute.toString().padLeft(2,'0')}:00';
+                  final ev = await _service.criarEvento({
+                    'titulo': titulo.text.trim(), 'descricao': descricao.text.trim(),
+                    'localEvento': local.text.trim(),
+                    'dataEvento': '${data!.year}-${data!.month.toString().padLeft(2,'0')}-${data!.day.toString().padLeft(2,'0')}',
+                    'horarioInicio': time(inicio!), 'horarioFim': time(fim!),
+                    'criadorId': AuthService.idUsuario, 'status': 'AGENDADO', 'exigeCheckin': false,
+                  });
+                  if (!ctx.mounted) return;
+                  if (ev == null) { setModalState(() {
+                    salvando = false; erro = 'A API não aceitou esse evento. Confira a resposta no console.';
+                  }); return; }
+                  Navigator.pop(ctx);
+                  _snack('Evento publicado!');
+                  _carregar();
+                }, child: Text(salvando ? 'Publicando...' : 'Criar evento')),
+              ])));
+        }));
+    } finally { titulo.dispose(); descricao.dispose(); local.dispose(); }
   }
 
-  Widget _modalField(TextEditingController ctrl, String label, IconData icon, {int maxLines = 1}) {
-    return TextField(
-      controller: ctrl,
-      maxLines: maxLines,
-      style: GoogleFonts.manrope(fontSize: 14, color: const Color(0xFF202124)),
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon, size: 18, color: const Color(0xFFEA3F74)),
-        filled: true,
-        fillColor: Colors.white,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE5E7EB))),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE5E7EB))),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFEA3F74), width: 1.5)),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF7F8FA),
-      body: RefreshIndicator(
-        onRefresh: _carregarEventos,
-        color: const Color(0xFFEA3F74),
-        child: CustomScrollView(
-          slivers: [
-            // Page Header Fiel à Web (.page-header com kicker VIVA MAIS FORA DA TELA)
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'VIVA MAIS FORA DA TELA',
-                          style: GoogleFonts.manrope(
-                            color: const Color(0xFFEA3F74),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.9,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Descubra seu próximo evento',
-                          style: GoogleFonts.manrope(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w700,
-                            color: const Color(0xFF202124),
-                          ),
-                        ),
-                      ],
-                    ),
-                    ElevatedButton.icon(
-                      onPressed: _abrirCriarEvento,
-                      icon: const Icon(Icons.add_rounded, size: 16),
-                      label: Text('Novo Evento', style: GoogleFonts.manrope(fontWeight: FontWeight.w700, fontSize: 13)),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFEA3F74),
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // Banner Destaque (Fiel ao .evento-destaque da Web) se houver eventos
-            if (_eventos.isNotEmpty)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-                  child: Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF472632), Color(0xFFEA3F74)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Color.fromRGBO(120, 34, 66, 0.16),
-                          blurRadius: 24,
-                          offset: Offset(0, 8),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'EM DESTAQUE',
-                          style: GoogleFonts.manrope(
-                            color: const Color(0xFFF9ACC6),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.9,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          _eventos.first.titulo,
-                          style: GoogleFonts.manrope(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.w800,
-                          ),
-                          maxLines: 2,
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          _eventos.first.localEvento,
-                          style: GoogleFonts.manrope(color: Colors.white70, fontSize: 13),
-                        ),
-                        const SizedBox(height: 14),
-                        ElevatedButton.icon(
-                          onPressed: () => _abrirDetalhesEventoModal(_eventos.first),
-                          icon: const Icon(Icons.arrow_forward_rounded, size: 16),
-                          label: const Text('Ver detalhes'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFF9ACC6),
-                            foregroundColor: const Color(0xFF202124),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-
-            // Campo de Pesquisa (.search-bar da Web)
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                child: TextField(
-                  controller: _buscaCtrl,
-                  onChanged: (_) => _aplicarFiltros(),
-                  style: GoogleFonts.manrope(fontSize: 14, color: const Color(0xFF202124)),
-                  decoration: InputDecoration(
-                    hintText: 'Buscar por nome ou descrição...',
-                    hintStyle: GoogleFonts.manrope(fontSize: 14, color: const Color(0xFF6B7280)),
-                    prefixIcon: const Icon(Icons.search_rounded, size: 18, color: Color(0xFF6B7280)),
-                    suffixIcon: _buscaCtrl.text.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear, size: 18),
-                            onPressed: () {
-                              _buscaCtrl.clear();
-                              _aplicarFiltros();
-                            },
-                          )
-                        : null,
-                  ),
-                ),
-              ),
-            ),
-
-            // Filter Tabs (.feed-tabs da Web)
-            SliverToBoxAdapter(
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Row(
-                  children: [
-                    _buildFilterTab('TODOS', 'Descobrir'),
-                    _buildFilterTab('AGENDADO', 'Agendados'),
-                    _buildFilterTab('ACONTECENDO_AGORA', '🔥 Ao Vivo'),
-                    _buildFilterTab('ENCERRADO', 'Encerrados'),
-                    if (AuthService.logado) _buildFilterTab('INSCRITO', 'Meus eventos'),
-                  ],
-                ),
-              ),
-            ),
-
-            // Lista de Cards de Eventos Fiel à Web (.card)
-            if (_carregando)
-              const SliverFillRemaining(
-                child: Center(child: CircularProgressIndicator(color: Color(0xFFEA3F74))),
-              )
-            else if (_erro != null)
-              SliverFillRemaining(
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.wifi_off_rounded, size: 48, color: Color(0xFF6B7280)),
-                      const SizedBox(height: 12),
-                      Text(_erro!, style: GoogleFonts.manrope(color: const Color(0xFF6B7280), fontSize: 14)),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: _carregarEventos,
-                        child: const Text('Tentar novamente'),
-                      ),
-                    ],
-                  ),
-                ),
-              )
-            else if (_eventosFiltrados.isEmpty)
-              SliverFillRemaining(
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.event_busy_rounded, size: 48, color: Color(0xFF6B7280)),
-                      const SizedBox(height: 12),
-                      Text('Nenhum evento encontrado', style: GoogleFonts.manrope(color: const Color(0xFF6B7280), fontSize: 14, fontWeight: FontWeight.w700)),
-                      const SizedBox(height: 6),
-                      Text('Tente ajustar os filtros.', style: GoogleFonts.manrope(color: const Color(0xFF6B7280), fontSize: 12)),
-                    ],
-                  ),
-                ),
-              )
-            else
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 90),
-                sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      final ev = _eventosFiltrados[index];
-                      final bool isInscrito = _eventosInscritos.contains(ev.id);
-                      final int totalParticipantes = _totalParticipantesPorEvento[ev.id] ?? 0;
-
-                      return _buildWebStyleEventCard(ev, totalParticipantes, isInscrito);
-                    },
-                    childCount: _eventosFiltrados.length,
-                  ),
-                ),
-              ),
+  Widget _mapaPreview() {
+    final localizados = _eventos.where((ev) => ev.latitude != null && ev.longitude != null).toList();
+    final centro = localizados.isEmpty ? const LatLng(-22.5646, -47.4017)
+      : LatLng(localizados.first.latitude!, localizados.first.longitude!);
+    return ClipRRect(borderRadius: BorderRadius.circular(14), child: Container(
+      decoration: const BoxDecoration(color: Colors.white),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        SizedBox(height: 180, child: FlutterMap(
+          options: MapOptions(initialCenter: centro, initialZoom: 12.5),
+          children: [
+            TileLayer(urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+              userAgentPackageName: 'socialjoin.mobile'),
+            MarkerLayer(markers: localizados.map((ev) => Marker(
+              point: LatLng(ev.latitude!,ev.longitude!), width: 44, height: 44,
+              child: GestureDetector(onTap: () => _abrirDetalhes(ev), child: Container(
+                decoration: const BoxDecoration(color: roxo, shape: BoxShape.circle),
+                child: const Icon(Icons.celebration_rounded, color: Colors.white, size: 22))),
+            )).toList()),
+            const RichAttributionWidget(attributions: [TextSourceAttribution('OpenStreetMap contributors')]),
           ],
-        ),
-      ),
-    );
+        )),
+        Padding(padding: const EdgeInsets.fromLTRB(16,14,12,14), child: Row(children: [
+          Container(padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(color: const Color(0xFFFFF1F6), borderRadius: BorderRadius.circular(12)),
+            child: const Icon(Icons.map_rounded, color: roxo)),
+          const SizedBox(width: 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text('Explore no mapa', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+            Text(localizados.isEmpty ? 'Locais sem coordenadas na API' :
+              '${localizados.length} eventos geolocalizados',
+              style: const TextStyle(fontSize: 12, color: cinza)),
+          ])),
+          IconButton(onPressed: widget.onVerMapa,
+            tooltip: 'Abrir mapa completo', icon: const Icon(Icons.arrow_forward_rounded)),
+        ])),
+      ]),
+    ));
   }
 
-  Widget _buildFilterTab(String key, String label) {
-    final isSelected = _filtroStatus == key;
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _filtroStatus = key;
-          _aplicarFiltros();
-        });
-      },
-      child: Container(
-        margin: const EdgeInsets.only(right: 16),
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(
-              color: isSelected ? const Color(0xFFEA3F74) : Colors.transparent,
-              width: 3.0,
-            ),
-          ),
-        ),
-        child: Text(
-          label,
-          style: GoogleFonts.manrope(
-            color: isSelected ? const Color(0xFFEA3F74) : const Color(0xFF6B7280),
-            fontSize: 13,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// Card de Evento Fiel ao `.card` da Web
-  Widget _buildWebStyleEventCard(Evento evento, int total, bool jaInscrito) {
+  Widget _card(Evento evento) {
+    final imagem = ApiService.formatarUrlMidia(evento.imagemCapa);
+    final inscrito = _inscritosConfirmados.contains(evento.id);
+    final ocupada = _operacoesEmAndamento.contains(evento.id);
+    final encerrado = _cancelado(evento);
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFFE5E7EB)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color.fromRGBO(17, 24, 39, 0.07),
-            blurRadius: 30,
-            offset: Offset(0, 12),
-          ),
-        ],
       ),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(14),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(14),
-          onTap: () => _abrirDetalhesEventoModal(evento),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Box com Ícone / Data do Evento
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF7F8FA),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: const Color(0xFFE5E7EB)),
-                      ),
-                      child: const Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.event, color: Color(0xFFEA3F74), size: 22),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            evento.titulo,
-                            style: GoogleFonts.manrope(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              color: const Color(0xFF202124),
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              const Icon(Icons.location_on_outlined, color: Color(0xFF6B7280), size: 14),
-                              const SizedBox(width: 4),
-                              Expanded(
-                                child: Text(
-                                  evento.localEvento,
-                                  style: GoogleFonts.manrope(
-                                    fontSize: 12,
-                                    color: const Color(0xFF6B7280),
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-
-                if (evento.descricao != null && evento.descricao!.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  Text(
-                    evento.descricao!,
-                    style: GoogleFonts.manrope(
-                      fontSize: 13,
-                      color: const Color(0xFF6B7280),
-                      height: 1.45,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-
-                const SizedBox(height: 14),
-                const Divider(color: Color(0xFFE5E7EB), height: 1),
-                const SizedBox(height: 12),
-
-                // Rodapé com Participantes e Botão (.btn-primary de 10px radius)
-                Row(
-                  children: [
-                    const Icon(Icons.people_outline_rounded, size: 16, color: Color(0xFF6B7280)),
-                    const SizedBox(width: 6),
-                    Text(
-                      '$total confirmados',
-                      style: GoogleFonts.manrope(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF6B7280),
-                      ),
-                    ),
-                    const Spacer(),
-
-                    ElevatedButton(
-                      onPressed: () => _toggleParticipacao(evento),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: jaInscrito ? const Color(0xFF10B981) : const Color(0xFFEA3F74),
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      child: Text(
-                        jaInscrito ? 'Confirmado' : 'Participar',
-                        style: GoogleFonts.manrope(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        if (imagem != null)
+          ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(13)),
+            child: Image.network(imagem, height: 172, width: double.infinity,
+              fit: BoxFit.cover, errorBuilder: (_, __, ___) => const SizedBox.shrink()),
           ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF1F6),
+                  borderRadius: BorderRadius.circular(7),
+                ),
+                child: Text((evento.categoria ?? 'EVENTO').toUpperCase(),
+                  style: const TextStyle(color: roxo, fontSize: 10, fontWeight: FontWeight.w800)),
+              ),
+              const Spacer(),
+              if (inscrito) const Row(children: [
+                Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 16),
+                SizedBox(width: 4),
+                Text('Inscrito', style: TextStyle(color: Color(0xFF16A34A), fontSize: 11, fontWeight: FontWeight.w700)),
+              ]) else if (encerrado)
+                const Text('Encerrado', style: TextStyle(color: cinza, fontSize: 11)),
+            ]),
+            const SizedBox(height: 11),
+            Text(evento.titulo, maxLines: 2, overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800,
+                color: escuro, letterSpacing: -0.4)),
+            const SizedBox(height: 10),
+            Row(children: [
+              const Icon(Icons.calendar_today_outlined, size: 16, color: cinza),
+              const SizedBox(width: 8),
+              Expanded(child: Text('${evento.dataFormatada} às ${evento.horarioFormatado}',
+                style: const TextStyle(fontSize: 13, color: cinza))),
+            ]),
+            const SizedBox(height: 7),
+            Row(children: [
+              const Icon(Icons.location_on_outlined, size: 17, color: cinza),
+              const SizedBox(width: 7),
+              Expanded(child: Text(evento.localEvento, maxLines: 1, overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 13, color: cinza))),
+            ]),
+            const SizedBox(height: 15),
+            Row(children: [
+              Expanded(child: OutlinedButton(
+                onPressed: () => _abrirDetalhes(evento),
+                child: const Text('Ver detalhes'),
+              )),
+              const SizedBox(width: 10),
+              Expanded(child: FilledButton.icon(
+                onPressed: encerrado || ocupada ? null : () => _alternarParticipacao(evento),
+                icon: ocupada
+                    ? const SizedBox(width: 15, height: 15, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : Icon(inscrito ? Icons.check_rounded : Icons.confirmation_number_outlined, size: 18),
+                label: Text(encerrado ? 'Encerrado' : (inscrito ? 'Sair do evento' : 'Participar')),
+              )),
+            ]),
+          ]),
         ),
-      ),
+      ]),
     );
   }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: const Color(0xFFF7F8FA),
+    body: RefreshIndicator(
+      onRefresh: _carregar,
+      child: CustomScrollView(slivers: [
+        SliverToBoxAdapter(child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 20, 16, 14),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+              const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Descubra eventos', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800,
+                  color: escuro, letterSpacing: -0.8)),
+                SizedBox(height: 3),
+                Text('Encontros e experiências na sua região',
+                  style: TextStyle(fontSize: 13, color: cinza)),
+              ])),
+              IconButton.filled(
+                tooltip: 'Criar evento',
+                onPressed: _criarEvento,
+                icon: const Icon(Icons.add_rounded),
+              ),
+            ]),
+            const SizedBox(height: 18),
+            TextField(
+              controller: _busca,
+              onChanged: (_) => setState(() {}),
+              decoration: const InputDecoration(
+                hintText: 'Busque eventos, locais ou interesses',
+                prefixIcon: Icon(Icons.search_rounded),
+              ),
+            ),
+            const SizedBox(height: 13),
+            if (_eventos.isNotEmpty)
+              SizedBox(height: 43, child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: _categorias.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 7),
+                itemBuilder: (_, i) {
+                  final categoria = _categorias[i];
+                  return ChoiceChip(
+                    label: Text(categoria),
+                    selected: categoria == _categoria,
+                    onSelected: (_) => setState(() => _categoria = categoria),
+                  );
+                },
+              )),
+            const SizedBox(height: 18),
+            Row(children: [
+              const Expanded(child: Text('Explore no mapa',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: escuro))),
+              TextButton.icon(
+                onPressed: widget.onVerMapa,
+                label: const Text('Abrir mapa'),
+                icon: const Icon(Icons.arrow_forward_rounded, size: 17),
+              ),
+            ]),
+            const SizedBox(height: 8),
+            _mapaPreview(),
+            const SizedBox(height: 22),
+            Row(children: [
+              const Expanded(child: Text('Próximos eventos',
+                style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: escuro))),
+              if (!_carregando && _erro == null)
+                Text('${_filtrados.length} disponíveis', style: const TextStyle(fontSize: 12, color: cinza)),
+            ]),
+            const SizedBox(height: 12),
+          ]),
+        )),
+        if (_carregando)
+          const SliverToBoxAdapter(child: Padding(
+            padding: EdgeInsets.symmetric(vertical: 42),
+            child: Center(child: CircularProgressIndicator()),
+          ))
+        else if (_erro != null)
+          SliverToBoxAdapter(child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(children: [
+              const Icon(Icons.cloud_off_rounded, size: 34, color: cinza),
+              const SizedBox(height: 10),
+              Text(_erro!, textAlign: TextAlign.center),
+              const SizedBox(height: 12),
+              FilledButton(onPressed: _carregar, child: const Text('Tentar novamente')),
+            ]),
+          ))
+        else if (_filtrados.isEmpty)
+          const SliverToBoxAdapter(child: Padding(
+            padding: EdgeInsets.all(32),
+            child: Center(child: Text('Nenhum evento encontrado com esses filtros.')),
+          ))
+        else
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 80),
+            sliver: SliverList.builder(
+              itemCount: _filtrados.length,
+              itemBuilder: (_, i) => _card(_filtrados[i]),
+            ),
+          ),
+      ]),
+    ),
+  );
 }
