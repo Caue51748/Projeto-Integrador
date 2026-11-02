@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import '../models/usuario.dart';
 import 'api_service.dart';
 
@@ -79,14 +80,29 @@ class UsuarioService {
     }
   }
 
+  String? ultimoErroAtualizacaoPerfil;
+
   Future<bool> atualizarPerfil(int id, String nome, String bio) async {
+    ultimoErroAtualizacaoPerfil = null;
     try {
+      final atual = await buscarPorId(id);
+      final username = atual?.username;
+      if (username == null || username.trim().isEmpty) {
+        ultimoErroAtualizacaoPerfil = 'Não foi possível obter o username atual do servidor.';
+        return false;
+      }
+      // UsuarioController PUT /usuarios/{id}/perfil exige username, mesmo
+      // que o usuário só queira modificar nome e bio.
       final response = await http.put(Uri.parse('$baseUrl/usuarios/$id/perfil'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'nome': nome, 'bio': bio}),
+        headers: {'Content-Type': 'application/json; charset=UTF-8'},
+        body: jsonEncode({'nome': nome, 'bio': bio, 'username': username}),
       ).timeout(const Duration(seconds: 12));
-      return response.statusCode == 200 || response.statusCode == 204;
+      if (response.statusCode == 200 || response.statusCode == 204) return true;
+      ultimoErroAtualizacaoPerfil = 'HTTP ${response.statusCode}: ${_resumo(response.body)}';
+      if (kDebugMode) debugPrint('EDITAR PERFIL: $ultimoErroAtualizacaoPerfil');
+      return false;
     } catch (e) {
+      ultimoErroAtualizacaoPerfil = '$e';
       if (kDebugMode) debugPrint('Atualizar perfil: $e');
       return false;
     }
@@ -121,6 +137,22 @@ class UsuarioService {
   static const String _perfilField = String.fromEnvironment(
     'PROFILE_IMAGE_FIELD', defaultValue: 'foto');
 
+  static MediaType _mimeDaImagem(Uint8List dados) {
+    if (dados.length >= 3 && dados[0] == 255 && dados[1] == 216 && dados[2] == 255) {
+      return MediaType('image', 'jpeg');
+    }
+    if (dados.length >= 8 && dados[0] == 137 && dados[1] == 80 &&
+        dados[2] == 78 && dados[3] == 71 && dados[4] == 13 &&
+        dados[5] == 10 && dados[6] == 26 && dados[7] == 10) {
+      return MediaType('image', 'png');
+    }
+    if (dados.length >= 12 && String.fromCharCodes(dados.sublist(0, 4)) == 'RIFF' &&
+        String.fromCharCodes(dados.sublist(8, 12)) == 'WEBP') {
+      return MediaType('image', 'webp');
+    }
+    throw const FormatException('Formato de foto inválido. Use JPG, PNG ou WEBP.');
+  }
+
   Future<Map<String, dynamic>> atualizarFotoPerfil({
     required int idUsuario,
     String? caminhoArquivo,
@@ -128,49 +160,42 @@ class UsuarioService {
     required String nomeArquivo,
   }) async {
     try {
-      if (bytes == null && caminhoArquivo == null) {
-        return {'sucesso': false, 'erro': 'Selecione uma imagem.'};
+      if (bytes == null) {
+        return {'sucesso': false, 'erro': 'Selecione uma imagem válida.'};
       }
-      if (bytes != null && bytes.length > 5 * 1024 * 1024) {
+      if (bytes.isEmpty || bytes.length > 5 * 1024 * 1024) {
         return {'sucesso': false, 'erro': 'A foto deve ter até 5 MB.'};
       }
-      final caminho = _perfilPath.replaceAll('{id}', '$idUsuario');
-      final uri = Uri.parse('$baseUrl$caminho');
+      final mime = _mimeDaImagem(bytes);
+      final uri = Uri.parse('$baseUrl/usuarios/$idUsuario/foto');
       final request = http.MultipartRequest('POST', uri);
-      if (bytes != null) {
-        request.files.add(http.MultipartFile.fromBytes(_perfilField, bytes,
-          filename: nomeArquivo));
-      } else {
-        request.files.add(await http.MultipartFile.fromPath(_perfilField,
-          caminhoArquivo!, filename: nomeArquivo));
-      }
+      request.files.add(http.MultipartFile.fromBytes('foto', bytes,
+        filename: nomeArquivo, contentType: mime));
       final stream = await request.send().timeout(const Duration(seconds: 35));
       final response = await http.Response.fromStream(stream);
       if (kDebugMode) {
-        debugPrint('UPLOAD PERFIL $uri, campo $_perfilField: HTTP ${response.statusCode}; ${_resumo(response.body)}');
+        debugPrint('FOTO $uri: HTTP ${response.statusCode}; MIME $mime; ${_resumo(response.body)}');
       }
-      if (![200, 201, 204].contains(response.statusCode)) {
+      if (response.statusCode != 200 && response.statusCode != 201) {
         return {'sucesso': false,
-          'erro': 'Servidor recusou a foto (HTTP ${response.statusCode}). '
-            'Resposta: ${_resumo(response.body)}'};
+          'erro': 'Servidor recusou foto (HTTP ${response.statusCode}). ${_resumo(response.body)}'};
       }
-      Usuario? atualizado;
-      if (response.body.trim().isNotEmpty) {
-        try {
-          final body = jsonDecode(utf8.decode(response.bodyBytes));
-          if (body is Map) atualizado = Usuario.fromJson(Map<String, dynamic>.from(body));
-        } catch (_) {}
-      }
-      // O Web usa o mesmo perfil do Java; buscar novamente garante o
-      // caminho salvo quando o POST retorna somente uma mensagem.
-      final servidor = await buscarPorId(idUsuario);
-      if (servidor?.fotoPerfil != null && servidor!.fotoPerfil!.trim().isNotEmpty) {
-        atualizado = servidor;
-      }
-      if (atualizado?.fotoPerfil == null || atualizado!.fotoPerfil!.trim().isEmpty) {
+      // GET /usuarios/{id} comprova que o caminho foi persistido no banco.
+      final atualizado = await buscarPorId(idUsuario);
+      final caminho = atualizado?.fotoPerfil;
+      if (caminho == null || caminho.trim().isEmpty) {
         return {'sucesso': false,
-          'erro': 'Upload aceito, mas a API não devolveu uma fotoPerfil válida. '
-            'Verifique o armazenamento e o retorno de GET /usuarios/$idUsuario.'};
+          'erro': 'A API aceitou o upload, mas GET /usuarios/$idUsuario não retornou a foto.'};
+      }
+      final url = ApiService.formatarUrlFotoPerfil(caminho);
+      if (url == null) {
+        return {'sucesso': false, 'erro': 'A URL da foto retornada pelo Java é inválida.'};
+      }
+      final teste = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 15));
+      if (teste.statusCode != 200) {
+        return {'sucesso': false,
+          'erro': 'A foto foi registrada no banco, mas GET $url respondeu HTTP ${teste.statusCode}. '
+              'Confira se o arquivo existe na pasta uploads/perfis do backend em execução.'};
       }
       return {'sucesso': true, 'usuario': atualizado};
     } catch (e) {

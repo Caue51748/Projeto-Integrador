@@ -1,18 +1,18 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import '../models/post.dart';
 import 'api_service.dart';
 
 class PostService {
   String get baseUrl => ApiService.baseUrl;
 
-  // Mesma rota implementada no SocialJoinMediaController.java.
-  // Mantemos --dart-define para ajustes sem editar código.
-  static const String _uploadPathTemplate = String.fromEnvironment(
-    'POST_IMAGE_UPLOAD_PATH', defaultValue: '/api/socialjoin-media/posts/{id}');
-  static const String _uploadField = String.fromEnvironment(
-    'POST_IMAGE_FIELD', defaultValue: 'imagem');
+  // Rota REAL: ImagensPostController @RequestMapping('/imagens-post')
+  // @PostMapping('/upload') com @RequestParam idPost e imagem.
+  static const String _uploadPath = '/imagens-post/upload';
+  static const String _uploadField = 'imagem';
 
   Future<List<Post>> listarPosts({int? page, int size = 10}) async {
     final uri = Uri.parse(page == null
@@ -49,14 +49,14 @@ class PostService {
     }
   }
 
-  // Fonte nova e isolada, evitando conflito com GET /posts/imagens do Java antigo.
-  static const String _listImagesPath = String.fromEnvironment(
-    'POST_IMAGE_LIST_PATH', defaultValue: '/api/socialjoin-media/posts');
+  // Rota real de consulta dos registros persistidos no banco.
+  static const String _listImagesPath = '/imagens-post';
 
   Future<Map<int, List<String>>> listarImagensPosts() async {
     final imagens = <int, List<String>>{};
-    // Preserva fotos que a implementação Web anterior já tivesse salvo.
-    for (final caminho in <String>[_listImagesPath, '/posts/imagens']) {
+    // A rota adicional é SOMENTE leitura para fotos publicadas por patches
+    // anteriores. Novos uploads sempre usam a rota real e gravam no banco.
+    for (final caminho in <String>[_listImagesPath, '/api/socialjoin-media/posts']) {
       try {
         final response = await http.get(Uri.parse('$baseUrl$caminho'))
             .timeout(const Duration(seconds: 15));
@@ -125,24 +125,59 @@ class PostService {
     return id;
   }
 
+  // MIME identificado pelos bytes. O Java valida o MultipartFile.getContentType(),
+  // então o padrão application/octet-stream do pacote http NÃO funciona.
+  static MediaType _tipoImagem(Uint8List bytes) {
+    if (bytes.length >= 3 && bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF) {
+      return MediaType('image', 'jpeg');
+    }
+    if (bytes.length >= 8 && bytes[0] == 137 && bytes[1] == 80 &&
+        bytes[2] == 78 && bytes[3] == 71 && bytes[4] == 13 &&
+        bytes[5] == 10 && bytes[6] == 26 && bytes[7] == 10) {
+      return MediaType('image', 'png');
+    }
+    if (bytes.length >= 12 && String.fromCharCodes(bytes.sublist(0, 4)) == 'RIFF' &&
+        String.fromCharCodes(bytes.sublist(8, 12)) == 'WEBP') {
+      return MediaType('image', 'webp');
+    }
+    throw const FormatException('Formato de imagem inválido. Use JPG, PNG ou WEBP.');
+  }
+
   Future<void> enviarImagemDoPost({
     required int idPost,
     required Uint8List bytes,
     required String nomeArquivo,
   }) async {
-    final path = _uploadPathTemplate.replaceAll('{id}', '$idPost');
-    final uri = Uri.parse('$baseUrl$path');
-    final request = http.MultipartRequest('POST', uri);
+    if (idPost <= 0) throw ArgumentError('idPost inválido');
+    if (bytes.isEmpty || bytes.length > 5 * 1024 * 1024) {
+      throw const FormatException('A imagem deve ter de 1 byte a 5 MB.');
+    }
+    final tipo = _tipoImagem(bytes);
+    final uri = Uri.parse('$baseUrl$_uploadPath');
+    final request = http.MultipartRequest('POST', uri)
+      ..fields['idPost'] = idPost.toString();
     request.files.add(http.MultipartFile.fromBytes(
-      _uploadField, bytes, filename: nomeArquivo));
+      _uploadField, bytes, filename: nomeArquivo, contentType: tipo));
     final streamed = await request.send().timeout(const Duration(seconds: 35));
     final response = await http.Response.fromStream(streamed);
     if (kDebugMode) {
       debugPrint('UPLOAD POST $idPost -> $uri: HTTP ${response.statusCode} ${_resumo(response.body)}');
     }
-    if (response.statusCode != 200 && response.statusCode != 201 && response.statusCode != 204) {
-      throw Exception('Upload da imagem falhou (HTTP ${response.statusCode}) em $path, '
-          'campo "$_uploadField". Resposta: ${_resumo(response.body)}');
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      throw Exception('Upload da imagem falhou (HTTP ${response.statusCode}) em $_uploadPath. '
+          'Campos: idPost=$idPost, imagem ($tipo). Resposta: ${_resumo(response.body)}');
+    }
+    // O controller real devolve a entidade ImagensPost, contendo idPost e url.
+    if (response.body.trim().isNotEmpty) {
+      try {
+        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        if (data is Map && data['url'] != null) {
+          if (kDebugMode) debugPrint('Imagem salva no banco: ${data['url']}');
+        }
+      } catch (_) {
+        // HTTP 200/201 já confirmou o upload. Não repetir o upload por
+        // erro de parsing e correr o risco de duplicar a foto.
+      }
     }
   }
 

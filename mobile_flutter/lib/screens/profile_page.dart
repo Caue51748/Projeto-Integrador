@@ -163,6 +163,10 @@ class _ProfilePageState extends State<ProfilePage>
           _usuario?.fotoPerfil = userAtualizado.fotoPerfil;
         });
         AuthService.fotoPerfil = userAtualizado.fotoPerfil;
+        final url = ApiService.formatarUrlFotoPerfil(userAtualizado.fotoPerfil);
+        if (url != null) {
+          await NetworkImage(url).evict(); // evita cache da foto antiga
+        }
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -316,7 +320,7 @@ class _ProfilePageState extends State<ProfilePage>
                           } else {
                             messenger.showSnackBar(
                               SnackBar(
-                                content: Text('Erro ao salvar. Tente novamente.', style: GoogleFonts.manrope()),
+                                content: Text(_usuarioService.ultimoErroAtualizacaoPerfil ?? 'Erro ao salvar.', style: GoogleFonts.manrope()),
                                 backgroundColor: const Color(0xFFC93659),
                               ),
                             );

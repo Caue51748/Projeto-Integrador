@@ -1,9 +1,10 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'api_service.dart';
 
-// Contrato proposto: não funcionará entre usuários até a API implementar
-// GET /api/chat/mensagens?usuario1=ID&usuario2=ID e POST /api/chat/mensagens.
+/// MensagemDTO: idMensagem, idConversa, idRemetente, nomeRemetente,
+/// conteudo, dataEnvio, lida. Conserva o modelo usado pela UI atual.
 class MensagemChat {
   final int? id;
   final int remetenteId;
@@ -14,38 +15,83 @@ class MensagemChat {
   const MensagemChat({this.id, required this.remetenteId,
     required this.destinatarioId, required this.texto, this.enviadaEm});
 
-  static int _num(dynamic v) => v is num ? v.toInt() : int.tryParse('$v') ?? 0;
+  static int _numero(dynamic valor) => valor is num
+      ? valor.toInt() : int.tryParse('$valor') ?? 0;
 
-  factory MensagemChat.fromJson(Map<String,dynamic> json) => MensagemChat(
-    id: json['id'] == null ? null : _num(json['id']),
-    remetenteId: _num(json['remetenteId'] ?? json['idRemetente']),
-    destinatarioId: _num(json['destinatarioId'] ?? json['idDestinatario']),
-    texto: (json['texto'] ?? json['conteudo'] ?? '').toString(),
-    enviadaEm: DateTime.tryParse((json['enviadaEm'] ?? json['criadaEm'] ?? '').toString()),
+  factory MensagemChat.fromJson(Map<String, dynamic> json) => MensagemChat(
+    id: json['idMensagem'] == null ? null : _numero(json['idMensagem']),
+    remetenteId: _numero(json['idRemetente']),
+    destinatarioId: 0, // o destinatário não é exposto em MensagemDTO
+    texto: (json['conteudo'] ?? '').toString(),
+    enviadaEm: DateTime.tryParse((json['dataEnvio'] ?? '').toString()),
   );
 }
 
 class ChatService {
-  Future<List<MensagemChat>> listar(int eu, int outro) async {
-    final uri = Uri.parse('${ApiService.baseUrl}/api/chat/mensagens')
-        .replace(queryParameters: {'usuario1': '$eu', 'usuario2': '$outro'});
-    final response = await http.get(uri).timeout(const Duration(seconds: 12));
-    if (response.statusCode != 200) {
-      throw Exception('Chat indisponível (HTTP ${response.statusCode}). Confira o endpoint no backend.');
+  final Map<String, int> _conversas = <String, int>{};
+  String get _base => ApiService.baseUrl;
+  String _chave(int a, int b) =>
+      a < b ? '$a:$b' : '$b:$a';
+
+  Future<int> _buscarOuCriarConversa(int eu, int outro) async {
+    if (eu == outro) throw ArgumentError('Não é possível conversar consigo mesmo.');
+    final chave = _chave(eu, outro);
+    final idExistente = _conversas[chave];
+    if (idExistente != null) return idExistente;
+
+    // ConversaController @PostMapping em /conversas.
+    final res = await http.post(Uri.parse('$_base/conversas'),
+      headers: {'Content-Type': 'application/json; charset=UTF-8'},
+      body: jsonEncode({'idUsuario': eu, 'idOutroUsuario': outro}),
+    ).timeout(const Duration(seconds: 15));
+    if (res.statusCode != 200 && res.statusCode != 201) {
+      throw Exception('Não foi possível abrir conversa (HTTP ${res.statusCode}): ${res.body}');
     }
-    final data = jsonDecode(utf8.decode(response.bodyBytes));
-    final lista = data is List ? data : (data is Map ? data['content'] : null);
-    if (lista is! List) throw const FormatException('Formato inesperado das mensagens.');
-    return lista.whereType<Map>().map((m) => MensagemChat.fromJson(Map<String,dynamic>.from(m))).toList();
+    final data = jsonDecode(utf8.decode(res.bodyBytes));
+    if (data is! Map || data['idConversa'] == null) {
+      throw const FormatException('O Java não devolveu idConversa.');
+    }
+    final id = data['idConversa'] is num
+        ? (data['idConversa'] as num).toInt()
+        : int.tryParse('${data['idConversa']}');
+    if (id == null || id <= 0) {
+      throw const FormatException('idConversa inválido.');
+    }
+    _conversas[chave] = id;
+    return id;
   }
 
-  Future<void> enviar({required int eu, required int outro, required String texto}) async {
-    final response = await http.post(Uri.parse('${ApiService.baseUrl}/api/chat/mensagens'),
+  Future<List<MensagemChat>> listar(int eu, int outro) async {
+    final id = await _buscarOuCriarConversa(eu, outro);
+    // MensagemController @GetMapping('/conversa/{idConversa}')
+    final res = await http.get(Uri.parse('$_base/mensagens/conversa/$id'))
+        .timeout(const Duration(seconds: 15));
+    if (res.statusCode != 200) {
+      throw Exception('Falha ao buscar mensagens (HTTP ${res.statusCode}): ${res.body}');
+    }
+    final dados = jsonDecode(utf8.decode(res.bodyBytes));
+    if (dados is! List) throw const FormatException('Resposta de mensagens inválida.');
+    return dados.whereType<Map>()
+        .map((m) => MensagemChat.fromJson(Map<String, dynamic>.from(m)))
+        .toList();
+  }
+
+  Future<void> enviar({required int eu, required int outro,
+      required String texto}) async {
+    if (texto.trim().isEmpty) return;
+    final idConversa = await _buscarOuCriarConversa(eu, outro);
+    // MensagemController @PostMapping('/mensagens')
+    final res = await http.post(Uri.parse('$_base/mensagens'),
       headers: {'Content-Type': 'application/json; charset=UTF-8'},
-      body: jsonEncode({'remetenteId': eu, 'destinatarioId': outro, 'texto': texto}),
-    ).timeout(const Duration(seconds: 12));
-    if (response.statusCode != 200 && response.statusCode != 201) {
-      throw Exception('Não foi possível enviar a mensagem (HTTP ${response.statusCode}).');
+      body: jsonEncode({
+        'idConversa': idConversa,
+        'idRemetente': eu,
+        'conteudo': texto.trim(),
+      }),
+    ).timeout(const Duration(seconds: 15));
+    if (kDebugMode) debugPrint('CHAT SEND: HTTP ${res.statusCode}: ${res.body}');
+    if (res.statusCode != 200 && res.statusCode != 201) {
+      throw Exception('Não foi possível enviar mensagem (HTTP ${res.statusCode}): ${res.body}');
     }
   }
 }
