@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import '../models/evento.dart';
 import '../services/evento_service.dart';
 import '../services/auth_service.dart';
@@ -222,6 +225,10 @@ class _EventosPageState extends State<EventosPage> {
     final titulo = TextEditingController();
     final descricao = TextEditingController();
     final local = TextEditingController();
+    final limiteCtrl = TextEditingController();
+    LatLng? pontoEvento;
+    String categoria = 'Tecnologia';
+    bool exigeCheckin = false;
     DateTime? data;
     TimeOfDay? inicio;
     TimeOfDay? fim;
@@ -248,9 +255,68 @@ class _EventosPageState extends State<EventosPage> {
                 const SizedBox(height: 8),
                 TextField(controller: local,
                   decoration: const InputDecoration(labelText: 'Endereço ou local', prefixIcon: Icon(Icons.location_on_outlined))),
+                const SizedBox(height: 10),
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    final ponto = await Navigator.of(ctx).push<LatLng>(
+                      MaterialPageRoute(builder: (_) => _SeletorPontoMapa(
+                        pontoInicial: pontoEvento,
+                      )),
+                    );
+                    if (ponto != null && ctx.mounted) {
+                      setModalState(() => pontoEvento = ponto);
+                    }
+                  },
+                  icon: const Icon(Icons.place_outlined),
+                  label: Text(pontoEvento == null
+                      ? 'Escolher ponto no mapa'
+                      : 'Local selecionado · alterar'),
+                ),
+                if (pontoEvento != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 5, bottom: 5),
+                    child: Text(
+                      'Latitude: ${pontoEvento!.latitude.toStringAsFixed(6)} · Longitude: ${pontoEvento!.longitude.toStringAsFixed(6)}',
+                      style: const TextStyle(fontSize: 12, color: cinza),
+                    ),
+                  ),
+                const SizedBox(height: 14),
+                DropdownButtonFormField<String>(
+                  value: categoria,
+                  decoration: const InputDecoration(
+                    labelText: 'Categoria',
+                    prefixIcon: Icon(Icons.category_outlined),
+                  ),
+                  items: const [
+                    'Tecnologia', 'Arte', 'Música', 'Esportes',
+                    'Educação', 'Networking', 'Cultura',
+                  ].map((c) => DropdownMenuItem<String>(
+                    value: c, child: Text(c),
+                  )).toList(),
+                  onChanged: (nova) {
+                    if (nova != null) setModalState(() => categoria = nova);
+                  },
+                ),
                 const SizedBox(height: 14),
                 TextField(controller: descricao, maxLines: 3,
                   decoration: const InputDecoration(labelText: 'Descrição', alignLabelWithHint: true)),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: limiteCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Limite de participantes (opcional)',
+                    prefixIcon: Icon(Icons.groups_outlined),
+                  ),
+                ),
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: exigeCheckin,
+                  onChanged: (valor) => setModalState(() => exigeCheckin = valor ?? false),
+                  title: const Text('Exigir check-in de participantes'),
+                  controlAffinity: ListTileControlAffinity.leading,
+                  activeColor: roxo,
+                ),
                 const SizedBox(height: 14),
                 OutlinedButton.icon(onPressed: () async {
                   final escolhido = await showDatePicker(context: ctx,
@@ -278,20 +344,38 @@ class _EventosPageState extends State<EventosPage> {
                       data == null || inicio == null || fim == null) {
                     setModalState(() => erro = 'Informe nome, local, data e horários.'); return;
                   }
+                  if (pontoEvento == null) {
+                    setModalState(() => erro = 'Escolha no mapa onde o evento acontecerá.');
+                    return;
+                  }
                   final a = inicio!.hour * 60 + inicio!.minute;
                   final b = fim!.hour * 60 + fim!.minute;
                   final inicioData = DateTime(data!.year,data!.month,data!.day,inicio!.hour,inicio!.minute);
                   if (b <= a || !inicioData.isAfter(DateTime.now())) {
                     setModalState(() => erro = 'Horários inválidos ou evento no passado.'); return;
                   }
+                  final limiteTexto = limiteCtrl.text.trim();
+                  final limite = limiteTexto.isEmpty ? null : int.tryParse(limiteTexto);
+                  if (limiteTexto.isNotEmpty && (limite == null || limite < 1)) {
+                    setModalState(() => erro = 'O limite deve ser um número positivo.');
+                    return;
+                  }
                   setModalState(() { salvando = true; erro = null; });
                   String time(TimeOfDay h) => '${h.hour.toString().padLeft(2,'0')}:${h.minute.toString().padLeft(2,'0')}:00';
                   final ev = await _service.criarEvento({
                     'titulo': titulo.text.trim(), 'descricao': descricao.text.trim(),
                     'localEvento': local.text.trim(),
+                    'latitude': pontoEvento!.latitude,
+                    'longitude': pontoEvento!.longitude,
+                    'categoria': categoria,
                     'dataEvento': '${data!.year}-${data!.month.toString().padLeft(2,'0')}-${data!.day.toString().padLeft(2,'0')}',
                     'horarioInicio': time(inicio!), 'horarioFim': time(fim!),
-                    'criadorId': AuthService.idUsuario, 'status': 'AGENDADO', 'exigeCheckin': false,
+                    'criadorId': AuthService.idUsuario,
+                    'comunidadeId': null,
+                    'limiteParticipantes': limite,
+                    'encerramentoInscricoes': null,
+                    'precoIngresso': 0.0,
+                    'exigeCheckin': exigeCheckin,
                   });
                   if (!ctx.mounted) return;
                   if (ev == null) { setModalState(() {
@@ -303,7 +387,12 @@ class _EventosPageState extends State<EventosPage> {
                 }, child: Text(salvando ? 'Publicando...' : 'Criar evento')),
               ])));
         }));
-    } finally { titulo.dispose(); descricao.dispose(); local.dispose(); }
+    } finally {
+      titulo.dispose();
+      descricao.dispose();
+      local.dispose();
+      limiteCtrl.dispose();
+    }
   }
 
   Widget _mapaPreview() {
@@ -525,4 +614,205 @@ class _EventosPageState extends State<EventosPage> {
       ]),
     ),
   );
+}
+
+
+/// Seletor de localização da criação de eventos.
+/// A mesma API Java usada pelo Web espera latitude e longitude no evento.
+class _SeletorPontoMapa extends StatefulWidget {
+  final LatLng? pontoInicial;
+  const _SeletorPontoMapa({this.pontoInicial});
+
+  @override
+  State<_SeletorPontoMapa> createState() => _SeletorPontoMapaState();
+}
+
+class _SeletorPontoMapaState extends State<_SeletorPontoMapa> {
+  static const Color rosa = Color(0xFFEA3F74);
+  final MapController _controller = MapController();
+  final TextEditingController _endereco = TextEditingController();
+  LatLng? _ponto;
+  bool _mapPronto = false;
+  bool _buscando = false;
+  String? _erro;
+
+  @override
+  void initState() {
+    super.initState();
+    _ponto = widget.pontoInicial;
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _endereco.dispose();
+    super.dispose();
+  }
+
+  void _moverPara(LatLng posicao) {
+    setState(() { _ponto = posicao; _erro = null; });
+    if (_mapPronto) _controller.move(posicao, 16);
+  }
+
+  Future<void> _usarGps() async {
+    setState(() { _buscando = true; _erro = null; });
+    try {
+      final habilitado = await Geolocator.isLocationServiceEnabled();
+      if (!habilitado) throw Exception('Ative a localização no dispositivo.');
+      var permissao = await Geolocator.checkPermission();
+      if (permissao == LocationPermission.denied) {
+        permissao = await Geolocator.requestPermission();
+      }
+      if (permissao == LocationPermission.denied ||
+          permissao == LocationPermission.deniedForever) {
+        throw Exception('Permissão de localização negada. Você ainda pode selecionar tocando no mapa.');
+      }
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 18),
+        ),
+      );
+      if (mounted) _moverPara(LatLng(pos.latitude, pos.longitude));
+    } catch (e) {
+      if (mounted) setState(() => _erro = 'Não foi possível usar o GPS: $e');
+    } finally {
+      if (mounted) setState(() => _buscando = false);
+    }
+  }
+
+  // Pesquisa manual, não automática: respeita limites do serviço público.
+  Future<void> _buscarEndereco() async {
+    final texto = _endereco.text.trim();
+    if (texto.length < 4) {
+      setState(() => _erro = 'Informe um endereço para buscar.');
+      return;
+    }
+    setState(() { _buscando = true; _erro = null; });
+    try {
+      final uri = Uri.https('nominatim.openstreetmap.org', '/search', {
+        'q': texto, 'format': 'json', 'limit': '1', 'countrycodes': 'br',
+      });
+      final resposta = await http.get(uri, headers: {
+        'Accept': 'application/json',
+        'Accept-Language': 'pt-BR',
+      }).timeout(const Duration(seconds: 16));
+      if (resposta.statusCode != 200) {
+        throw Exception('Serviço de busca retornou HTTP ${resposta.statusCode}.');
+      }
+      final resultado = jsonDecode(utf8.decode(resposta.bodyBytes));
+      if (resultado is! List || resultado.isEmpty) {
+        throw Exception('Endereço não encontrado. Escolha diretamente no mapa.');
+      }
+      final item = resultado.first;
+      if (item is! Map) throw const FormatException('Resposta de endereço inesperada.');
+      final lat = double.tryParse('${item['lat']}');
+      final lon = double.tryParse('${item['lon']}');
+      if (lat == null || lon == null) throw const FormatException('Coordenadas ausentes.');
+      if (mounted) _moverPara(LatLng(lat, lon));
+    } catch (e) {
+      if (mounted) setState(() => _erro = 'Não foi possível encontrar o endereço: $e');
+    } finally {
+      if (mounted) setState(() => _buscando = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Escolher local do evento')),
+      body: Stack(children: [
+        FlutterMap(
+          mapController: _controller,
+          options: MapOptions(
+            initialCenter: _ponto ?? const LatLng(-22.5646, -47.4017),
+            initialZoom: 14,
+            onMapReady: () { _mapPronto = true; },
+            onTap: (_, posicao) => _moverPara(posicao),
+            onPositionChanged: (camera, hasGesture) {
+              if (hasGesture && mounted) {
+                setState(() => _ponto = camera.center);
+              }
+            },
+          ),
+          children: [
+            TileLayer(
+              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+              userAgentPackageName: 'socialjoin.mobile',
+            ),
+            const RichAttributionWidget(attributions: [
+              TextSourceAttribution('OpenStreetMap contributors'),
+            ]),
+          ],
+        ),
+        // Como em um app de transporte: o marcador acompanha o centro do mapa.
+        const Center(child: IgnorePointer(child: Padding(
+          padding: EdgeInsets.only(bottom: 45),
+          child: Icon(Icons.location_pin, color: rosa, size: 52),
+        ))),
+        Positioned(top: 12, left: 12, right: 12, child: SafeArea(
+          bottom: false,
+          child: Material(
+            elevation: 4,
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(15),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Row(children: [
+                const Icon(Icons.search_rounded, color: rosa),
+                const SizedBox(width: 8),
+                Expanded(child: TextField(
+                  controller: _endereco,
+                  textInputAction: TextInputAction.search,
+                  onSubmitted: (_) => _buscarEndereco(),
+                  decoration: const InputDecoration(
+                    hintText: 'Pesquisar endereço ou estabelecimento',
+                    border: InputBorder.none,
+                  ),
+                )),
+                IconButton(
+                  onPressed: _buscando ? null : _buscarEndereco,
+                  icon: const Icon(Icons.arrow_forward_rounded),
+                ),
+              ]),
+            ),
+          ),
+        )),
+        Positioned(right: 14, bottom: 185, child: FloatingActionButton.small(
+          heroTag: 'gps-evento',
+          backgroundColor: Colors.white,
+          foregroundColor: rosa,
+          onPressed: _buscando ? null : _usarGps,
+          tooltip: 'Usar minha localização',
+          child: const Icon(Icons.my_location_rounded),
+        )),
+        Positioned(left: 12, right: 12, bottom: 12,
+          child: SafeArea(top: false, child: Card(
+            elevation: 5,
+            color: Colors.white,
+            child: Padding(padding: const EdgeInsets.all(16),
+              child: Column(mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                const Text('Arraste o mapa ou toque no local exato.',
+                  style: TextStyle(fontWeight: FontWeight.w700)),
+                const SizedBox(height: 5),
+                Text(_ponto == null ? 'Nenhum local marcado ainda.' :
+                  '${_ponto!.latitude.toStringAsFixed(6)}, ${_ponto!.longitude.toStringAsFixed(6)}',
+                  style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
+                if (_erro != null) Padding(padding: const EdgeInsets.only(top: 6),
+                  child: Text(_erro!, style: const TextStyle(
+                    color: Color(0xFFC93659), fontSize: 12))),
+                const SizedBox(height: 12),
+                FilledButton.icon(
+                  onPressed: _ponto == null || _buscando ? null
+                    : () => Navigator.of(context).pop(_ponto),
+                  icon: const Icon(Icons.check_circle_outline),
+                  label: Text(_buscando ? 'Localizando...' : 'Confirmar localização'),
+                ),
+              ])),
+          )),
+        ),
+      ]),
+    );
+  }
 }

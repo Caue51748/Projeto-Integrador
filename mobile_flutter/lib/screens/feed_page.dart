@@ -110,7 +110,7 @@ class _FeedPageState extends State<FeedPage> {
 
   Widget _card(Post post) {
     final autor = _nomes[post.idUsuario] ?? 'Membro da comunidade';
-    final imagem = ApiService.formatarUrlMidia(post.imagemUrl);
+    final imagens = post.imagens.map(ApiService.formatarUrlMidia).whereType<String>().toList();
     final foto = _fotos[post.idUsuario];
     return Container(margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(color: Colors.white,
@@ -135,10 +135,18 @@ class _FeedPageState extends State<FeedPage> {
             Text(post.conteudo, maxLines: 6, overflow: TextOverflow.ellipsis,
               style: const TextStyle(color: Color(0xFF4E5669), height: 1.55, fontSize: 14)),
           ]))),
-        if (imagem != null) GestureDetector(onTap: () => _detalhes(post),
-          child: Image.network(imagem, fit: BoxFit.cover, width: double.infinity,
-            height: 230, errorBuilder: (_, __, ___) => const Padding(
-              padding: EdgeInsets.all(20), child: Text('Imagem indisponível')))),
+        if (imagens.isNotEmpty) SizedBox(height: 250,
+          child: PageView.builder(
+            itemCount: imagens.length,
+            itemBuilder: (context, index) => GestureDetector(
+              onTap: () => _detalhes(post),
+              child: Image.network(imagens[index], fit: BoxFit.cover,
+                width: double.infinity,
+                errorBuilder: (_, __, ___) => const Center(
+                  child: Text('Imagem indisponível na API'))),
+            ),
+          ),
+        ),
         Padding(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10), child: Row(children: [
           TextButton.icon(onPressed: () {
             // Curtidas apenas visuais: não existe endpoint de curtidas na API fornecida.

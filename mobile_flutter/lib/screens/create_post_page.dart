@@ -11,113 +11,196 @@ class CreatePostPage extends StatefulWidget {
   State<CreatePostPage> createState() => _CreatePostPageState();
 }
 
+class _FotoSelecionada {
+  final Uint8List bytes;
+  final String nome;
+  bool enviada = false;
+  _FotoSelecionada(this.bytes, this.nome);
+}
+
 class _CreatePostPageState extends State<CreatePostPage> {
   final _titulo = TextEditingController();
   final _conteudo = TextEditingController();
-  Uint8List? _imagemBytes;
-  String? _nomeImagem;
+  final _service = PostService();
+  final List<_FotoSelecionada> _fotos = [];
+  int? _idPostCriado;
   bool _enviando = false;
   String? _erro;
-  static const violeta = Color(0xFFEA3F74);
+  static const rosa = Color(0xFFEA3F74);
+  static const cinza = Color(0xFF6B7280);
 
   @override
-  void dispose() { _titulo.dispose(); _conteudo.dispose(); super.dispose(); }
+  void dispose() {
+    _titulo.dispose();
+    _conteudo.dispose();
+    super.dispose();
+  }
 
-  Future<void> _escolherImagem() async {
+  Future<void> _escolherImagens() async {
+    if (_idPostCriado != null) return;
     try {
-      final file = await ImagePicker().pickImage(source: ImageSource.gallery,
-        maxWidth: 1600, imageQuality: 82);
-      if (file == null) return;
-      final bytes = await file.readAsBytes();
-      if (bytes.length > 5 * 1024 * 1024) {
-        setState(() => _erro = 'A imagem deve ter até 5 MB.'); return;
+      final arquivos = await ImagePicker().pickMultiImage(
+        maxWidth: 1600, imageQuality: 82,
+      );
+      if (arquivos.isEmpty) return;
+      final adicionadas = <_FotoSelecionada>[];
+      for (final arquivo in arquivos) {
+        final nome = arquivo.name.toLowerCase();
+        if (!(nome.endsWith('.jpg') || nome.endsWith('.jpeg') ||
+            nome.endsWith('.png') || nome.endsWith('.webp'))) {
+          if (mounted) setState(() => _erro = 'Use JPG, PNG ou WEBP.');
+          return;
+        }
+        final bytes = await arquivo.readAsBytes();
+        if (bytes.length > 5 * 1024 * 1024) {
+          if (mounted) setState(() => _erro = 'Cada imagem deve ter até 5 MB.');
+          return;
+        }
+        adicionadas.add(_FotoSelecionada(bytes, arquivo.name));
       }
       if (!mounted) return;
-      setState(() { _imagemBytes = bytes; _nomeImagem = file.name; _erro = null; });
-    } catch (e) { if (mounted) setState(() => _erro = 'Não foi possível selecionar a imagem: $e'); }
+      setState(() {
+        final vagas = 4 - _fotos.length;
+        _fotos.addAll(adicionadas.take(vagas > 0 ? vagas : 0));
+        _erro = adicionadas.length > vagas ? 'Limite de quatro imagens por post.' : null;
+      });
+    } catch (e) {
+      if (mounted) setState(() => _erro = 'Não foi possível selecionar imagens: $e');
+    }
   }
 
   Future<void> _publicar() async {
-    final id = AuthService.idUsuario;
-    if (id == null || !AuthService.logado) {
-      setState(() => _erro = 'Entre na sua conta para publicar.'); return;
+    if (_enviando) return;
+    final autor = AuthService.idUsuario;
+    if (autor == null || !AuthService.logado) {
+      setState(() => _erro = 'Entre na sua conta para publicar.');
+      return;
     }
     if (_titulo.text.trim().isEmpty || _conteudo.text.trim().isEmpty) {
-      setState(() => _erro = 'Preencha o título e o texto da publicação.'); return;
+      setState(() => _erro = 'Preencha título e texto.');
+      return;
     }
     setState(() { _enviando = true; _erro = null; });
     try {
-      final service = PostService();
-      String? imagemUrl;
-      if (_imagemBytes != null) {
-        imagemUrl = await service.enviarImagem(
-          bytes: _imagemBytes!, nomeArquivo: _nomeImagem ?? 'publicacao.jpg');
+      // O Web cria o post PRIMEIRO e só depois envia cada imagem.
+      if (_idPostCriado == null) {
+        final id = await _service.criarPostRetornandoId(Post(
+          idUsuario: autor,
+          titulo: _titulo.text.trim(),
+          conteudo: _conteudo.text.trim(),
+        ));
+        if (!mounted) return;
+        setState(() => _idPostCriado = id);
       }
-      await service.criarPostOuFalhar(Post(
-        titulo: _titulo.text.trim(), conteudo: _conteudo.text.trim(),
-        idUsuario: id, imagemUrl: imagemUrl,
-      ));
-      if (mounted) Navigator.of(context).pop(true);
+      for (final foto in _fotos.where((f) => !f.enviada)) {
+        await _service.enviarImagemDoPost(
+          idPost: _idPostCriado!,
+          bytes: foto.bytes,
+          nomeArquivo: foto.nome,
+        );
+        foto.enviada = true;
+      }
+      if (!mounted) return;
+      Navigator.of(context).pop(true);
     } catch (e) {
-      if (mounted) setState(() => _erro = e.toString().replaceFirst('Exception: ', ''));
-    } finally { if (mounted) setState(() => _enviando = false); }
+      if (!mounted) return;
+      setState(() {
+        _erro = _idPostCriado == null
+          ? 'Falha ao criar post: $e. Confira o feed antes de tentar novamente.'
+          : 'Post #$_idPostCriado foi criado, mas uma imagem falhou. '
+            'Você pode tentar enviar novamente sem duplicar o post. Detalhes: $e';
+      });
+    } finally {
+      if (mounted) setState(() => _enviando = false);
+    }
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    backgroundColor: const Color(0xFFF7F8FA),
-    appBar: AppBar(title: const Text('Nova publicação'), actions: [
-      Padding(padding: const EdgeInsets.only(right: 12), child: TextButton(
-        onPressed: _enviando ? null : _publicar,
-        child: Text('Publicar', style: TextStyle(color: _enviando ? Colors.grey : violeta,
-          fontWeight: FontWeight.w800)),
-      )),
-    ]),
-    body: SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Row(children: [
-          CircleAvatar(backgroundColor: const Color(0xFFE9E6FF),
-            child: const Icon(Icons.person_rounded, color: violeta)),
-          const SizedBox(width: 12),
-          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(AuthService.nomeUsuario ?? 'Usuário',
-              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
-            const Text('Compartilhe algo com a comunidade',
-              style: TextStyle(fontSize: 12, color: Color(0xFF71788A))),
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        title: const Text('Nova publicação'),
+        backgroundColor: Colors.white,
+        actions: [
+          TextButton(onPressed: _enviando ? null : _publicar,
+            child: const Text('Publicar', style: TextStyle(
+              color: rosa, fontWeight: FontWeight.w800))),
+          const SizedBox(width: 7),
+        ],
+      ),
+      body: SafeArea(child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(16, 22, 16, 24),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Row(children: [
+            const CircleAvatar(backgroundColor: Color(0xFFFFEAF1),
+              child: Icon(Icons.person_outline, color: rosa)),
+            const SizedBox(width: 12),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(AuthService.nomeUsuario ?? 'Você',
+                  style: const TextStyle(fontWeight: FontWeight.w800)),
+                const Text('Compartilhe um momento com a comunidade',
+                  style: TextStyle(fontSize: 12, color: cinza)),
+              ])),
           ]),
-        ]),
-        const SizedBox(height: 22),
-        TextField(controller: _titulo, maxLength: 120,
-          decoration: const InputDecoration(hintText: 'Dê um título à publicação')),
-        const SizedBox(height: 12),
-        TextField(controller: _conteudo, maxLines: 7, minLines: 5,
-          decoration: const InputDecoration(hintText: 'O que está acontecendo?', alignLabelWithHint: true)),
-        const SizedBox(height: 14),
-        if (_imagemBytes != null) ...[
-          ClipRRect(borderRadius: BorderRadius.circular(20), child: Stack(children: [
-            Image.memory(_imagemBytes!, fit: BoxFit.cover, width: double.infinity, height: 230),
-            Positioned(top: 10, right: 10, child: IconButton.filled(
-              style: IconButton.styleFrom(backgroundColor: Colors.black54),
-              onPressed: () => setState(() { _imagemBytes = null; _nomeImagem = null; }),
-              icon: const Icon(Icons.close_rounded))),
-          ])),
+          const SizedBox(height: 22),
+          TextField(controller: _titulo, maxLength: 120,
+            enabled: _idPostCriado == null,
+            decoration: const InputDecoration(labelText: 'Título')),
+          const SizedBox(height: 10),
+          TextField(controller: _conteudo, minLines: 5, maxLines: 8,
+            enabled: _idPostCriado == null,
+            decoration: const InputDecoration(
+              hintText: 'O que você gostaria de compartilhar?',
+              alignLabelWithHint: true)),
           const SizedBox(height: 14),
-        ],
-        OutlinedButton.icon(onPressed: _enviando ? null : _escolherImagem,
-          icon: const Icon(Icons.add_photo_alternate_outlined), label: Text(
-            _imagemBytes == null ? 'Adicionar foto da galeria' : 'Trocar imagem')),
-        if (_erro != null) ...[
-          const SizedBox(height: 12),
-          Text(_erro!, style: const TextStyle(color: Color(0xFFD93556), fontWeight: FontWeight.w600)),
-        ],
-        const SizedBox(height: 22),
-        FilledButton.icon(onPressed: _enviando ? null : _publicar,
-          icon: _enviando ? const SizedBox(width: 18,height: 18,
-            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-            : const Icon(Icons.send_rounded),
-          label: Text(_enviando ? 'Publicando...' : 'Publicar agora')),
-      ]),
-    ),
-  );
+          if (_fotos.isNotEmpty) SizedBox(height: 210,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: _fotos.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 10),
+              itemBuilder: (context, i) {
+                final foto = _fotos[i];
+                return Stack(children: [
+                  ClipRRect(borderRadius: BorderRadius.circular(14),
+                    child: Image.memory(foto.bytes, width: 240, height: 210,
+                      fit: BoxFit.cover)),
+                  if (foto.enviada) const Positioned(left: 8, top: 8,
+                    child: CircleAvatar(radius: 16, backgroundColor: Colors.green,
+                      child: Icon(Icons.check, color: Colors.white, size: 18))),
+                  if (_idPostCriado == null) Positioned(right: 8, top: 8,
+                    child: IconButton.filled(
+                      style: IconButton.styleFrom(backgroundColor: Colors.black54),
+                      icon: const Icon(Icons.close_rounded),
+                      onPressed: () => setState(() => _fotos.removeAt(i)))),
+                ]);
+              },
+            )),
+          if (_fotos.isNotEmpty) const SizedBox(height: 14),
+          OutlinedButton.icon(
+            onPressed: _enviando || _idPostCriado != null || _fotos.length >= 4
+              ? null : _escolherImagens,
+            icon: const Icon(Icons.add_photo_alternate_outlined),
+            label: Text(_fotos.isEmpty ? 'Adicionar imagens'
+              : 'Adicionar mais imagens (${_fotos.length}/4)'),
+          ),
+          if (_erro != null) Padding(
+            padding: const EdgeInsets.only(top: 14),
+            child: SelectableText(_erro!,
+              style: const TextStyle(color: Color(0xFFC93659), fontSize: 13))),
+          const SizedBox(height: 20),
+          FilledButton.icon(
+            onPressed: _enviando ? null : _publicar,
+            icon: _enviando
+              ? const SizedBox(height: 18, width: 18,
+                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+              : const Icon(Icons.send_rounded),
+            label: Text(_enviando ? 'Enviando...'
+              : (_idPostCriado == null ? 'Publicar agora' : 'Reenviar imagens pendentes')),
+          ),
+        ]),
+      )),
+    );
+  }
 }
