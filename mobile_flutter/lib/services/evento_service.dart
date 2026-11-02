@@ -64,7 +64,13 @@ class EventoService {
       final response = await http.post(Uri.parse(
         '$baseUrl/api/eventos/$idEvento/participar/$idUsuario',
       )).timeout(const Duration(seconds: 10));
-      return [200, 201, 204].contains(response.statusCode);
+      if (kDebugMode) debugPrint('PARTICIPAR evento $idEvento: HTTP ${response.statusCode} - ${response.body}');
+      if ([200, 201, 204].contains(response.statusCode)) return true;
+      if (response.statusCode == 409) {
+        final ids = await listarIdsParticipantes(idEvento);
+        return ids.contains(idUsuario); // Apenas se o servidor confirmar a inscrição.
+      }
+      return false;
     } catch (e) { if (kDebugMode) debugPrint('Erro ao participar: $e'); return false; }
   }
 
@@ -73,6 +79,7 @@ class EventoService {
       final response = await http.delete(Uri.parse(
         '$baseUrl/api/eventos/$idEvento/participar/$idUsuario',
       )).timeout(const Duration(seconds: 10));
+      if (kDebugMode) debugPrint('SAIR evento $idEvento: HTTP ${response.statusCode} - ${response.body}');
       return [200, 204].contains(response.statusCode);
     } catch (e) { if (kDebugMode) debugPrint('Erro ao sair do evento: $e'); return false; }
   }

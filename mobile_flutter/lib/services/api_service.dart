@@ -15,6 +15,14 @@ class ApiService {
   static String comunidades = '$baseUrl/comunidades';
   static String eventos = '$baseUrl/api/eventos';
 
+  static String? formatarUrlMidia(String? valor) {
+    if (valor == null || valor.trim().isEmpty) return null;
+    final texto = valor.trim();
+    if (texto.startsWith('https://') || texto.startsWith('http://')) return texto;
+    if (texto.startsWith('/')) return '$baseUrl$texto';
+    return '$baseUrl/$texto';
+  }
+
   static String? formatarUrlFotoPerfil(String? fotoPerfil) {
     if (fotoPerfil == null || fotoPerfil.trim().isEmpty) return null;
     final foto = fotoPerfil.trim();

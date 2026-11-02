@@ -11,6 +11,8 @@ import '../services/post_service.dart';
 import '../services/evento_service.dart';
 import '../services/comunidade_service.dart';
 import '../services/api_service.dart';
+import 'post_detail_screen.dart';
+import 'home_screen.dart';
 
 /// Tela de Perfil Mobile — Fiel à Estilização Real da Tela WEB (.perfil-tabs, .perfil-tab.active::after, .avatar, .card, .btn-primary).
 /// Fonte da Verdade: web/style.css
@@ -69,7 +71,7 @@ class _ProfilePageState extends State<ProfilePage>
     try {
       final userFuture = _usuarioService.buscarPorId(id);
       final postsFuture = _postService.listarPostsPorUsuario(id);
-      final eventosFuture = _eventoService.listarEventosPorUsuario(id);
+      final eventosFuture = _eventoService.listarEventosPorUsuario(id).catchError((_) => <Evento>[]);
       final comunidadesFuture = _comunidadeService.listarComunidadesPorUsuario(id);
 
       final results = await Future.wait([
@@ -100,6 +102,7 @@ class _ProfilePageState extends State<ProfilePage>
             if (_usuario!.nome.isNotEmpty) AuthService.nomeUsuario = _usuario!.nome;
             if (_usuario!.username != null) AuthService.username = _usuario!.username;
             if (_usuario!.bio != null) AuthService.bio = _usuario!.bio;
+            AuthService.fotoPerfil = _usuario!.fotoPerfil;
           }
         });
       }
@@ -356,7 +359,7 @@ class _ProfilePageState extends State<ProfilePage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FF),
+      backgroundColor: const Color(0xFFF7F8FA),
       body: _carregando
           ? const Center(child: CircularProgressIndicator(color: Color(0xFFEA3F74)))
           : _erro != null
@@ -394,173 +397,98 @@ class _ProfilePageState extends State<ProfilePage>
   Widget _buildPerfil() {
     final usuario = _usuario!;
     final inicial = usuario.nome.isNotEmpty ? usuario.nome[0].toUpperCase() : 'U';
+    final foto = ApiService.formatarUrlFotoPerfil(usuario.fotoPerfil);
 
     return RefreshIndicator(
       onRefresh: _carregarDadosCompletos,
       color: const Color(0xFFEA3F74),
       child: NestedScrollView(
         headerSliverBuilder: (context, innerBoxIsScrolled) => [
-          // Header Card Fiel à Web
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFFE5E7EB)),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color.fromRGBO(17, 24, 39, 0.07),
-                      blurRadius: 30,
-                      offset: Offset(0, 12),
-                    ),
-                  ],
+          SliverToBoxAdapter(child: Container(
+            color: Colors.white,
+            padding: const EdgeInsets.fromLTRB(19, 18, 19, 22),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Expanded(child: Text(
+                  usuario.username == null || usuario.username!.isEmpty
+                      ? usuario.nome
+                      : '@${usuario.username}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.manrope(fontSize: 20, fontWeight: FontWeight.w800,
+                    color: const Color(0xFF202124)),
+                )),
+                IconButton(
+                  tooltip: 'Editar perfil',
+                  onPressed: _abrirEditar,
+                  icon: const Icon(Icons.edit_outlined, color: Color(0xFF202124)),
                 ),
-                child: Column(
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        // Avatar com foto do Google Drive e botão de upload
-                        Stack(
-                          clipBehavior: Clip.none,
-                          children: [
-                            GestureDetector(
-                              onTap: _enviandoFoto ? null : _alterarFotoPerfil,
-                              child: CircleAvatar(
-                                radius: 32,
-                                backgroundColor: const Color(0xFFEA3F74),
-                                backgroundImage: (ApiService.formatarUrlFotoPerfil(usuario.fotoPerfil) != null)
-                                    ? NetworkImage(ApiService.formatarUrlFotoPerfil(usuario.fotoPerfil)!)
-                                    : null,
-                                child: _enviandoFoto
-                                    ? const SizedBox(
-                                        width: 24,
-                                        height: 24,
-                                        child: CircularProgressIndicator(
-                                          color: Colors.white,
-                                          strokeWidth: 2,
-                                        ),
-                                      )
-                                    : (ApiService.formatarUrlFotoPerfil(usuario.fotoPerfil) == null)
-                                        ? Text(
-                                            inicial,
-                                            style: GoogleFonts.manrope(
-                                              color: Colors.white,
-                                              fontSize: 24,
-                                              fontWeight: FontWeight.w800,
-                                            ),
-                                          )
-                                        : null,
-                              ),
-                            ),
-                            Positioned(
-                              bottom: -2,
-                              right: -2,
-                              child: GestureDetector(
-                                onTap: _enviandoFoto ? null : _alterarFotoPerfil,
-                                child: Container(
-                                  padding: const EdgeInsets.all(5),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFEA3F74),
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: Colors.white,
-                                      width: 2,
-                                    ),
-                                  ),
-                                  child: const Icon(
-                                    Icons.camera_alt_rounded,
-                                    size: 13,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                usuario.nome,
-                                style: GoogleFonts.manrope(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w700,
-                                  color: const Color(0xFF202124),
-                                ),
-                              ),
-                              if (usuario.username != null && usuario.username!.isNotEmpty) ...[
-                                Text(
-                                  '@${usuario.username}',
-                                  style: GoogleFonts.manrope(
-                                    color: const Color(0xFF6B7280),
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                        OutlinedButton(
-                          onPressed: _abrirEditar,
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFFEA3F74),
-                            side: const BorderSide(color: Color(0xFFF9ACC6)),
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          ),
-                          child: Text('Editar', style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w700)),
-                        ),
-                      ],
+              ]),
+              const SizedBox(height: 18),
+              Row(children: [
+                Stack(clipBehavior: Clip.none, children: [
+                  InkWell(
+                    onTap: _enviandoFoto ? null : _alterarFotoPerfil,
+                    borderRadius: BorderRadius.circular(60),
+                    child: CircleAvatar(
+                      radius: 43,
+                      backgroundColor: const Color(0xFFFFEAF1),
+                      backgroundImage: foto == null ? null : NetworkImage(foto),
+                      child: _enviandoFoto
+                          ? const SizedBox(width: 24, height: 24,
+                              child: CircularProgressIndicator(strokeWidth: 2))
+                          : foto == null
+                              ? Text(inicial, style: GoogleFonts.manrope(
+                                  fontSize: 31, fontWeight: FontWeight.w800,
+                                  color: const Color(0xFFEA3F74)))
+                              : null,
                     ),
-
-                    if (usuario.bio != null && usuario.bio!.isNotEmpty) ...[
-                      const SizedBox(height: 14),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          usuario.bio!,
-                          style: GoogleFonts.manrope(
-                            color: const Color(0xFF6B7280),
-                            fontSize: 13,
-                            height: 1.5,
-                          ),
+                  ),
+                  Positioned(bottom: -2, right: -3,
+                    child: InkWell(
+                      onTap: _enviandoFoto ? null : _alterarFotoPerfil,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEA3F74), shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
                         ),
-                      ),
-                    ],
-
-                    const SizedBox(height: 16),
-
-                    // Estatísticas em linha estilo Web
-                    Container(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      decoration: const BoxDecoration(
-                        border: Border(
-                          top: BorderSide(color: Color(0xFFE5E7EB), width: 1.0),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
-                        children: [
-                          _buildStatItem('Publicações', _userPosts.length.toString()),
-                          _buildVerticalDivider(),
-                          _buildStatItem('Eventos', _userEventos.length.toString()),
-                          _buildVerticalDivider(),
-                          _buildStatItem('Comunidades', _userComunidades.length.toString()),
-                        ],
+                        padding: const EdgeInsets.all(5),
+                        child: const Icon(Icons.add_rounded, color: Colors.white, size: 17),
                       ),
                     ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-
+                  ),
+                ]),
+                const SizedBox(width: 19),
+                Expanded(child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
+                  _buildStatItem('posts', '${_userPosts.length}'),
+                  _buildStatItem('eventos', '${_userEventos.length}'),
+                  _buildStatItem('grupos', '${_userComunidades.length}'),
+                ])),
+              ]),
+              const SizedBox(height: 17),
+              Text(usuario.nome, style: GoogleFonts.manrope(
+                fontWeight: FontWeight.w800, fontSize: 15,
+                color: const Color(0xFF202124))),
+              if (usuario.bio != null && usuario.bio!.trim().isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(usuario.bio!, style: GoogleFonts.manrope(
+                  fontSize: 13, height: 1.5, color: const Color(0xFF202124))),
+              ],
+              const SizedBox(height: 16),
+              Row(children: [
+                Expanded(child: OutlinedButton(
+                  onPressed: _abrirEditar,
+                  child: const Text('Editar perfil'),
+                )),
+                const SizedBox(width: 9),
+                Expanded(child: OutlinedButton.icon(
+                  onPressed: _enviandoFoto ? null : _alterarFotoPerfil,
+                  icon: const Icon(Icons.camera_alt_outlined, size: 18),
+                  label: Text(_enviandoFoto ? 'Enviando...' : 'Alterar foto'),
+                )),
+              ]),
+            ]),
+          )),
           // TabBar Fiel ao `.perfil-tabs` da Web CSS
           SliverPersistentHeader(
             pinned: true,
@@ -574,10 +502,10 @@ class _ProfilePageState extends State<ProfilePage>
                 labelStyle: GoogleFonts.manrope(fontWeight: FontWeight.w800, fontSize: 13),
                 unselectedLabelStyle: GoogleFonts.manrope(fontWeight: FontWeight.w600, fontSize: 13),
                 tabs: const [
-                  Tab(text: 'Sobre'),
-                  Tab(text: 'Posts'),
-                  Tab(text: 'Eventos'),
-                  Tab(text: 'Grupos'),
+                  Tab(icon: Icon(Icons.grid_on_rounded), iconMargin: EdgeInsets.zero),
+                  Tab(icon: Icon(Icons.event_outlined), iconMargin: EdgeInsets.zero),
+                  Tab(icon: Icon(Icons.groups_outlined), iconMargin: EdgeInsets.zero),
+                  Tab(icon: Icon(Icons.person_outline_rounded), iconMargin: EdgeInsets.zero),
                 ],
               ),
             ),
@@ -586,10 +514,10 @@ class _ProfilePageState extends State<ProfilePage>
         body: TabBarView(
           controller: _tabController,
           children: [
-            _buildTabSobre(usuario),
             _buildTabPosts(),
             _buildTabEventos(),
             _buildTabComunidades(),
+            _buildTabSobre(usuario),
           ],
         ),
       ),
@@ -684,11 +612,9 @@ class _ProfilePageState extends State<ProfilePage>
                         onPressed: () {
                           Navigator.pop(ctx);
                           AuthService.fazerLogout();
-                          setState(() {});
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Você saiu da conta.', style: GoogleFonts.manrope()),
-                            ),
+                          Navigator.of(context).pushAndRemoveUntil(
+                            MaterialPageRoute(builder: (_) => const HomeScreen()),
+                            (route) => false,
                           );
                         },
                         child: const Text('Sair'),
@@ -714,46 +640,51 @@ class _ProfilePageState extends State<ProfilePage>
   Widget _buildTabPosts() {
     if (_userPosts.isEmpty) {
       return _buildEmptyTab(
-        icon: Icons.article_outlined,
+        icon: Icons.grid_on_rounded,
         title: 'Nenhuma publicação',
-        subtitle: 'Você ainda não compartilhou nenhum post.',
+        subtitle: 'Suas publicações aparecerão aqui.',
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 90),
+    return GridView.builder(
+      padding: const EdgeInsets.fromLTRB(2, 2, 2, 80),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        mainAxisSpacing: 2,
+        crossAxisSpacing: 2,
+        childAspectRatio: 1,
+      ),
       itemCount: _userPosts.length,
-      itemBuilder: (context, index) {
-        final p = _userPosts[index];
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFFE5E7EB)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                p.titulo,
-                style: GoogleFonts.manrope(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 16,
-                  color: const Color(0xFF202124),
-                ),
+      itemBuilder: (context, i) {
+        final post = _userPosts[i];
+        final imagem = ApiService.formatarUrlMidia(post.imagemUrl);
+        return Material(
+          color: const Color(0xFFFFF1F6),
+          child: InkWell(
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => PostDetailScreen(
+                post: post,
+                nomeAutor: _usuario?.nome ?? 'Usuário',
+                nomesUsuarios: {
+                  if (AuthService.idUsuario != null) AuthService.idUsuario!: _usuario?.nome ?? 'Usuário',
+                },
               ),
-              const SizedBox(height: 6),
-              Text(
-                p.conteudo,
-                style: GoogleFonts.manrope(
-                  color: const Color(0xFF6B7280),
-                  fontSize: 13,
-                  height: 1.45,
+            )),
+            child: Stack(fit: StackFit.expand, children: [
+              if (imagem != null)
+                Image.network(imagem, fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => const Center(
+                    child: Icon(Icons.broken_image_outlined, color: Color(0xFFEA3F74)),
+                  ))
+              else
+                Padding(padding: const EdgeInsets.all(10),
+                  child: Center(child: Text(post.titulo,
+                    maxLines: 4, overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.manrope(fontWeight: FontWeight.w800,
+                      color: const Color(0xFF202124), fontSize: 12))),
                 ),
-              ),
-            ],
+            ]),
           ),
         );
       },

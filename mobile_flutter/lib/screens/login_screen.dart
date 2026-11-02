@@ -62,6 +62,7 @@ class _LoginScreenState extends State<LoginScreen> {
       email: usuario.email.isNotEmpty ? usuario.email : emailController.text.trim(),
       username: usuario.username,
       bio: usuario.bio,
+      fotoPerfil: usuario.fotoPerfil,
     );
 
     Navigator.pushReplacement(

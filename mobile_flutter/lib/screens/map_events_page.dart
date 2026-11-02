@@ -7,6 +7,7 @@ import '../models/evento.dart';
 import '../services/evento_service.dart';
 import '../services/location_service.dart';
 import '../services/auth_service.dart';
+import 'login_screen.dart';
 
 /// Mapa de verdade: sem chave Google e sem coordenadas inventadas.
 /// Eventos precisam receber latitude/longitude válidas da API.
@@ -29,6 +30,8 @@ class _MapEventsPageState extends State<MapEventsPage> {
   String? _erro;
   String _categoria = 'Todos';
   Timer? _atualizacao;
+  final Set<int> _inscritos = <int>{};
+  bool _participando = false;
 
   static const Color rosa = Color(0xFFEA3F74);
   static const LatLng centroInicial = LatLng(-22.5646, -47.4017);
@@ -104,6 +107,29 @@ class _MapEventsPageState extends State<MapEventsPage> {
     } catch (_) { _mensagem('Localização indisponível neste dispositivo.'); }
   }
 
+  Future<void> _participarNoMapa(Evento evento) async {
+    if (!AuthService.logado || AuthService.idUsuario == null) {
+      await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const LoginScreen()));
+      return;
+    }
+    if (_participando) return;
+    setState(() => _participando = true);
+    try {
+      final usuario = AuthService.idUsuario!;
+      final inscritosServidor = await _service.listarIdsParticipantes(evento.id);
+      if (inscritosServidor.contains(usuario)) {
+        if (mounted) setState(() => _inscritos.add(evento.id));
+        _mensagem('Você já está inscrito neste evento.');
+        return;
+      }
+      final ok = await _service.participarEvento(evento.id, usuario);
+      if (ok && mounted) setState(() => _inscritos.add(evento.id));
+      _mensagem(ok ? 'Participação confirmada!' : 'Não foi possível participar. Verifique a API.');
+    } finally {
+      if (mounted) setState(() => _participando = false);
+    }
+  }
+
   void _mensagem(String msg) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
@@ -160,7 +186,7 @@ class _MapEventsPageState extends State<MapEventsPage> {
                   onTap: () => setState(() => _selecionado = e),
                   child: Container(
                     decoration: BoxDecoration(
-                      color: _selecionado?.id == e.id ? const Color(0xFF7C3AED) : rosa,
+                      color: _selecionado?.id == e.id ? const Color(0xFFC92F60) : rosa,
                       shape: BoxShape.circle,
                       border: Border.all(color: Colors.white, width: 3),
                       boxShadow: const [BoxShadow(color: Color(0x44000000), blurRadius: 10, offset: Offset(0, 4))],
@@ -256,16 +282,15 @@ class _MapEventsPageState extends State<MapEventsPage> {
                       icon: const Icon(Icons.place_outlined), label: const Text('Ver no mapa'),
                     )),
                     const SizedBox(width: 8),
-                    if (AuthService.logado)
-                      Expanded(child: OutlinedButton(
-                        onPressed: () async {
-                          final id = AuthService.idUsuario;
-                          if (id == null) return;
-                          final ok = await _service.participarEvento(_selecionado!.id, id);
-                          _mensagem(ok ? 'Inscrição registrada!' : 'Não foi possível se inscrever.');
-                        },
-                        child: const Text('Participar'),
-                      )),
+                    Expanded(child: OutlinedButton.icon(
+                      onPressed: _participando ? null : () => _participarNoMapa(_selecionado!),
+                      icon: _participando
+                          ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                          : Icon(_inscritos.contains(_selecionado!.id)
+                              ? Icons.check_circle_outline_rounded
+                              : Icons.confirmation_number_outlined, size: 18),
+                      label: Text(_inscritos.contains(_selecionado!.id) ? 'Inscrito' : 'Participar'),
+                    )),
                   ]),
                 ]),
               )),
