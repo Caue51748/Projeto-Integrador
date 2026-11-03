@@ -113,13 +113,15 @@ class _EventosPageState extends State<EventosPage> {
         ]);
         if (resultados[0] is List<int>) {
           inscrito = (resultados[0] as List<int>).contains(AuthService.idUsuario);
-          if (mounted) setState(() {
+          if (mounted) {
+            setState(() {
             if (inscrito == true) {
               _inscritosConfirmados.add(evento.id);
             } else {
               _inscritosConfirmados.remove(evento.id);
             }
           });
+          }
         }
         if (resultados[1] is int) total = resultados[1] as int;
       } catch (_) {}
@@ -185,13 +187,15 @@ class _EventosPageState extends State<EventosPage> {
                         if (total! < 0) total = 0;
                         enviando = false;
                       });
-                      if (mounted) setState(() {
+                      if (mounted) {
+                        setState(() {
                         if (inscrito == true) {
                           _inscritosConfirmados.add(evento.id);
                         } else {
                           _inscritosConfirmados.remove(evento.id);
                         }
                       });
+                      }
                       _snack(inscrito == true ? 'Inscrição confirmada!' : 'Inscrição cancelada.');
                     } else {
                       modalSetState(() {
@@ -282,7 +286,7 @@ class _EventosPageState extends State<EventosPage> {
                   ),
                 const SizedBox(height: 14),
                 DropdownButtonFormField<String>(
-                  value: categoria,
+                  initialValue: categoria,
                   decoration: const InputDecoration(
                     labelText: 'Categoria',
                     prefixIcon: Icon(Icons.category_outlined),

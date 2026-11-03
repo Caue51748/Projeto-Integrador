@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import '../models/post.dart';
 import '../models/usuario.dart';
@@ -5,9 +7,9 @@ import '../services/auth_service.dart';
 import '../services/post_service.dart';
 import '../services/usuario_service.dart';
 import '../services/api_service.dart';
-import 'create_post_page.dart';
 import 'post_detail_screen.dart';
-import 'login_screen.dart';
+import 'public_profile_page.dart';
+import '../widgets/social_avatar.dart';
 
 class FeedPage extends StatefulWidget {
   const FeedPage({super.key});
@@ -23,7 +25,11 @@ class _FeedPageState extends State<FeedPage> {
   final ScrollController _scroll = ScrollController();
   final Map<int,String> _nomes = {};
   final Map<int,String?> _fotos = {};
-  final Set<int> _curtidosLocal = {};
+  final Map<int,String> _usernames = {};
+  final Map<int,int> _indiceImagem = {};
+  final Map<int, List<Map<String, dynamic>>> _comentariosPorPost = {};
+  final List<Map<String, dynamic>> _votos = [];
+  final Set<int> _curtindo = {};
   List<Post> _posts = [];
   bool _loading = true;
   bool _maisLoading = false;
@@ -55,15 +61,86 @@ class _FeedPageState extends State<FeedPage> {
         _posts = posts;
         _pagina = 1;
         _temMais = posts.length == _pageSize;
-        _nomes.clear(); _fotos.clear();
+        _nomes.clear(); _fotos.clear(); _usernames.clear();
         for (final u in usuarios) {
-          if (u.idUsuario != null) { _nomes[u.idUsuario!] = u.nome; _fotos[u.idUsuario!] = u.fotoPerfil; }
+          if (u.idUsuario != null) { _nomes[u.idUsuario!] = u.nome; _fotos[u.idUsuario!] = u.fotoPerfil; _usernames[u.idUsuario!] = u.username ?? ''; }
         }
         _loading = false;
       });
+    _carregarSocial();
     } catch (e) {
       if (mounted) setState(() { _erro = 'Feed indisponível: $e'; _loading = false; });
     }
+  }
+
+  Future<void> _carregarSocial() async {
+    try {
+      final respostas = await Future.wait([
+        http.get(Uri.parse('${ApiService.baseUrl}/comentarios')),
+        http.get(Uri.parse('${ApiService.baseUrl}/votos')),
+      ]);
+      if (!mounted) return;
+      final comments = <int, List<Map<String, dynamic>>>{};
+      if (respostas[0].statusCode == 200) {
+        final raw = jsonDecode(utf8.decode(respostas[0].bodyBytes));
+        if (raw is List) for (final item in raw.whereType<Map>()) {
+          final id = int.tryParse('${item['idPost']}');
+          if (id != null) comments.putIfAbsent(id, () => []).add(Map<String, dynamic>.from(item));
+        }
+      }
+      final votos = <Map<String, dynamic>>[];
+      if (respostas[1].statusCode == 200) {
+        final raw = jsonDecode(utf8.decode(respostas[1].bodyBytes));
+        if (raw is List) votos.addAll(raw.whereType<Map>().map((v) => Map<String, dynamic>.from(v)));
+      }
+      if (mounted) setState(() {
+        _comentariosPorPost..clear()..addAll(comments);
+        _votos..clear()..addAll(votos);
+      });
+    } catch (_) { /* Comentários e votos não impedem o feed de abrir. */ }
+  }
+
+  Map<String, dynamic>? _meuVoto(int id) {
+    for (final voto in _votos) {
+      if (int.tryParse('${voto['idPost']}') == id &&
+          int.tryParse('${voto['idUsuario']}') == AuthService.idUsuario &&
+          (voto['tipo'] ?? 'like').toString().toLowerCase() == 'like') return voto;
+    }
+    return null;
+  }
+
+  int _qtdCurtidas(int id) => _votos.where((v) =>
+      int.tryParse('${v['idPost']}') == id &&
+      (v['tipo'] ?? 'like').toString().toLowerCase() == 'like').length;
+
+  Future<void> _alternarCurtida(Post post) async {
+    final id = post.idPost;
+    if (id == null) return;
+    if (!AuthService.logado || AuthService.idUsuario == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Faça login para curtir publicações.')));
+      return;
+    }
+    if (_curtindo.contains(id)) return;
+    setState(() => _curtindo.add(id));
+    try {
+      final voto = _meuVoto(id);
+      final http.Response r;
+      if (voto != null) {
+        r = await http.delete(Uri.parse('${ApiService.baseUrl}/votos/${voto['idVoto']}'));
+      } else {
+        r = await http.post(Uri.parse('${ApiService.baseUrl}/votos'),
+          headers: {'Content-Type': 'application/json; charset=UTF-8'},
+          body: jsonEncode({'idUsuario': AuthService.idUsuario, 'idPost': id, 'tipo': 'like'}));
+      }
+      if (r.statusCode < 200 || r.statusCode >= 300) {
+        throw Exception('HTTP ${r.statusCode}: ${r.body}');
+      }
+      await _carregarSocial();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Não foi possível atualizar a curtida: $e')));
+    } finally { if (mounted) setState(() => _curtindo.remove(id)); }
   }
 
   Future<void> _carregarMais() async {
@@ -84,85 +161,144 @@ class _FeedPageState extends State<FeedPage> {
     finally { _maisLoading = false; }
   }
 
-  Future<void> _criar() async {
-    if (!AuthService.logado) {
-      await Navigator.push(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
-      return;
-    }
-    final salvou = await Navigator.push<bool>(context,
-      MaterialPageRoute(builder: (_) => const CreatePostPage()));
-    if (salvou == true) _carregar();
-  }
-
   void _detalhes(Post post) {
     Navigator.push(context, MaterialPageRoute(builder: (_) => PostDetailScreen(
       post: post, nomeAutor: _nomes[post.idUsuario] ?? 'Membro', nomesUsuarios: _nomes,
     ))).then((_) => _carregar());
   }
 
-  Widget _avatar(String nome, String? foto, {double size = 22}) {
-    final url = ApiService.formatarUrlFotoPerfil(foto);
-    return CircleAvatar(radius: size, backgroundColor: const Color(0xFFFFEAF1),
-      backgroundImage: url == null ? null : NetworkImage(url),
-      child: url == null ? Text(nome.isEmpty ? '?' : nome[0].toUpperCase(),
-        style: const TextStyle(color: roxo, fontWeight: FontWeight.w900)) : null);
+  void _perfil(int? idUsuario) {
+    if (idUsuario == null) return;
+    Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => PublicProfilePage(usuarioId: idUsuario),
+    ));
   }
 
   Widget _card(Post post) {
-    final autor = _nomes[post.idUsuario] ?? 'Membro da comunidade';
-    final imagens = post.imagens.map(ApiService.formatarUrlMidia).whereType<String>().toList();
+    final autor = _nomes[post.idUsuario] ?? 'Membro do SocialJoin';
+    final username = _usernames[post.idUsuario] ?? '';
     final foto = _fotos[post.idUsuario];
-    return Container(margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE5E7EB))),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Padding(padding: const EdgeInsets.fromLTRB(15,14,15,12), child: Row(children: [
-          _avatar(autor, foto, size: 21),
-          const SizedBox(width: 11),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(autor, style: const TextStyle(color: escuro, fontWeight: FontWeight.w800)),
-            const Text('Comunidade SocialJoin', style: TextStyle(color: Color(0xFF8A90A1), fontSize: 11)),
+    final id = post.idPost ?? -1;
+    final curtido = _meuVoto(id) != null;
+    final comentarios = _comentariosPorPost[post.idPost] ?? const <Map<String, dynamic>>[];
+    final imagens = <String>{
+      ...post.imagens,
+      if (post.imagemUrl != null && post.imagemUrl!.isNotEmpty) post.imagemUrl!,
+    }.map(ApiService.formatarUrlMidia).whereType<String>().toList();
+    final pagina = (_indiceImagem[id] ?? 0).clamp(0, imagens.isEmpty ? 0 : imagens.length - 1);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 9),
+      decoration: const BoxDecoration(color: Colors.white,
+        border: Border(bottom: BorderSide(color: Color(0xFFEDEEF1)))),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Padding(padding: const EdgeInsets.fromLTRB(16, 15, 9, 12),
+          child: Row(children: [
+            InkWell(onTap: () => _perfil(post.idUsuario),
+              child: SocialAvatar(nome: autor, foto: foto, radius: 21)),
+            const SizedBox(width: 11),
+            Expanded(child: InkWell(onTap: () => _perfil(post.idUsuario),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(autor, maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: escuro, fontSize: 14,
+                    fontWeight: FontWeight.w800)),
+                const SizedBox(height: 3),
+                Text(username.isEmpty ? 'Membro do SocialJoin' : '@$username',
+                  maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 11, color: Color(0xFF858B9B))),
+              ]))),
+            PopupMenuButton<String>(
+              tooltip: 'Opções da publicação',
+              padding: EdgeInsets.zero,
+              icon: const Icon(Icons.more_horiz_rounded, color: Color(0xFF6A7180)),
+              onSelected: (opcao) { if (opcao == 'abrir') _detalhes(post); },
+              itemBuilder: (_) => const [
+                PopupMenuItem(value: 'abrir', child: Text('Ver publicação')),
+              ],
+            ),
           ])),
-          const Icon(Icons.more_horiz_rounded, color: Color(0xFF858B9B)),
-        ])),
-        InkWell(onTap: () => _detalhes(post), child: Padding(
-          padding: const EdgeInsets.fromLTRB(15,4,15,14),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(post.titulo, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900,
-              color: escuro, letterSpacing: -.35)),
-            const SizedBox(height: 8),
-            Text(post.conteudo, maxLines: 6, overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: Color(0xFF4E5669), height: 1.55, fontSize: 14)),
-          ]))),
-        if (imagens.isNotEmpty) SizedBox(height: 250,
-          child: PageView.builder(
+        InkWell(onTap: () => _detalhes(post),
+          child: Padding(padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              if (post.titulo.trim().isNotEmpty)
+                Text(post.titulo, style: const TextStyle(fontSize: 17,
+                  fontWeight: FontWeight.w800, color: escuro,
+                  letterSpacing: -0.35, height: 1.32)),
+              if (post.conteudo.trim().isNotEmpty) ...[
+                if (post.titulo.trim().isNotEmpty) const SizedBox(height: 7),
+                Text(post.conteudo, maxLines: 5, overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 14, color: Color(0xFF424854),
+                    height: 1.5)),
+              ],
+            ]))),
+        if (imagens.isNotEmpty) ...[
+          SizedBox(height: 280, child: PageView.builder(
+            key: ValueKey('imagens_post_$id'),
             itemCount: imagens.length,
+            onPageChanged: (index) => setState(() => _indiceImagem[id] = index),
             itemBuilder: (context, index) => GestureDetector(
               onTap: () => _detalhes(post),
-              child: Image.network(imagens[index], fit: BoxFit.cover,
-                width: double.infinity,
-                errorBuilder: (_, __, ___) => const Center(
-                  child: Text('Imagem indisponível na API'))),
+              child: Container(color: const Color(0xFFF4F5F7),
+                child: Image.network(imagens[index], fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => const Center(child: Icon(
+                    Icons.broken_image_outlined, color: Color(0xFF9CA1AD), size: 35))),
+              ),
             ),
-          ),
+          )),
+          if (imagens.length > 1) Center(child: Padding(
+            padding: const EdgeInsets.only(top: 10, bottom: 1),
+            child: Row(mainAxisSize: MainAxisSize.min,
+              children: List.generate(imagens.length, (index) => Container(
+                height: index == pagina ? 7 : 5,
+                width: index == pagina ? 7 : 5,
+                margin: const EdgeInsets.symmetric(horizontal: 3),
+                decoration: BoxDecoration(shape: BoxShape.circle,
+                  color: index == pagina ? roxo : const Color(0xFFD1D4DC)),
+              )),
+            ),
+          )),
+        ],
+        Padding(padding: const EdgeInsets.fromLTRB(10, 3, 10, 2),
+          child: Row(children: [
+            TextButton.icon(
+              style: TextButton.styleFrom(foregroundColor: curtido ? roxo : const Color(0xFF565F6D)),
+              onPressed: _curtindo.contains(id) ? null : () => _alternarCurtida(post),
+              icon: Icon(curtido ? Icons.favorite_rounded : Icons.favorite_border_rounded, size: 22),
+              label: Text('${_qtdCurtidas(id)}', style: const TextStyle(fontWeight: FontWeight.w700)),
+            ),
+            TextButton.icon(
+              style: TextButton.styleFrom(foregroundColor: const Color(0xFF565F6D)),
+              onPressed: () => _detalhes(post),
+              icon: const Icon(Icons.mode_comment_outlined, size: 21),
+              label: Text('${comentarios.length}', style: const TextStyle(fontWeight: FontWeight.w700)),
+            ),
+            const Spacer(),
+            TextButton(onPressed: () => _detalhes(post),
+              child: const Text('Ver publicação', style: TextStyle(color: Color(0xFF7A808D),
+                fontSize: 11, fontWeight: FontWeight.w600))),
+          ])),
+        if (comentarios.isNotEmpty) Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            if (comentarios.length > 2) InkWell(onTap: () => _detalhes(post),
+              child: Padding(padding: const EdgeInsets.only(bottom: 8),
+                child: Text('Ver todos os ${comentarios.length} comentários',
+                  style: const TextStyle(color: Color(0xFF898F9C), fontSize: 12)))),
+            ...comentarios.take(2).map((c) {
+              final nome = _nomes[int.tryParse('${c['idUsuario']}')] ?? 'Membro';
+              return Padding(padding: const EdgeInsets.only(bottom: 5),
+                child: InkWell(onTap: () => _detalhes(post),
+                  child: Text.rich(TextSpan(children: [
+                    TextSpan(text: '$nome  ', style: const TextStyle(
+                      color: escuro, fontWeight: FontWeight.w800)),
+                    TextSpan(text: '${c['conteudo'] ?? ''}',
+                      style: const TextStyle(color: Color(0xFF646B77))),
+                  ]), maxLines: 2, overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 12, height: 1.4)),
+                ));
+            }),
+          ]),
         ),
-        Padding(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10), child: Row(children: [
-          TextButton.icon(onPressed: () {
-            // Curtidas apenas visuais: não existe endpoint de curtidas na API fornecida.
-            if (post.idPost == null) return;
-            setState(() {
-              if (!_curtidosLocal.remove(post.idPost)) _curtidosLocal.add(post.idPost!);
-            });
-          }, icon: Icon(_curtidosLocal.contains(post.idPost) ? Icons.favorite : Icons.favorite_border_rounded,
-            color: _curtidosLocal.contains(post.idPost) ? const Color(0xFFED4769) : const Color(0xFF8790A0), size: 21),
-            label: const Text('Curtir')),
-          TextButton.icon(onPressed: () => _detalhes(post),
-            icon: const Icon(Icons.chat_bubble_outline_rounded, size: 20), label: const Text('Comentar')),
-          const Spacer(),
-          IconButton(onPressed: () => _detalhes(post), tooltip: 'Abrir publicação',
-            icon: const Icon(Icons.arrow_outward_rounded, color: Color(0xFF8790A0))),
-        ])),
       ]),
     );
   }
@@ -170,49 +306,47 @@ class _FeedPageState extends State<FeedPage> {
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: const Color(0xFFF7F8FA),
-    floatingActionButton: FloatingActionButton.extended(
-      onPressed: _criar, icon: const Icon(Icons.edit_square), label: const Text('Publicar')),
-    body: _loading ? const Center(child: CircularProgressIndicator()) :
+    body: _loading ? const Center(child: CircularProgressIndicator(color: roxo)) :
       _erro != null ? Center(child: Padding(padding: const EdgeInsets.all(24),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.cloud_off_outlined, size: 48, color: roxo),
+          const Icon(Icons.cloud_off_outlined, size: 45, color: roxo),
           const SizedBox(height: 16), Text(_erro!, textAlign: TextAlign.center),
-          const SizedBox(height: 16), FilledButton(onPressed: _carregar, child: const Text('Tentar novamente')),
-        ]))) : RefreshIndicator(onRefresh: _carregar,
-        child: ListView.builder(controller: _scroll,
-          padding: const EdgeInsets.fromLTRB(16,18,16,100),
-          itemCount: _posts.length + 1 + (_maisLoading ? 1 : 0),
-          itemBuilder: (_, i) {
-            if (i == 0) {
-              return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('Feed', style: TextStyle(fontSize: 25, fontWeight: FontWeight.w800,
-                letterSpacing: -.8, color: escuro)),
-              const SizedBox(height: 4),
-              const Text('Descubra e compartilhe momentos da comunidade.',
-                style: TextStyle(color: Color(0xFF858B9B))),
-              const SizedBox(height: 18),
-              Material(color: Colors.white, borderRadius: BorderRadius.circular(20),
-                child: InkWell(borderRadius: BorderRadius.circular(20), onTap: _criar,
-                  child: Padding(padding: const EdgeInsets.all(16), child: Row(children: [
-                    _avatar(AuthService.nomeUsuario ?? 'Você', AuthService.fotoPerfil),
-                    const SizedBox(width: 12),
-                    const Expanded(child: Text('Compartilhe uma novidade...',
-                      style: TextStyle(color: Color(0xFF808798)))),
-                    const Icon(Icons.add_photo_alternate_outlined, color: roxo),
-                  ])))),
-              const SizedBox(height: 22),
-              if (_posts.isNotEmpty) const Text('Publicações recentes', style: TextStyle(
-                fontSize: 18, color: escuro, fontWeight: FontWeight.w900)),
-              const SizedBox(height: 14),
-              if (_posts.isEmpty) const Padding(padding: EdgeInsets.all(30),
-                child: Center(child: Text('Ainda não há publicações. Crie a primeira!'))),
-              ]);
-            }
-            if (i > _posts.length) {
-              return const Padding(padding: EdgeInsets.all(20),
-                child: Center(child: CircularProgressIndicator()));
-            }
-            return _card(_posts[i-1]);
+          const SizedBox(height: 16), FilledButton(onPressed: _carregar,
+            style: FilledButton.styleFrom(backgroundColor: roxo),
+            child: const Text('Tentar novamente')),
+        ]))) : RefreshIndicator(color: roxo, onRefresh: _carregar,
+        child: ListView.builder(
+          controller: _scroll,
+          padding: const EdgeInsets.fromLTRB(0, 0, 0, 90),
+          itemCount: _posts.length + 1 + (_posts.isEmpty ? 1 : 0) + (_maisLoading ? 1 : 0),
+          itemBuilder: (context, index) {
+            if (index == 0) return Padding(
+              padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
+              child: Row(children: [
+                const Expanded(child: Text('Publicações',
+                  style: TextStyle(color: escuro, fontSize: 21,
+                    fontWeight: FontWeight.w900, letterSpacing: -0.5))),
+                IconButton(tooltip: 'Atualizar publicações', onPressed: _carregar,
+                  icon: const Icon(Icons.refresh_rounded,
+                    color: Color(0xFF7B8291), size: 21)),
+              ]),
+            );
+            if (_posts.isEmpty && index == 1) return const Padding(
+              padding: EdgeInsets.fromLTRB(24, 65, 24, 20),
+              child: Center(child: Column(children: [
+                Icon(Icons.dynamic_feed_outlined, color: Color(0xFFC8CCD5), size: 45),
+                SizedBox(height: 14),
+                Text('Ainda não há publicações', style: TextStyle(
+                  fontWeight: FontWeight.w800, fontSize: 16, color: escuro)),
+                SizedBox(height: 8),
+                Text('Use o botão + no topo para compartilhar algo.',
+                  textAlign: TextAlign.center, style: TextStyle(color: Color(0xFF858B9B))),
+              ])),
+            );
+            if (index > _posts.length) return const Padding(
+              padding: EdgeInsets.all(20), child: Center(
+                child: CircularProgressIndicator(color: roxo)));
+            return _card(_posts[index - 1]);
           },
         )),
   );
