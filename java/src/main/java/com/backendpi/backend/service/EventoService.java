@@ -18,20 +18,23 @@ import com.backendpi.backend.dto.EventoResumoDTO;
 import com.backendpi.backend.model.Evento;
 import com.backendpi.backend.repository.EventoRepository;
 import com.backendpi.backend.repository.ParticipacaoEventoRepository;
+import com.backendpi.backend.security.SecuritySanitizerService;
 
 @Service
 public class EventoService {
 
     private final EventoRepository eventoRepository;
-
     private final ParticipacaoEventoRepository participacaoEventoRepository;
+    private final SecuritySanitizerService sanitizerService;
 
     public EventoService(
             EventoRepository eventoRepository,
-            ParticipacaoEventoRepository participacaoEventoRepository) {
+            ParticipacaoEventoRepository participacaoEventoRepository,
+            SecuritySanitizerService sanitizerService) {
 
         this.eventoRepository = eventoRepository;
         this.participacaoEventoRepository = participacaoEventoRepository;
+        this.sanitizerService = sanitizerService;
     }
 
     public List<Evento> listarTodos() {
@@ -81,6 +84,20 @@ public class EventoService {
             throw new RuntimeException(
                     "O limite de participantes deve ser maior que zero"
             );
+        }
+
+        // Moderação e sanitização de palavras inadequadas, SQL Injection e XSS
+        if (evento.getTitulo() != null) {
+            evento.setTitulo(sanitizerService.validarEModerar(evento.getTitulo(), "Título do evento"));
+        }
+        if (evento.getDescricao() != null) {
+            evento.setDescricao(sanitizerService.validarEModerar(evento.getDescricao(), "Descrição do evento"));
+        }
+        if (evento.getCategoria() != null) {
+            evento.setCategoria(sanitizerService.validarEModerar(evento.getCategoria(), "Categoria do evento"));
+        }
+        if (evento.getLocalEvento() != null) {
+            evento.setLocalEvento(sanitizerService.validarEModerar(evento.getLocalEvento(), "Local do evento"));
         }
 
         evento.setStatus("AGENDADO");
@@ -136,14 +153,24 @@ public class EventoService {
             );
         }
 
-        evento.setTitulo(novo.getTitulo());
-        evento.setDescricao(novo.getDescricao());
-        evento.setCategoria(novo.getCategoria());
+        // Moderação e sanitização
+        if (novo.getTitulo() != null) {
+            evento.setTitulo(sanitizerService.validarEModerar(novo.getTitulo(), "Título do evento"));
+        }
+        if (novo.getDescricao() != null) {
+            evento.setDescricao(sanitizerService.validarEModerar(novo.getDescricao(), "Descrição do evento"));
+        }
+        if (novo.getCategoria() != null) {
+            evento.setCategoria(sanitizerService.validarEModerar(novo.getCategoria(), "Categoria do evento"));
+        }
+        if (novo.getLocalEvento() != null) {
+            evento.setLocalEvento(sanitizerService.validarEModerar(novo.getLocalEvento(), "Local do evento"));
+        }
+
         evento.setDataEvento(novo.getDataEvento());
         evento.setHorarioInicio(novo.getHorarioInicio());
         evento.setHorarioFim(novo.getHorarioFim());
         evento.setEncerramentoInscricoes(novo.getEncerramentoInscricoes());
-        evento.setLocalEvento(novo.getLocalEvento());
         evento.setLatitude(novo.getLatitude());
         evento.setLongitude(novo.getLongitude());
         evento.setComunidadeId(novo.getComunidadeId());
@@ -179,8 +206,8 @@ public class EventoService {
             LocalDate dataInicio,
             LocalDate dataFim,
             Double lat,
-        Double lng,
-        Double raioKm,
+            Double lng,
+            Double raioKm,
             int pagina,
             int tamanho) {
 

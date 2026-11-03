@@ -1,43 +1,35 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import '../models/usuario.dart';
 import 'api_service.dart';
 
 class UsuarioService {
   String get baseUrl => ApiService.baseUrl;
 
-  /// Login via POST /usuarios/login — retorna UsuarioPerfilDTO
   Future<Usuario?> login(String email, String senha) async {
     try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/usuarios/login'),
-        headers: {'Content-Type': 'application/json'},
+      final res = await http.post(Uri.parse('$baseUrl/usuarios/login'),
+        headers: {'Content-Type': 'application/json; charset=UTF-8'},
         body: jsonEncode({'email': email, 'senha': senha}),
-      ).timeout(const Duration(seconds: 10));
-
-      if (kDebugMode) {
-        print('=== LOGIN RESPONSE ===');
-        print('Status: ${response.statusCode}');
-        print('Body: ${response.body}');
+      ).timeout(const Duration(seconds: 15));
+      if (kDebugMode) debugPrint('LOGIN HTTP ${res.statusCode}: ${_resumo(res.body)}');
+      if (res.statusCode != 200 || res.body.trim().isEmpty || res.body.trim() == 'null') {
+        return null;
       }
-
-      if (response.statusCode == 200 &&
-          response.body.isNotEmpty &&
-          response.body != 'null') {
-        final json = jsonDecode(utf8.decode(response.bodyBytes));
-        final user = Usuario.fromJson(json);
-        user.email = email; // Garante que o email esteja presente
-        return user;
-      }
-      return null;
+      final data = jsonDecode(utf8.decode(res.bodyBytes));
+      if (data is! Map) return null;
+      final usuario = Usuario.fromJson(Map<String, dynamic>.from(data));
+      if (usuario.email.isEmpty) usuario.email = email;
+      return usuario;
     } catch (e) {
-      if (kDebugMode) print('Erro no login: $e');
+      if (kDebugMode) debugPrint('Erro no login: $e');
       return null;
     }
   }
 
-  /// Cadastro via POST /usuarios — envia nome, nomeCompleto, username, email, senha, dataNascimento
   Future<Map<String, dynamic>> criarUsuario({
     required String nome,
     required String username,
@@ -49,141 +41,118 @@ class UsuarioService {
     try {
       final payload = {
         'nome': nome,
-        'nomeCompleto': (nomeCompleto != null && nomeCompleto.isNotEmpty)
-            ? nomeCompleto
-            : nome,
+        'nomeCompleto': nomeCompleto?.isNotEmpty == true ? nomeCompleto : nome,
         'username': username,
         'email': email,
         'senha': senha,
-        'dataNascimento': (dataNascimento != null && dataNascimento.isNotEmpty)
-            ? dataNascimento
-            : '2000-01-01',
+        'dataNascimento': dataNascimento?.isNotEmpty == true ? dataNascimento : '2000-01-01',
       };
-
-      final response = await http.post(
-        Uri.parse('$baseUrl/usuarios'),
-        headers: {'Content-Type': 'application/json'},
+      final response = await http.post(Uri.parse('$baseUrl/usuarios'),
+        headers: {'Content-Type': 'application/json; charset=UTF-8'},
         body: jsonEncode(payload),
-      ).timeout(const Duration(seconds: 10));
-
-      if (kDebugMode) {
-        print('=== CADASTRO RESPONSE ===');
-        print('Status: ${response.statusCode}');
-        print('Body: ${response.body}');
-      }
-
+      ).timeout(const Duration(seconds: 18));
+      if (kDebugMode) debugPrint('CADASTRO HTTP ${response.statusCode}: ${_resumo(response.body)}');
       if (response.statusCode == 200 || response.statusCode == 201) {
-        final json = jsonDecode(utf8.decode(response.bodyBytes));
-        return {'sucesso': true, 'usuario': Usuario.fromJson(json)};
-      }
-
-      String mensagemErro = '';
-      try {
-        final Map<String, dynamic> errorJson =
-            jsonDecode(utf8.decode(response.bodyBytes));
-        if (errorJson.containsKey('message') &&
-            errorJson['message'] != null &&
-            errorJson['message'].toString().isNotEmpty) {
-          mensagemErro = errorJson['message'].toString();
-        } else if (errorJson.containsKey('error') &&
-            errorJson['error'] != null &&
-            errorJson['error'].toString().isNotEmpty) {
-          mensagemErro = errorJson['error'].toString();
+        if (response.body.trim().isEmpty) {
+          return {'sucesso': false, 'erro': 'Conta criada, mas a API não retornou os dados. Faça login.'};
         }
-      } catch (_) {
-        if (response.body.isNotEmpty) {
-          mensagemErro = response.body;
-        }
+        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        return {'sucesso': true, 'usuario': Usuario.fromJson(Map<String, dynamic>.from(data))};
       }
-
-      // Sanitiza erros técnicos garantindo mensagens amigáveis ao usuário
-      final bodyLower = mensagemErro.toLowerCase();
-      if (bodyLower.contains('dataintegrity') ||
-          bodyLower.contains('internal server error') ||
-          bodyLower.contains('500') ||
-          response.statusCode == 500) {
-        mensagemErro = 'Não foi possível concluir o cadastro. Verifique os dados informados.';
-      } else if (bodyLower.contains('username') ||
-          bodyLower.contains('usuário') ||
-          bodyLower.contains('usuario')) {
-        mensagemErro = 'Este nome de usuário já está cadastrado.';
-      } else if (bodyLower.contains('email')) {
-        mensagemErro = 'Este e-mail já está cadastrado.';
-      } else if (bodyLower.contains('nascimento') || bodyLower.contains('date')) {
-        mensagemErro = 'Data de nascimento inválida.';
-      } else if (mensagemErro.isEmpty || response.statusCode == 400) {
-        mensagemErro = 'Dados de cadastro inválidos. Verifique as informações.';
-      }
-
-      return {'sucesso': false, 'erro': mensagemErro};
+      return {'sucesso': false, 'erro': 'Não foi possível concluir o cadastro (HTTP ${response.statusCode}). ${_resumo(response.body)}'};
     } catch (e) {
-      if (kDebugMode) print('Erro no cadastro: $e');
-      return {
-        'sucesso': false,
-        'erro': 'Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.'
-      };
+      if (kDebugMode) debugPrint('CADASTRO ERRO: $e');
+      return {'sucesso': false, 'erro': 'Não foi possível conectar ao servidor: $e'};
     }
   }
 
-  /// Busca perfil completo do usuário por ID
   Future<Usuario?> buscarPorId(int id) async {
     try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/usuarios/$id'),
-      ).timeout(const Duration(seconds: 8));
-
-      if (response.statusCode == 200) {
-        return Usuario.fromJson(
-            jsonDecode(utf8.decode(response.bodyBytes)));
-      }
-      return null;
+      final response = await http.get(Uri.parse('$baseUrl/usuarios/$id'))
+          .timeout(const Duration(seconds: 12));
+      if (response.statusCode != 200) return null;
+      final data = jsonDecode(utf8.decode(response.bodyBytes));
+      if (data is! Map) return null;
+      return Usuario.fromJson(Map<String, dynamic>.from(data));
     } catch (e) {
-      if (kDebugMode) print('Erro ao buscar usuário: $e');
+      if (kDebugMode) debugPrint('Buscar usuário: $e');
       return null;
     }
   }
 
-  /// Atualiza nome e bio do perfil via PUT /usuarios/{id}/perfil
-  Future<bool> atualizarPerfil(int id, String nome, String bio) async {
-    try {
-      final response = await http.put(
-        Uri.parse('$baseUrl/usuarios/$id/perfil'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'nome': nome, 'bio': bio}),
-      ).timeout(const Duration(seconds: 8));
+  String? ultimoErroAtualizacaoPerfil;
 
-      return response.statusCode == 200;
+  Future<bool> atualizarPerfil(int id, String nome, String bio) async {
+    ultimoErroAtualizacaoPerfil = null;
+    try {
+      final atual = await buscarPorId(id);
+      final username = atual?.username;
+      if (username == null || username.trim().isEmpty) {
+        ultimoErroAtualizacaoPerfil = 'Não foi possível obter o username atual do servidor.';
+        return false;
+      }
+      // UsuarioController PUT /usuarios/{id}/perfil exige username, mesmo
+      // que o usuário só queira modificar nome e bio.
+      final response = await http.put(Uri.parse('$baseUrl/usuarios/$id/perfil'),
+        headers: {'Content-Type': 'application/json; charset=UTF-8'},
+        body: jsonEncode({'nome': nome, 'bio': bio, 'username': username}),
+      ).timeout(const Duration(seconds: 12));
+      if (response.statusCode == 200 || response.statusCode == 204) return true;
+      ultimoErroAtualizacaoPerfil = 'HTTP ${response.statusCode}: ${_resumo(response.body)}';
+      if (kDebugMode) debugPrint('EDITAR PERFIL: $ultimoErroAtualizacaoPerfil');
+      return false;
     } catch (e) {
-      if (kDebugMode) print('Erro ao atualizar perfil: $e');
+      ultimoErroAtualizacaoPerfil = '$e';
+      if (kDebugMode) debugPrint('Atualizar perfil: $e');
       return false;
     }
   }
 
   Future<List<Usuario>> listarUsuarios() async {
     try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/usuarios'),
-      ).timeout(const Duration(seconds: 8));
-
-      if (response.statusCode == 200) {
-        final List lista = jsonDecode(utf8.decode(response.bodyBytes));
-        return lista.map((e) => Usuario.fromJson(e)).toList();
-      }
+      final response = await http.get(Uri.parse('$baseUrl/usuarios'))
+          .timeout(const Duration(seconds: 12));
+      if (response.statusCode != 200) return [];
+      final data = jsonDecode(utf8.decode(response.bodyBytes));
+      final lista = data is List ? data : (data is Map ? data['content'] : null);
+      if (lista is! List) return [];
+      return lista.whereType<Map>().map((e) => Usuario.fromJson(Map<String, dynamic>.from(e))).toList();
     } catch (e) {
-      if (kDebugMode) print('Erro ao listar usuários: $e');
+      if (kDebugMode) debugPrint('Listar usuários: $e');
+      return [];
     }
-    return [];
   }
 
+  // Mantém assinatura antiga; não deve estar exposto a usuários comuns na UI.
   Future<void> deletarUsuario(int id) async {
-    try {
-      await http.delete(Uri.parse('$baseUrl/usuarios/$id'));
-    } catch (e) {
-      if (kDebugMode) print('Erro ao deletar usuário: $e');
+    final response = await http.delete(Uri.parse('$baseUrl/usuarios/$id'))
+        .timeout(const Duration(seconds: 12));
+    if (response.statusCode != 200 && response.statusCode != 204) {
+      throw Exception('Exclusão recusada (HTTP ${response.statusCode}).');
     }
   }
 
-  /// Atualiza foto de perfil via POST /usuarios/{id}/foto (Google Drive)
+  static const String _perfilPath = String.fromEnvironment(
+    'PROFILE_IMAGE_UPLOAD_PATH', defaultValue: '/usuarios/{id}/foto');
+  static const String _perfilField = String.fromEnvironment(
+    'PROFILE_IMAGE_FIELD', defaultValue: 'foto');
+
+  static MediaType _mimeDaImagem(Uint8List dados) {
+    if (dados.length >= 3 && dados[0] == 255 && dados[1] == 216 && dados[2] == 255) {
+      return MediaType('image', 'jpeg');
+    }
+    if (dados.length >= 8 && dados[0] == 137 && dados[1] == 80 &&
+        dados[2] == 78 && dados[3] == 71 && dados[4] == 13 &&
+        dados[5] == 10 && dados[6] == 26 && dados[7] == 10) {
+      return MediaType('image', 'png');
+    }
+    if (dados.length >= 12 && String.fromCharCodes(dados.sublist(0, 4)) == 'RIFF' &&
+        String.fromCharCodes(dados.sublist(8, 12)) == 'WEBP') {
+      return MediaType('image', 'webp');
+    }
+    throw const FormatException('Formato de foto inválido. Use JPG, PNG ou WEBP.');
+  }
+
   Future<Map<String, dynamic>> atualizarFotoPerfil({
     required int idUsuario,
     String? caminhoArquivo,
@@ -191,61 +160,50 @@ class UsuarioService {
     required String nomeArquivo,
   }) async {
     try {
+      if (bytes == null) {
+        return {'sucesso': false, 'erro': 'Selecione uma imagem válida.'};
+      }
+      if (bytes.isEmpty || bytes.length > 5 * 1024 * 1024) {
+        return {'sucesso': false, 'erro': 'A foto deve ter até 5 MB.'};
+      }
+      final mime = _mimeDaImagem(bytes);
       final uri = Uri.parse('$baseUrl/usuarios/$idUsuario/foto');
       final request = http.MultipartRequest('POST', uri);
-
-      if (bytes != null) {
-        request.files.add(
-          http.MultipartFile.fromBytes(
-            'foto',
-            bytes,
-            filename: nomeArquivo,
-          ),
-        );
-      } else if (caminhoArquivo != null) {
-        request.files.add(
-          await http.MultipartFile.fromPath(
-            'foto',
-            caminhoArquivo,
-            filename: nomeArquivo,
-          ),
-        );
-      } else {
-        return {'sucesso': false, 'erro': 'Nenhum arquivo selecionado.'};
-      }
-
-      final streamedResponse =
-          await request.send().timeout(const Duration(seconds: 30));
-      final response = await http.Response.fromStream(streamedResponse);
-
+      request.files.add(http.MultipartFile.fromBytes('foto', bytes,
+        filename: nomeArquivo, contentType: mime));
+      final stream = await request.send().timeout(const Duration(seconds: 35));
+      final response = await http.Response.fromStream(stream);
       if (kDebugMode) {
-        print('=== UPLOAD FOTO RESPONSE ===');
-        print('Status: ${response.statusCode}');
-        print('Body: ${response.body}');
+        debugPrint('FOTO $uri: HTTP ${response.statusCode}; MIME $mime; ${_resumo(response.body)}');
       }
-
-      if (response.statusCode == 200) {
-        final json = jsonDecode(utf8.decode(response.bodyBytes));
-        final user = Usuario.fromJson(json);
-        return {'sucesso': true, 'usuario': user};
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        return {'sucesso': false,
+          'erro': 'Servidor recusou foto (HTTP ${response.statusCode}). ${_resumo(response.body)}'};
       }
-
-      String msg = 'Não foi possível alterar a foto.';
-      try {
-        final err = jsonDecode(utf8.decode(response.bodyBytes));
-        if (err is Map && err.containsKey('error') && err['error'] != null) {
-          msg = err['error'].toString();
-        }
-      } catch (_) {
-        if (response.body.isNotEmpty) msg = response.body;
+      // GET /usuarios/{id} comprova que o caminho foi persistido no banco.
+      final atualizado = await buscarPorId(idUsuario);
+      final caminho = atualizado?.fotoPerfil;
+      if (caminho == null || caminho.trim().isEmpty) {
+        return {'sucesso': false,
+          'erro': 'A API aceitou o upload, mas GET /usuarios/$idUsuario não retornou a foto.'};
       }
-      return {'sucesso': false, 'erro': msg};
+      final url = ApiService.formatarUrlFotoPerfil(caminho);
+      if (url == null) {
+        return {'sucesso': false, 'erro': 'A URL da foto retornada pelo Java é inválida.'};
+      }
+      final teste = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 15));
+      if (teste.statusCode != 200) {
+        return {'sucesso': false,
+          'erro': 'A foto foi registrada no banco, mas GET $url respondeu HTTP ${teste.statusCode}. '
+              'Confira se o arquivo existe na pasta uploads/perfis do backend em execução.'};
+      }
+      return {'sucesso': true, 'usuario': atualizado};
     } catch (e) {
-      if (kDebugMode) print('Erro ao atualizar foto de perfil: $e');
-      return {
-        'sucesso': false,
-        'erro': 'Erro de conexão ao enviar a foto para o servidor.'
-      };
+      if (kDebugMode) debugPrint('UPLOAD FOTO ERRO: $e');
+      return {'sucesso': false, 'erro': 'Erro ao enviar a foto: $e'};
     }
   }
+
+  static String _resumo(String msg) =>
+      msg.length > 250 ? '${msg.substring(0, 250)}...' : msg;
 }

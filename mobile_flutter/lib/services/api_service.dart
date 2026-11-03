@@ -1,3 +1,5 @@
+import 'auth_service.dart';
+
 class ApiService {
   // Configure sem editar código:
   // Chrome + backend no mesmo PC: http://localhost:8080
@@ -14,6 +16,16 @@ class ApiService {
   static String comentarios = '$baseUrl/comentarios';
   static String comunidades = '$baseUrl/comunidades';
   static String eventos = '$baseUrl/api/eventos';
+
+  static Map<String, String> get authHeaders {
+    final headers = <String, String>{
+      'Content-Type': 'application/json; charset=UTF-8',
+    };
+    if (AuthService.token != null && AuthService.token!.isNotEmpty) {
+      headers['Authorization'] = 'Bearer ${AuthService.token}';
+    }
+    return headers;
+  }
 
   static String? formatarUrlMidia(String? valor) {
     if (valor == null || valor.trim().isEmpty) return null;

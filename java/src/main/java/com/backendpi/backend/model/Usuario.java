@@ -16,6 +16,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 
 @Entity
 @Table(name = "usuarios")
@@ -57,6 +58,9 @@ public class Usuario {
     )
     @Column(name = "interesse")
     private List<String> interesses = new ArrayList<>();
+
+    @Transient
+    private String token;
 
     public Long getIdUsuario() {
         return idUsuario;
@@ -144,5 +148,13 @@ public class Usuario {
 
     public void setInteresses(List<String> interesses) {
         this.interesses = interesses == null ? new ArrayList<>() : interesses;
+    }
+
+    public String getToken() {
+        return token;
+    }
+
+    public void setToken(String token) {
+        this.token = token;
     }
 }

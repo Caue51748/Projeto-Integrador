@@ -165,12 +165,20 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                             widget.post.conteudo,
                             style: GoogleFonts.manrope(fontSize: 15, color: const Color(0xFF202124), height: 1.65),
                           ),
-                          if (ApiService.formatarUrlMidia(widget.post.imagemUrl) != null) ...[
+                          if (widget.post.imagens.isNotEmpty) ...[
                             const SizedBox(height: 16),
-                            ClipRRect(borderRadius: BorderRadius.circular(16),
-                              child: Image.network(ApiService.formatarUrlMidia(widget.post.imagemUrl)!,
-                                width: double.infinity, fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => const Text('Imagem indisponível'))),
+                            SizedBox(height: 250, child: PageView.builder(
+                              itemCount: widget.post.imagens.length,
+                              itemBuilder: (context, index) {
+                                final url = ApiService.formatarUrlMidia(widget.post.imagens[index]);
+                                return ClipRRect(
+                                  borderRadius: BorderRadius.circular(14),
+                                  child: url == null ? const Center(child: Text('Imagem indisponível')) :
+                                  Image.network(url, width: double.infinity, fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => const Center(child: Text('Imagem indisponível na API'))),
+                                );
+                              },
+                            )),
                           ],
                         ],
                       ),

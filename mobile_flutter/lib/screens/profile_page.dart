@@ -163,6 +163,10 @@ class _ProfilePageState extends State<ProfilePage>
           _usuario?.fotoPerfil = userAtualizado.fotoPerfil;
         });
         AuthService.fotoPerfil = userAtualizado.fotoPerfil;
+        final url = ApiService.formatarUrlFotoPerfil(userAtualizado.fotoPerfil);
+        if (url != null) {
+          await NetworkImage(url).evict(); // evita cache da foto antiga
+        }
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -316,7 +320,7 @@ class _ProfilePageState extends State<ProfilePage>
                           } else {
                             messenger.showSnackBar(
                               SnackBar(
-                                content: Text('Erro ao salvar. Tente novamente.', style: GoogleFonts.manrope()),
+                                content: Text(_usuarioService.ultimoErroAtualizacaoPerfil ?? 'Erro ao salvar.', style: GoogleFonts.manrope()),
                                 backgroundColor: const Color(0xFFC93659),
                               ),
                             );
@@ -433,7 +437,6 @@ class _ProfilePageState extends State<ProfilePage>
                     child: CircleAvatar(
                       radius: 43,
                       backgroundColor: const Color(0xFFFFEAF1),
-                      backgroundImage: foto == null ? null : NetworkImage(foto),
                       child: _enviandoFoto
                           ? const SizedBox(width: 24, height: 24,
                               child: CircularProgressIndicator(strokeWidth: 2))
@@ -441,7 +444,18 @@ class _ProfilePageState extends State<ProfilePage>
                               ? Text(inicial, style: GoogleFonts.manrope(
                                   fontSize: 31, fontWeight: FontWeight.w800,
                                   color: const Color(0xFFEA3F74)))
-                              : null,
+                              : ClipOval(child: Image.network(
+                                  foto,
+                                  width: 86,
+                                  height: 86,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => Center(
+                                    child: Text(inicial, style: GoogleFonts.manrope(
+                                      fontSize: 31, fontWeight: FontWeight.w800,
+                                      color: const Color(0xFFEA3F74),
+                                    )),
+                                  ),
+                                )),
                     ),
                   ),
                   Positioned(bottom: -2, right: -3,

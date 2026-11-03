@@ -11,8 +11,28 @@ public class UsuarioPerfilDTO {
     private String bio;
     private String fotoPerfil;
     private List<String> interesses;
+    private String token;
 
-    // Construtor completo
+    // Construtor completo com token
+    public UsuarioPerfilDTO(
+            Long idUsuario,
+            String nome,
+            String username,
+            String bio,
+            String fotoPerfil,
+            List<String> interesses,
+            String token) {
+
+        this.idUsuario = idUsuario;
+        this.nome = nome;
+        this.username = username;
+        this.bio = bio;
+        this.fotoPerfil = fotoPerfil;
+        this.interesses = interesses;
+        this.token = token;
+    }
+
+    // Construtor completo sem token (mantém compatibilidade)
     public UsuarioPerfilDTO(
             Long idUsuario,
             String nome,
@@ -21,16 +41,18 @@ public class UsuarioPerfilDTO {
             String fotoPerfil,
             List<String> interesses) {
 
-        this.idUsuario = idUsuario;
-        this.nome = nome;
-        this.username = username;
-        this.bio = bio;
-        this.fotoPerfil = fotoPerfil;
-        this.interesses = interesses;
+        this(
+                idUsuario,
+                nome,
+                username,
+                bio,
+                fotoPerfil,
+                interesses,
+                null
+        );
     }
 
     // Construtor antigo, com 5 parâmetros
-    // Mantém compatibilidade com o código que já existe
     public UsuarioPerfilDTO(
             Long idUsuario,
             String nome,
@@ -44,7 +66,8 @@ public class UsuarioPerfilDTO {
                 username,
                 bio,
                 fotoPerfil,
-                Collections.emptyList()
+                Collections.emptyList(),
+                null
         );
     }
 
@@ -74,5 +97,13 @@ public class UsuarioPerfilDTO {
 
     public void setInteresses(List<String> interesses) {
         this.interesses = interesses;
+    }
+
+    public String getToken() {
+        return token;
+    }
+
+    public void setToken(String token) {
+        this.token = token;
     }
 }

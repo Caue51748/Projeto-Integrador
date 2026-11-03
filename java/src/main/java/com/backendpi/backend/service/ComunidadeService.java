@@ -12,6 +12,7 @@ import com.backendpi.backend.repository.ComentarioRepository;
 import com.backendpi.backend.repository.ComunidadeRepository;
 import com.backendpi.backend.repository.PostRepository;
 import com.backendpi.backend.repository.UsuarioRepository;
+import com.backendpi.backend.security.SecuritySanitizerService;
 
 @Service
 public class ComunidadeService {
@@ -20,17 +21,20 @@ public class ComunidadeService {
     private final UsuarioRepository usuarioRepository;
     private final PostRepository postRepository;
     private final ComentarioRepository comentarioRepository;
+    private final SecuritySanitizerService sanitizerService;
 
     public ComunidadeService(
             ComunidadeRepository repository,
             UsuarioRepository usuarioRepository,
             PostRepository postRepository,
-            ComentarioRepository comentarioRepository) {
+            ComentarioRepository comentarioRepository,
+            SecuritySanitizerService sanitizerService) {
 
         this.repository = repository;
         this.usuarioRepository = usuarioRepository;
         this.postRepository = postRepository;
         this.comentarioRepository = comentarioRepository;
+        this.sanitizerService = sanitizerService;
     }
 
     public List<Comunidade> listar() {
@@ -43,12 +47,21 @@ public class ComunidadeService {
     }
 
     public Comunidade salvar(Comunidade comunidade) {
+        if (comunidade.getNome() != null) {
+            comunidade.setNome(sanitizerService.validarEModerar(comunidade.getNome(), "Nome da comunidade"));
+        }
+        if (comunidade.getDescricao() != null) {
+            comunidade.setDescricao(sanitizerService.validarEModerar(comunidade.getDescricao(), "Descrição da comunidade"));
+        }
+        if (comunidade.getCategoria() != null) {
+            comunidade.setCategoria(sanitizerService.validarEModerar(comunidade.getCategoria(), "Categoria da comunidade"));
+        }
         return repository.save(comunidade);
     }
 
     public List<Comunidade> listarPorUsuario(Long idUsuario) {
-    return repository.findByMembroId(idUsuario);
-}
+        return repository.findByMembroId(idUsuario);
+    }
 
     public Comunidade criar(Map<String, Object> dados) {
 
@@ -57,11 +70,20 @@ public class ComunidadeService {
         Usuario criador = usuarioRepository.findById(criadorId)
                 .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
 
-        Comunidade comunidade = new Comunidade();
+        String nome = dados.get("nome") != null ? dados.get("nome").toString() : "";
+        String descricao = dados.get("descricao") != null ? dados.get("descricao").toString() : "";
+        String categoria = dados.get("categoria") == null ? null : dados.get("categoria").toString();
 
-        comunidade.setNome(dados.get("nome").toString());
-        comunidade.setDescricao(dados.get("descricao").toString());
-        comunidade.setCategoria(dados.get("categoria") == null ? null : dados.get("categoria").toString());
+        nome = sanitizerService.validarEModerar(nome, "Nome da comunidade");
+        descricao = sanitizerService.validarEModerar(descricao, "Descrição da comunidade");
+        if (categoria != null) {
+            categoria = sanitizerService.validarEModerar(categoria, "Categoria da comunidade");
+        }
+
+        Comunidade comunidade = new Comunidade();
+        comunidade.setNome(nome);
+        comunidade.setDescricao(descricao);
+        comunidade.setCategoria(categoria);
         comunidade.setCor(dados.get("cor") == null ? "#EA3F74" : dados.get("cor").toString());
         comunidade.setCriador(criador);
         comunidade.getMembros().add(criador);
@@ -80,10 +102,18 @@ public class ComunidadeService {
             throw new RuntimeException("Usuário sem permissão para editar esta comunidade");
         }
 
-        comunidade.setNome(nova.getNome());
-        comunidade.setDescricao(nova.getDescricao());
-        comunidade.setCategoria(nova.getCategoria());
-        comunidade.setCor(nova.getCor());
+        if (nova.getNome() != null) {
+            comunidade.setNome(sanitizerService.validarEModerar(nova.getNome(), "Nome da comunidade"));
+        }
+        if (nova.getDescricao() != null) {
+            comunidade.setDescricao(sanitizerService.validarEModerar(nova.getDescricao(), "Descrição da comunidade"));
+        }
+        if (nova.getCategoria() != null) {
+            comunidade.setCategoria(sanitizerService.validarEModerar(nova.getCategoria(), "Categoria da comunidade"));
+        }
+        if (nova.getCor() != null) {
+            comunidade.setCor(nova.getCor());
+        }
 
         return repository.save(comunidade);
     }
