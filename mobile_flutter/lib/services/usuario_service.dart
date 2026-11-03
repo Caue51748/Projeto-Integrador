@@ -15,17 +15,25 @@ class UsuarioService {
         headers: {'Content-Type': 'application/json; charset=UTF-8'},
         body: jsonEncode({'email': email, 'senha': senha}),
       ).timeout(const Duration(seconds: 15));
-      if (kDebugMode) debugPrint('LOGIN HTTP ${res.statusCode}: ${_resumo(res.body)}');
+      if (kDebugMode) {
+        debugPrint('LOGIN HTTP ${res.statusCode}: ${_resumo(res.body)}');
+      }
       if (res.statusCode != 200 || res.body.trim().isEmpty || res.body.trim() == 'null') {
         return null;
       }
       final data = jsonDecode(utf8.decode(res.bodyBytes));
-      if (data is! Map) return null;
+      if (data is! Map) {
+        return null;
+      }
       final usuario = Usuario.fromJson(Map<String, dynamic>.from(data));
-      if (usuario.email.isEmpty) usuario.email = email;
+      if (usuario.email.isEmpty) {
+        usuario.email = email;
+      }
       return usuario;
     } catch (e) {
-      if (kDebugMode) debugPrint('Erro no login: $e');
+      if (kDebugMode) {
+        debugPrint('Erro no login: $e');
+      }
       return null;
     }
   }
@@ -51,7 +59,9 @@ class UsuarioService {
         headers: {'Content-Type': 'application/json; charset=UTF-8'},
         body: jsonEncode(payload),
       ).timeout(const Duration(seconds: 18));
-      if (kDebugMode) debugPrint('CADASTRO HTTP ${response.statusCode}: ${_resumo(response.body)}');
+      if (kDebugMode) {
+        debugPrint('CADASTRO HTTP ${response.statusCode}: ${_resumo(response.body)}');
+      }
       if (response.statusCode == 200 || response.statusCode == 201) {
         if (response.body.trim().isEmpty) {
           return {'sucesso': false, 'erro': 'Conta criada, mas a API não retornou os dados. Faça login.'};
@@ -61,7 +71,9 @@ class UsuarioService {
       }
       return {'sucesso': false, 'erro': 'Não foi possível concluir o cadastro (HTTP ${response.statusCode}). ${_resumo(response.body)}'};
     } catch (e) {
-      if (kDebugMode) debugPrint('CADASTRO ERRO: $e');
+      if (kDebugMode) {
+        debugPrint('CADASTRO ERRO: $e');
+      }
       return {'sucesso': false, 'erro': 'Não foi possível conectar ao servidor: $e'};
     }
   }
@@ -70,40 +82,49 @@ class UsuarioService {
     try {
       final response = await http.get(Uri.parse('$baseUrl/usuarios/$id'))
           .timeout(const Duration(seconds: 12));
-      if (response.statusCode != 200) return null;
+      if (response.statusCode != 200) {
+        return null;
+      }
       final data = jsonDecode(utf8.decode(response.bodyBytes));
-      if (data is! Map) return null;
+      if (data is! Map) {
+        return null;
+      }
       return Usuario.fromJson(Map<String, dynamic>.from(data));
     } catch (e) {
-      if (kDebugMode) debugPrint('Buscar usuário: $e');
+      if (kDebugMode) {
+        debugPrint('Buscar usuário: $e');
+      }
       return null;
     }
   }
 
   String? ultimoErroAtualizacaoPerfil;
 
-  Future<bool> atualizarPerfil(int id, String nome, String bio) async {
+  Future<bool> atualizarPerfil(int id, String nome, String bio, {String? novoUsername}) async {
     ultimoErroAtualizacaoPerfil = null;
     try {
       final atual = await buscarPorId(id);
-      final username = atual?.username;
+      final username = novoUsername?.trim() ?? atual?.username;
       if (username == null || username.trim().isEmpty) {
         ultimoErroAtualizacaoPerfil = 'Não foi possível obter o username atual do servidor.';
         return false;
       }
-      // UsuarioController PUT /usuarios/{id}/perfil exige username, mesmo
-      // que o usuário só queira modificar nome e bio.
+      // V5 permite trocar username ou manter o atual. O Java verifica duplicidade.
       final response = await http.put(Uri.parse('$baseUrl/usuarios/$id/perfil'),
         headers: {'Content-Type': 'application/json; charset=UTF-8'},
         body: jsonEncode({'nome': nome, 'bio': bio, 'username': username}),
       ).timeout(const Duration(seconds: 12));
       if (response.statusCode == 200 || response.statusCode == 204) return true;
       ultimoErroAtualizacaoPerfil = 'HTTP ${response.statusCode}: ${_resumo(response.body)}';
-      if (kDebugMode) debugPrint('EDITAR PERFIL: $ultimoErroAtualizacaoPerfil');
+      if (kDebugMode) {
+        debugPrint('EDITAR PERFIL: $ultimoErroAtualizacaoPerfil');
+      }
       return false;
     } catch (e) {
       ultimoErroAtualizacaoPerfil = '$e';
-      if (kDebugMode) debugPrint('Atualizar perfil: $e');
+      if (kDebugMode) {
+        debugPrint('Atualizar perfil: $e');
+      }
       return false;
     }
   }
@@ -112,13 +133,19 @@ class UsuarioService {
     try {
       final response = await http.get(Uri.parse('$baseUrl/usuarios'))
           .timeout(const Duration(seconds: 12));
-      if (response.statusCode != 200) return [];
+      if (response.statusCode != 200) {
+        return [];
+      }
       final data = jsonDecode(utf8.decode(response.bodyBytes));
       final lista = data is List ? data : (data is Map ? data['content'] : null);
-      if (lista is! List) return [];
+      if (lista is! List) {
+        return [];
+      }
       return lista.whereType<Map>().map((e) => Usuario.fromJson(Map<String, dynamic>.from(e))).toList();
     } catch (e) {
-      if (kDebugMode) debugPrint('Listar usuários: $e');
+      if (kDebugMode) {
+        debugPrint('Listar usuários: $e');
+      }
       return [];
     }
   }
@@ -167,9 +194,10 @@ class UsuarioService {
         return {'sucesso': false, 'erro': 'A foto deve ter até 5 MB.'};
       }
       final mime = _mimeDaImagem(bytes);
-      final uri = Uri.parse('$baseUrl/usuarios/$idUsuario/foto');
+      final caminhoUpload = _perfilPath.replaceAll('{id}', '$idUsuario');
+      final uri = Uri.parse('$baseUrl$caminhoUpload');
       final request = http.MultipartRequest('POST', uri);
-      request.files.add(http.MultipartFile.fromBytes('foto', bytes,
+      request.files.add(http.MultipartFile.fromBytes(_perfilField, bytes,
         filename: nomeArquivo, contentType: mime));
       final stream = await request.send().timeout(const Duration(seconds: 35));
       final response = await http.Response.fromStream(stream);
@@ -199,7 +227,9 @@ class UsuarioService {
       }
       return {'sucesso': true, 'usuario': atualizado};
     } catch (e) {
-      if (kDebugMode) debugPrint('UPLOAD FOTO ERRO: $e');
+      if (kDebugMode) {
+        debugPrint('UPLOAD FOTO ERRO: $e');
+      }
       return {'sucesso': false, 'erro': 'Erro ao enviar a foto: $e'};
     }
   }

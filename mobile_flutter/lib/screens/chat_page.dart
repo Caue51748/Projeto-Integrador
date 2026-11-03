@@ -1,10 +1,18 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../models/usuario.dart';
 import '../services/auth_service.dart';
 import '../services/usuario_service.dart';
 import '../services/chat_service.dart';
+import '../services/social_attachments_service.dart';
+import '../widgets/social_avatar.dart';
+import 'public_profile_page.dart';
 
+const _rosa = Color(0xFFEA3F74);
+const _fundo = Color(0xFFF7F8FA);
+
+/// Caixa de entrada real: carrega /conversas/usuario/{id}, não /usuarios.
 class ChatPage extends StatefulWidget {
   const ChatPage({super.key});
   @override
@@ -12,192 +20,286 @@ class ChatPage extends StatefulWidget {
 }
 
 class _ChatPageState extends State<ChatPage> {
-  bool carregando = true;
-  String? erro;
-  List<Usuario> usuarios = [];
-  String busca = '';
-  @override
-  void initState() { super.initState(); _carregar(); }
+  final ChatService _chat = ChatService();
+  List<ConversaComMensagens> _conversas = [];
+  Map<int, int> _naoLidas = {};
+  bool _carregando = true;
+  String? _erro;
+  String _busca = '';
+  Timer? _timer;
 
-  Future<void> _carregar() async {
-    if (!AuthService.logado || AuthService.idUsuario == null) return;
-    setState(() { carregando = true; erro = null; });
+  @override
+  void initState() {
+    super.initState();
+    _carregar();
+    _timer = Timer.periodic(const Duration(seconds: 12), (_) => _carregar(silencioso: true));
+  }
+  @override
+  void dispose() { _timer?.cancel(); super.dispose(); }
+
+  Future<void> _carregar({bool silencioso = false}) async {
+    if (!AuthService.logado || AuthService.idUsuario == null) {
+      if (mounted) setState(() => _carregando = false);
+      return;
+    }
+    if (!silencioso && mounted) setState(() { _carregando = true; _erro = null; });
     try {
-      final lista = await UsuarioService().listarUsuarios();
-      if (mounted) {
-        setState(() {
-          usuarios = lista.where((u) =>
-              u.idUsuario != null && u.idUsuario != AuthService.idUsuario).toList();
-          carregando = false;
-        });
+      final id = AuthService.idUsuario!;
+      final dados = await _chat.caixaDeEntrada(id);
+      final counts = await Future.wait(dados.map((d) =>
+        _chat.naoLidas(id, d.conversa.idConversa, d.mensagens)));
+      if (!mounted) return;
+      final valores = <int, int>{};
+      for (var i = 0; i < dados.length; i++) {
+        valores[dados[i].conversa.idConversa] = counts[i];
       }
+      setState(() { _conversas = dados; _naoLidas = valores; _carregando = false; _erro = null; });
     } catch (e) {
-      if (mounted) setState(() { carregando = false; erro = 'Não foi possível carregar os usuários: $e'; });
+      if (mounted) setState(() { _erro = '$e'; _carregando = false; });
+    }
+  }
+
+  Future<void> _novaConversa() async {
+    if (AuthService.idUsuario == null) return;
+    try {
+      final pessoas = (await UsuarioService().listarUsuarios())
+          .where((u) => u.idUsuario != null && u.idUsuario != AuthService.idUsuario).toList();
+      if (!mounted) return;
+      final busca = TextEditingController();
+      await showModalBottomSheet<void>(context: context, isScrollControlled: true,
+        showDragHandle: true, builder: (modalCtx) => StatefulBuilder(
+          builder: (ctx, atualizar) {
+            final filtro = busca.text.toLowerCase().trim();
+            final visiveis = pessoas.where((u) => u.nome.toLowerCase().contains(filtro) ||
+                (u.username ?? '').toLowerCase().contains(filtro)).toList();
+            return SafeArea(child: Padding(
+              padding: EdgeInsets.fromLTRB(18, 8, 18, MediaQuery.of(ctx).viewInsets.bottom + 14),
+              child: SizedBox(height: MediaQuery.of(ctx).size.height * .65, child: Column(children: [
+                const Align(alignment: Alignment.centerLeft, child: Text('Nova mensagem',
+                    style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800))),
+                const SizedBox(height: 12),
+                TextField(controller: busca, onChanged: (_) => atualizar(() {}),
+                    decoration: const InputDecoration(prefixIcon: Icon(Icons.search), hintText: 'Buscar pessoa...')),
+                const SizedBox(height: 10),
+                Expanded(child: ListView.builder(itemCount: visiveis.length, itemBuilder: (_, i) {
+                  final p = visiveis[i];
+                  return ListTile(leading: SocialAvatar(nome: p.nome, foto: p.fotoPerfil),
+                    title: Text(p.nome), subtitle: Text('@${p.username ?? ''}'), onTap: () async {
+                      Navigator.pop(modalCtx);
+                      await Navigator.push(context, MaterialPageRoute(builder: (_) => ConversaPage(usuario: p)));
+                      if (mounted) _carregar();
+                    });
+                })),
+              ])),
+            ));
+          }));
+      busca.dispose();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Não foi possível abrir a busca: $e')));
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     if (!AuthService.logado || AuthService.idUsuario == null) {
-      return const Center(child: Padding(padding: EdgeInsets.all(32), child: Column(
-        mainAxisSize: MainAxisSize.min, children: [
-          Icon(Icons.lock_outline_rounded, size: 48, color: Color(0xFFEA3F74)),
-          SizedBox(height: 16),
-          Text('Entre na sua conta para conversar', textAlign: TextAlign.center,
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-        ],
-      )));
+      return const Center(child: Text('Faça login para ver suas mensagens.'));
     }
-    final filtrados = usuarios.where((u) => u.nome.toLowerCase().contains(busca.toLowerCase()) ||
-        (u.username ?? '').toLowerCase().contains(busca.toLowerCase())).toList();
-    return Scaffold(backgroundColor: const Color(0xFFF7F8FA),
-      body: Column(children: [
-        Padding(padding: const EdgeInsets.fromLTRB(20,22,20,12), child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('Mensagens', style: TextStyle(fontSize: 29, fontWeight: FontWeight.w900, letterSpacing: -0.8)),
-            const SizedBox(height: 5),
-            const Text('Converse com pessoas da comunidade', style: TextStyle(color: Color(0xFF6A7184))),
-            const SizedBox(height: 20),
-            TextField(onChanged: (s) => setState(() => busca = s),
-              decoration: const InputDecoration(hintText: 'Encontrar uma pessoa...',
-                prefixIcon: Icon(Icons.search_rounded))),
-          ],
-        )),
-        Expanded(child: carregando ? const Center(child: CircularProgressIndicator()) :
-          erro != null ? Center(child: Text(erro!, textAlign: TextAlign.center)) :
-          RefreshIndicator(onRefresh: _carregar, child: ListView.separated(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: filtrados.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
-            itemBuilder: (context, index) {
-              final u = filtrados[index];
-              return Card(child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                leading: CircleAvatar(radius: 25, backgroundColor: const Color(0xFFE9E6FF),
-                  child: Text(u.nome.isEmpty ? '?' : u.nome[0].toUpperCase(),
-                    style: const TextStyle(color: Color(0xFFEA3F74), fontWeight: FontWeight.w800))),
-                title: Text(u.nome, style: const TextStyle(fontWeight: FontWeight.w800)),
-                subtitle: Text(u.username == null ? 'Iniciar conversa' : '@${u.username}'),
-                trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
-                onTap: () => Navigator.push(context, MaterialPageRoute(
-                  builder: (_) => ConversaPage(usuario: u))),
-              ));
-            },
-          )),
-        ),
-      ]),
+    final filtrados = _conversas.where((c) => c.conversa.nome.toLowerCase().contains(_busca.toLowerCase()) ||
+        (c.conversa.username ?? '').toLowerCase().contains(_busca.toLowerCase())).toList();
+    return Scaffold(backgroundColor: _fundo,
+      floatingActionButton: FloatingActionButton.extended(onPressed: _novaConversa,
+        backgroundColor: _rosa, foregroundColor: Colors.white,
+        icon: const Icon(Icons.edit_square), label: const Text('Nova mensagem')),
+      body: RefreshIndicator(onRefresh: _carregar, child: CustomScrollView(slivers: [
+        SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.fromLTRB(20, 23, 20, 16),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text('Mensagens', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900)),
+            const SizedBox(height: 4),
+            const Text('Suas conversas recentes', style: TextStyle(color: Color(0xFF788092))),
+            const SizedBox(height: 16),
+            TextField(onChanged: (s) => setState(() => _busca = s),
+              decoration: const InputDecoration(prefixIcon: Icon(Icons.search), hintText: 'Pesquisar conversas')),
+          ]))),
+        if (_carregando) const SliverFillRemaining(child: Center(child: CircularProgressIndicator())),
+        if (!_carregando && _erro != null) SliverFillRemaining(child: Center(child: Text('Erro ao buscar conversas.\n$_erro', textAlign: TextAlign.center))),
+        if (!_carregando && _erro == null && filtrados.isEmpty)
+          const SliverFillRemaining(child: Center(child: Padding(padding: EdgeInsets.all(30),
+              child: Text('Ainda não há mensagens. Use “Nova mensagem” para começar uma conversa.',
+                  textAlign: TextAlign.center, style: TextStyle(color: Color(0xFF858A98)))))),
+        if (!_carregando && _erro == null && filtrados.isNotEmpty)
+          SliverList(delegate: SliverChildBuilderDelegate((context, index) {
+            final d = filtrados[index];
+            final c = d.conversa;
+            final unread = _naoLidas[c.idConversa] ?? 0;
+            final pre = d.ultima?.texto ?? '';
+            final texto = SocialAttachmentsService.ehImagem(pre) ? 'Enviou uma imagem' : pre;
+            return Padding(padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 3),
+              child: Card(elevation: 0, color: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                child: ListTile(contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  leading: GestureDetector(
+                    onTap: () => Navigator.push(context, MaterialPageRoute(
+                        builder: (_) => PublicProfilePage(usuarioId: c.idOutroUsuario))),
+                    child: SocialAvatar(nome: c.nome, foto: c.fotoPerfil, radius: 26)),
+                  title: Text(c.nome, style: TextStyle(fontWeight: unread > 0 ? FontWeight.w900 : FontWeight.w700)),
+                  subtitle: Text(texto, maxLines: 1, overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: unread > 0 ? const Color(0xFF283146) : const Color(0xFF81889A))),
+                  trailing: unread > 0 ? CircleAvatar(radius: 13, backgroundColor: _rosa,
+                    child: Text(unread > 99 ? '99+' : '$unread', style: const TextStyle(color: Colors.white, fontSize: 10)))
+                    : const Icon(Icons.chevron_right, color: Color(0xFFB5B9C6)),
+                  onTap: () async {
+                    final usuario = Usuario(idUsuario: c.idOutroUsuario, nome: c.nome,
+                      email: '', senha: '', username: c.username, fotoPerfil: c.fotoPerfil);
+                    await Navigator.push(context, MaterialPageRoute(builder: (_) =>
+                      ConversaPage(usuario: usuario, idConversa: c.idConversa)));
+                    if (mounted) _carregar();
+                  },
+                )));
+          }, childCount: filtrados.length)),
+      ])),
     );
   }
 }
 
 class ConversaPage extends StatefulWidget {
   final Usuario usuario;
-  const ConversaPage({super.key, required this.usuario});
+  final int? idConversa;
+  const ConversaPage({super.key, required this.usuario, this.idConversa});
   @override
   State<ConversaPage> createState() => _ConversaPageState();
 }
 
 class _ConversaPageState extends State<ConversaPage> {
-  final ChatService _service = ChatService();
-  final TextEditingController _mensagem = TextEditingController();
+  final ChatService _chat = ChatService();
+  final TextEditingController _texto = TextEditingController();
   final ScrollController _scroll = ScrollController();
   List<MensagemChat> _mensagens = [];
   Timer? _timer;
-  String? _erro;
-  bool _loading = true;
+  int? _idConversa;
+  bool _carregando = true;
   bool _enviando = false;
-  bool _carregando = false;
+  String? _erro;
 
   @override
   void initState() {
     super.initState();
-    _carregar();
-    _timer = Timer.periodic(const Duration(seconds: 6), (_) => _carregar(silencioso: true));
+    _idConversa = widget.idConversa;
+    _atualizar();
+    _timer = Timer.periodic(const Duration(seconds: 5), (_) => _atualizar(silencioso: true));
   }
   @override
-  void dispose() { _timer?.cancel(); _mensagem.dispose(); _scroll.dispose(); super.dispose(); }
+  void dispose() { _timer?.cancel(); _texto.dispose(); _scroll.dispose(); super.dispose(); }
 
-  Future<void> _carregar({bool silencioso = false}) async {
-    if (_carregando || AuthService.idUsuario == null || widget.usuario.idUsuario == null) return;
-    _carregando = true;
+  Future<void> _atualizar({bool silencioso = false}) async {
+    final eu = AuthService.idUsuario;
+    final outro = widget.usuario.idUsuario;
+    if (eu == null || outro == null) return;
     try {
-      final lista = await _service.listar(AuthService.idUsuario!, widget.usuario.idUsuario!);
+      _idConversa ??= (await _chat.buscarOuCriar(eu, outro)).idConversa;
+      final lista = await _chat.listarPorConversa(_idConversa!);
       if (!mounted) return;
       final mudou = lista.length != _mensagens.length;
-      setState(() { _mensagens = lista; _erro = null; _loading = false; });
+      setState(() { _mensagens = lista; _carregando = false; _erro = null; });
+      await _chat.marcarLida(eu, _idConversa!, lista);
       if (mudou) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted || !_scroll.hasClients) return;
-          _scroll.animateTo(
-            _scroll.position.maxScrollExtent,
-            duration: const Duration(milliseconds: 250),
-            curve: Curves.easeOut,
-          );
-        });
+        if (mounted && _scroll.hasClients) _scroll.jumpTo(_scroll.position.maxScrollExtent);
+      });
       }
     } catch (e) {
-      if (mounted) setState(() { _loading = false; if (!silencioso || _mensagens.isEmpty) _erro = '$e'; });
-    } finally { _carregando = false; }
+      if (mounted && (!silencioso || _mensagens.isEmpty)) setState(() { _erro = '$e'; _carregando = false; });
+    }
   }
 
-  Future<void> _enviar() async {
-    final texto = _mensagem.text.trim();
-    if (texto.isEmpty || _enviando || AuthService.idUsuario == null || widget.usuario.idUsuario == null) return;
+  Future<void> _enviar([String? imagem]) async {
+    final valor = imagem ?? _texto.text.trim();
+    if (valor.isEmpty || _enviando || AuthService.idUsuario == null) return;
     setState(() { _enviando = true; _erro = null; });
     try {
-      await _service.enviar(eu: AuthService.idUsuario!, outro: widget.usuario.idUsuario!, texto: texto);
-      _mensagem.clear();
-      await _carregar();
+      _idConversa ??= (await _chat.buscarOuCriar(AuthService.idUsuario!, widget.usuario.idUsuario!)).idConversa;
+      await _chat.enviarPorConversa(idConversa: _idConversa!, eu: AuthService.idUsuario!, texto: valor);
+      if (imagem == null) _texto.clear();
+      await _atualizar();
     } catch (e) { if (mounted) setState(() => _erro = '$e'); }
     finally { if (mounted) setState(() => _enviando = false); }
   }
 
+  Future<void> _enviarFoto() async {
+    if (_enviando || AuthService.idUsuario == null) return;
+    final p = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 85);
+    if (p == null) return;
+    setState(() => _enviando = true);
+    try {
+      _idConversa ??= (await _chat.buscarOuCriar(AuthService.idUsuario!, widget.usuario.idUsuario!)).idConversa;
+      final url = await SocialAttachmentsService().upload(tipo: 'chat', id: _idConversa!,
+        usuarioId: AuthService.idUsuario!, bytes: await p.readAsBytes(), nome: p.name);
+      await _chat.enviarPorConversa(idConversa: _idConversa!, eu: AuthService.idUsuario!,
+        texto: '${SocialAttachmentsService.imagePrefix}$url');
+      await _atualizar();
+    } catch (e) { if (mounted) setState(() => _erro = 'Não foi possível enviar a foto: $e'); }
+    finally { if (mounted) setState(() => _enviando = false); }
+  }
+
   @override
-  Widget build(BuildContext context) => Scaffold(
-    backgroundColor: const Color(0xFFF7F8FA),
-    appBar: AppBar(title: Row(children: [
-      CircleAvatar(backgroundColor: const Color(0xFFE9E6FF),
-        child: Text(widget.usuario.nome.isEmpty ? '?' : widget.usuario.nome[0].toUpperCase(),
-          style: const TextStyle(color: Color(0xFFEA3F74), fontWeight: FontWeight.w800))),
-      const SizedBox(width: 10),
-      Expanded(child: Text(widget.usuario.nome, overflow: TextOverflow.ellipsis)),
-    ])),
+  Widget build(BuildContext context) => Scaffold(backgroundColor: _fundo,
+    appBar: AppBar(backgroundColor: Colors.white, titleSpacing: 4,
+      title: InkWell(onTap: () => Navigator.push(context, MaterialPageRoute(
+          builder: (_) => PublicProfilePage(usuarioId: widget.usuario.idUsuario!))),
+        child: Row(children: [
+          SocialAvatar(nome: widget.usuario.nome, foto: widget.usuario.fotoPerfil, radius: 20),
+          const SizedBox(width: 10),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(widget.usuario.nome, overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+            const Text('Ver perfil', style: TextStyle(color: Color(0xFF82899A), fontSize: 11)),
+          ])),
+        ])),
+      actions: [IconButton(tooltip: 'Ver perfil', icon: const Icon(Icons.person_outline),
+        onPressed: () => Navigator.push(context, MaterialPageRoute(
+            builder: (_) => PublicProfilePage(usuarioId: widget.usuario.idUsuario!))))],
+    ),
     body: SafeArea(child: Column(children: [
-      if (_erro != null) Material(color: const Color(0xFFFFE8EE), child: Padding(
-        padding: const EdgeInsets.all(12), child: Text(_erro!,
-          style: const TextStyle(color: Color(0xFFAD2042), fontSize: 12)))),
-      Expanded(child: _loading ? const Center(child: CircularProgressIndicator()) :
-        _mensagens.isEmpty ? const Center(child: Text('Nenhuma mensagem ainda.\nComece a conversa! ',
-          textAlign: TextAlign.center, style: TextStyle(color: Color(0xFF7C8293)))) :
-        ListView.builder(controller: _scroll,
-          padding: const EdgeInsets.fromLTRB(14,16,14,20),
-          itemCount: _mensagens.length, itemBuilder: (context, index) {
-            final m = _mensagens[index];
+      if (_erro != null) Container(width: double.infinity, color: const Color(0xFFFFE5ED),
+          padding: const EdgeInsets.all(10), child: Text(_erro!, style: const TextStyle(color: Color(0xFFA51C46)))),
+      Expanded(child: _carregando ? const Center(child: CircularProgressIndicator()) :
+        _mensagens.isEmpty ? const Center(child: Text('Nenhuma mensagem ainda.\nComece a conversa!',
+            textAlign: TextAlign.center, style: TextStyle(color: Color(0xFF858C9D)))) :
+        ListView.builder(controller: _scroll, padding: const EdgeInsets.all(16),
+          itemCount: _mensagens.length, itemBuilder: (context, i) {
+            final m = _mensagens[i];
             final minha = m.remetenteId == AuthService.idUsuario;
+            final imagem = SocialAttachmentsService.imagemDaMensagem(m.texto);
             return Align(alignment: minha ? Alignment.centerRight : Alignment.centerLeft,
               child: Container(margin: const EdgeInsets.only(bottom: 10),
-                padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 11),
-                constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * .76),
-                decoration: BoxDecoration(color: minha ? const Color(0xFFEA3F74) : Colors.white,
-                  borderRadius: BorderRadius.only(topLeft: const Radius.circular(17),
-                    topRight: const Radius.circular(17),
-                    bottomLeft: Radius.circular(minha ? 17 : 4),
-                    bottomRight: Radius.circular(minha ? 4 : 17))),
-                child: Text(m.texto, style: TextStyle(color: minha ? Colors.white : const Color(0xFF161A29),
-                  height: 1.4))),
+                constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * .78),
+                decoration: BoxDecoration(color: minha ? _rosa : Colors.white,
+                    borderRadius: BorderRadius.circular(17)),
+                padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                  if (imagem != null) ClipRRect(borderRadius: BorderRadius.circular(12),
+                    child: Image.network(imagem, height: 200, fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => const Text('Imagem indisponível')))
+                  else Text(m.texto, style: TextStyle(color: minha ? Colors.white : const Color(0xFF252938), height: 1.4)),
+                  if (m.enviadaEm != null) Padding(padding: const EdgeInsets.only(top: 5),
+                    child: Text('${m.enviadaEm!.hour.toString().padLeft(2,'0')}:${m.enviadaEm!.minute.toString().padLeft(2,'0')}',
+                      style: TextStyle(color: minha ? Colors.white70 : Colors.black38, fontSize: 10))),
+                ])),
             );
           })),
-      Container(padding: const EdgeInsets.fromLTRB(12,10,12,10), color: Colors.white,
+      Container(color: Colors.white, padding: const EdgeInsets.fromLTRB(12, 8, 12, 9),
         child: Row(children: [
-          Expanded(child: TextField(controller: _mensagem,
-            textCapitalization: TextCapitalization.sentences,
-            minLines: 1, maxLines: 4,
-            decoration: const InputDecoration(hintText: 'Escreva uma mensagem...',
-              border: InputBorder.none))),
-          const SizedBox(width: 8),
-          IconButton.filled(onPressed: _enviando ? null : _enviar,
+          IconButton(tooltip: 'Enviar imagem', onPressed: _enviando ? null : _enviarFoto,
+            icon: const Icon(Icons.add_photo_alternate_outlined, color: _rosa)),
+          Expanded(child: TextField(controller: _texto, minLines: 1, maxLines: 4,
+            decoration: const InputDecoration(hintText: 'Escreva uma mensagem...', border: InputBorder.none),
+            onSubmitted: (_) => _enviar())),
+          IconButton.filled(onPressed: _enviando ? null : () => _enviar(),
+            style: IconButton.styleFrom(backgroundColor: _rosa),
             icon: _enviando ? const SizedBox(width: 18, height: 18,
-              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
               : const Icon(Icons.arrow_upward_rounded)),
         ])),
     ])),

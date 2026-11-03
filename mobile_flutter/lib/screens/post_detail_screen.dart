@@ -1,353 +1,219 @@
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
 import '../models/post.dart';
-import '../models/comentario.dart';
+import '../models/usuario.dart';
 import '../services/auth_service.dart';
-import '../services/comentario_service.dart';
 import '../services/api_service.dart';
+import '../services/usuario_service.dart';
+import '../services/social_attachments_service.dart';
+import '../widgets/social_avatar.dart';
+import 'public_profile_page.dart';
 
-/// Tela de Detalhes da Publicação & Comentários Mobile — Fiel à Estilização Real da Tela WEB (.post-detail-card, .post-comments-heading, .detail-comment-box, .detail-comment).
-/// Fonte da Verdade: web/style.css
 class PostDetailScreen extends StatefulWidget {
   final Post post;
   final String nomeAutor;
   final Map<int, String> nomesUsuarios;
-
-  const PostDetailScreen({
-    super.key,
-    required this.post,
-    required this.nomeAutor,
-    required this.nomesUsuarios,
-  });
-
+  const PostDetailScreen({super.key, required this.post,
+    required this.nomeAutor, required this.nomesUsuarios});
   @override
   State<PostDetailScreen> createState() => _PostDetailScreenState();
 }
 
 class _PostDetailScreenState extends State<PostDetailScreen> {
-  final ComentarioService comentarioService = ComentarioService();
-  final TextEditingController controller = TextEditingController();
-  
-  List<Comentario> comentarios = [];
-  bool carregando = true;
+  final _controller = TextEditingController();
+  final _anexos = SocialAttachmentsService();
+  final Map<int, Usuario> _usuarios = {};
+  List<Map<String, dynamic>> _comentarios = [];
+  Map<int, List<String>> _imagens = {};
+  Uint8List? _preview;
+  String? _nomeArquivo;
+  bool _loading = true;
+  bool _enviando = false;
+  String? _erro;
 
   @override
-  void initState() {
-    super.initState();
-    carregarComentarios();
-  }
+  void initState() { super.initState(); _carregar(); }
+  @override
+  void dispose() { _controller.dispose(); super.dispose(); }
 
-  Future<void> carregarComentarios() async {
-    setState(() => carregando = true);
+  static int? _numero(dynamic v) => v is num ? v.toInt() : int.tryParse('$v');
+  Future<void> _carregar() async {
+    final postId = widget.post.idPost;
+    if (postId == null) return;
+    setState(() { _loading = true; _erro = null; });
     try {
-      final idPost = widget.post.idPost;
-      final lista = idPost != null
-          ? await comentarioService.listarPorPost(idPost)
-          : await comentarioService.listarComentarios();
-
-      if (mounted) {
-        setState(() {
-          comentarios = lista;
-          carregando = false;
-        });
-      }
+      final res = await http.get(Uri.parse('${ApiService.baseUrl}/comentarios/post/$postId'));
+      if (res.statusCode != 200) throw Exception('Comentários: HTTP ${res.statusCode}');
+      final data = jsonDecode(utf8.decode(res.bodyBytes));
+      final list = data is List ? data.whereType<Map>().map((v) =>
+          Map<String, dynamic>.from(v)).toList() : <Map<String, dynamic>>[];
+      Map<int, List<String>> imgs = {};
+      List<Usuario> pessoas = [];
+      try { imgs = await _anexos.listarImagensComentarios(); } catch (_) {}
+      try { pessoas = await UsuarioService().listarUsuarios(); } catch (_) {}
+      if (!mounted) return;
+      setState(() {
+        _comentarios = list;
+        _imagens = imgs;
+        _usuarios..clear()..addEntries(pessoas.where((u) => u.idUsuario != null)
+          .map((u) => MapEntry(u.idUsuario!, u)));
+        _loading = false;
+      });
     } catch (e) {
-      if (mounted) {
-        setState(() => carregando = false);
-      }
+      if (mounted) setState(() { _loading = false; _erro = '$e'; });
     }
   }
 
-  Future<void> enviarComentario() async {
-    if (controller.text.trim().isEmpty) return;
-    
-    if (!AuthService.logado || AuthService.idUsuario == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Você precisa fazer login para comentar!', style: GoogleFonts.manrope())),
-      );
+  Future<void> _selecionarFoto() async {
+    final p = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 85);
+    if (p == null) return;
+    final bytes = await p.readAsBytes();
+    if (bytes.length > 5 * 1024 * 1024) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Imagem maior que 5 MB.')));
+      }
       return;
     }
+    if (mounted) setState(() { _preview = bytes; _nomeArquivo = p.name; });
+  }
 
-    final novo = Comentario(
-      conteudo: controller.text,
-      idUsuario: AuthService.idUsuario!,
-      idPost: widget.post.idPost ?? 0,
-    );
-
-    setState(() => carregando = true);
-    final sucesso = await comentarioService.criarComentario(novo);
-    
-    if (!mounted) return;
-
-    if (sucesso) {
-      controller.clear();
-      FocusScope.of(context).unfocus();
-      await carregarComentarios();
-    } else {
-      setState(() => carregando = false);
+  Future<void> _enviar() async {
+    final texto = _controller.text.trim();
+    if ((texto.isEmpty && _preview == null) || _enviando) return;
+    if (!AuthService.logado || AuthService.idUsuario == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Faça login para comentar.')));
+      return;
     }
+    final idPost = widget.post.idPost;
+    if (idPost == null) return;
+    setState(() { _enviando = true; _erro = null; });
+    try {
+      final res = await http.post(Uri.parse('${ApiService.baseUrl}/comentarios'),
+        headers: {'Content-Type': 'application/json; charset=UTF-8'},
+        body: jsonEncode({'conteudo': texto.isEmpty ? '📷' : texto,
+          'idUsuario': AuthService.idUsuario, 'idPost': idPost}));
+      if (res.statusCode != 200 && res.statusCode != 201) {
+        throw Exception('Comentário não publicado (HTTP ${res.statusCode}): ${res.body}');
+      }
+      if (_preview != null) {
+        final criado = jsonDecode(utf8.decode(res.bodyBytes));
+        final idComentario = criado is Map ? _numero(criado['idComentario'] ?? criado['id']) : null;
+        if (idComentario == null) {
+          throw const FormatException('Comentário publicado, mas o Java não devolveu idComentario. Foto não enviada.');
+        }
+        await _anexos.upload(tipo: 'comentarios', id: idComentario,
+          usuarioId: AuthService.idUsuario!, bytes: _preview!, nome: _nomeArquivo ?? 'imagem.jpg');
+      }
+      _controller.clear();
+      setState(() { _preview = null; _nomeArquivo = null; });
+      await _carregar();
+    } catch (e) {
+      if (mounted) setState(() => _erro = '$e');
+    } finally { if (mounted) setState(() => _enviando = false); }
+  }
+
+  void _perfil(int? id) {
+    if (id == null) return;
+    Navigator.push(context, MaterialPageRoute(builder: (_) => PublicProfilePage(usuarioId: id)));
   }
 
   @override
   Widget build(BuildContext context) {
-    final inicialAutor = widget.nomeAutor.isNotEmpty ? widget.nomeAutor[0].toUpperCase() : '?';
-
-    return Scaffold(
-      backgroundColor: const Color(0xFFF7F8FA),
-      appBar: AppBar(
-        title: Text("Publicação", style: GoogleFonts.manrope(fontWeight: FontWeight.w700, fontSize: 18)),
-        elevation: 0,
-        backgroundColor: Colors.white,
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // POST DETAIL CARD Fiel à Web (.post-detail-card)
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFFE5E7EB)),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Color.fromRGBO(17, 24, 39, 0.07),
-                          blurRadius: 30,
-                          offset: Offset(0, 12),
-                        ),
-                      ],
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              CircleAvatar(
-                                radius: 20,
-                                backgroundColor: const Color(0xFFEA3F74),
-                                child: Text(
-                                  inicialAutor,
-                                  style: GoogleFonts.manrope(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      widget.nomeAutor,
-                                      style: GoogleFonts.manrope(fontSize: 15, fontWeight: FontWeight.w700, color: const Color(0xFF202124)),
-                                    ),
-                                    Text('Autor da publicação', style: GoogleFonts.manrope(fontSize: 12, color: const Color(0xFF6B7280))),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 20),
-                          Text(
-                            widget.post.titulo,
-                            style: GoogleFonts.manrope(fontSize: 22, fontWeight: FontWeight.w700, color: const Color(0xFF202124)),
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            widget.post.conteudo,
-                            style: GoogleFonts.manrope(fontSize: 15, color: const Color(0xFF202124), height: 1.65),
-                          ),
-                          if (widget.post.imagens.isNotEmpty) ...[
-                            const SizedBox(height: 16),
-                            SizedBox(height: 250, child: PageView.builder(
-                              itemCount: widget.post.imagens.length,
-                              itemBuilder: (context, index) {
-                                final url = ApiService.formatarUrlMidia(widget.post.imagens[index]);
-                                return ClipRRect(
-                                  borderRadius: BorderRadius.circular(14),
-                                  child: url == null ? const Center(child: Text('Imagem indisponível')) :
-                                  Image.network(url, width: double.infinity, fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) => const Center(child: Text('Imagem indisponível na API'))),
-                                );
-                              },
-                            )),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ),
-                  
-                  const SizedBox(height: 24),
-
-                  // SEÇÃO DE COMENTÁRIOS Fiel à Web (.post-comments-section & .post-comments-heading)
-                  Row(
-                    children: [
-                      Text(
-                        "Comentários",
-                        style: GoogleFonts.manrope(fontWeight: FontWeight.w700, fontSize: 19, color: const Color(0xFF202124)),
-                      ),
-                      const SizedBox(width: 8),
-                      Container(
-                        width: 24,
-                        height: 24,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFF7F8FA),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Center(
-                          child: Text(
-                            '${comentarios.length}',
-                            style: GoogleFonts.manrope(
-                              color: const Color(0xFFEA3F74),
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  
-                  carregando
-                      ? const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator(color: Color(0xFFEA3F74))))
-                      : comentarios.isEmpty
-                          ? Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(20),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(14),
-                                border: Border.all(color: const Color(0xFFE5E7EB)),
-                              ),
-                              child: Text(
-                                "Ainda não há comentários. Seja o primeiro a comentar!",
-                                textAlign: TextAlign.center,
-                                style: GoogleFonts.manrope(color: const Color(0xFF6B7280), fontSize: 13),
-                              ),
-                            )
-                          : ListView.builder(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              itemCount: comentarios.length,
-                              itemBuilder: (context, index) {
-                                final c = comentarios[index];
-                                final nome = widget.nomesUsuarios[c.idUsuario] ?? "Desconhecido";
-                                final inicial = nome.isNotEmpty ? nome[0].toUpperCase() : '?';
-
-                                return Container(
-                                  padding: const EdgeInsets.symmetric(vertical: 14),
-                                  decoration: const BoxDecoration(
-                                    border: Border(
-                                      top: BorderSide(color: Color(0xFFE5E7EB), width: 1.0),
-                                    ),
-                                  ),
-                                  child: Row(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      CircleAvatar(
-                                        radius: 16,
-                                        backgroundColor: const Color(0xFFEA3F74),
-                                        child: Text(
-                                          inicial,
-                                          style: GoogleFonts.manrope(
-                                            color: Colors.white,
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              nome,
-                                              style: GoogleFonts.manrope(
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.w700,
-                                                color: const Color(0xFF202124),
-                                              ),
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              c.conteudo,
-                                              style: GoogleFonts.manrope(
-                                                fontSize: 13,
-                                                color: const Color(0xFF6B7280),
-                                                height: 1.5,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              },
-                            ),
+    final urls = widget.post.imagens.isNotEmpty ? widget.post.imagens :
+      (widget.post.imagemUrl == null ? <String>[] : <String>[widget.post.imagemUrl!]);
+    return Scaffold(backgroundColor: const Color(0xFFF7F8FA),
+      appBar: AppBar(title: const Text('Publicação'), backgroundColor: Colors.white),
+      body: Column(children: [
+        Expanded(child: RefreshIndicator(onRefresh: _carregar,
+          child: ListView(padding: const EdgeInsets.all(16), children: [
+            Card(color: Colors.white, elevation: 0, child: Padding(
+              padding: const EdgeInsets.all(18), child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start, children: [
+                InkWell(onTap: () => _perfil(widget.post.idUsuario),
+                  child: Row(children: [
+                    SocialAvatar(nome: widget.nomeAutor,
+                      foto: _usuarios[widget.post.idUsuario]?.fotoPerfil),
+                    const SizedBox(width: 10),
+                    Expanded(child: Text(widget.nomeAutor,
+                      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15))),
+                  ])),
+                const SizedBox(height: 18),
+                Text(widget.post.titulo, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 19)),
+                const SizedBox(height: 9),
+                Text(widget.post.conteudo, style: const TextStyle(height: 1.5)),
+                if (urls.isNotEmpty) ...[
+                  const SizedBox(height: 15),
+                  SizedBox(height: 260, child: PageView(children: urls.map((f) =>
+                    ClipRRect(borderRadius: BorderRadius.circular(12),
+                      child: Image.network(ApiService.formatarUrlMidia(f) ?? '', fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) => const Center(child: Text('Imagem indisponível'))))).toList())),
+                  if (urls.length > 1) Padding(padding: const EdgeInsets.only(top: 8),
+                    child: Center(child: Text('${urls.length} imagens • deslize para ver',
+                      style: const TextStyle(color: Color(0xFF858C9C), fontSize: 12)))),
                 ],
-              ),
-            ),
-          ),
-          
-          // BARRA FIXA DE COMENTÁRIO (.detail-comment-box da Web CSS)
-          Container(
-            padding: EdgeInsets.only(
-              left: 16, right: 16, top: 12,
-              bottom: MediaQuery.of(context).padding.bottom + 12,
-            ),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              border: Border(top: BorderSide(color: Color(0xFFE5E7EB), width: 1.0)),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: controller,
-                    style: GoogleFonts.manrope(fontSize: 14, color: const Color(0xFF202124)),
-                    decoration: InputDecoration(
-                      hintText: "Escreva um comentário...",
-                      hintStyle: GoogleFonts.manrope(color: const Color(0xFF6B7280), fontSize: 13),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(9), borderSide: const BorderSide(color: Color(0xFFE5E7EB))),
-                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(9), borderSide: const BorderSide(color: Color(0xFFE5E7EB))),
-                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(9), borderSide: const BorderSide(color: Color(0xFFEA3F74), width: 1.5)),
-                      filled: true,
-                      fillColor: Colors.white,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                SizedBox(
-                  height: 44,
-                  child: ElevatedButton(
-                    onPressed: enviarComentario,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFEA3F74),
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                    ),
-                    child: Text('Enviar', style: GoogleFonts.manrope(fontWeight: FontWeight.w800, fontSize: 13)),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+              ]))),
+            const SizedBox(height: 17),
+            Text('${_comentarios.length} comentários',
+              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 19)),
+            const SizedBox(height: 10),
+            if (_loading) const Center(child: CircularProgressIndicator()),
+            if (_erro != null) Padding(padding: const EdgeInsets.all(10),
+              child: Text(_erro!, style: const TextStyle(color: Colors.red))),
+            if (!_loading && _comentarios.isEmpty)
+              const Padding(padding: EdgeInsets.all(14), child: Text('Seja o primeiro a comentar.')),
+            ..._comentarios.map((c) {
+              final id = _numero(c['idUsuario']);
+              final cid = _numero(c['idComentario'] ?? c['id']);
+              final user = _usuarios[id];
+              final nome = user?.nome ?? widget.nomesUsuarios[id] ?? 'Usuário';
+              final fotos = _imagens[cid] ?? const <String>[];
+              return Card(color: Colors.white, elevation: 0, margin: const EdgeInsets.only(bottom: 8),
+                child: Padding(padding: const EdgeInsets.all(13), child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    InkWell(onTap: () => _perfil(id), child: SocialAvatar(nome: nome,
+                      foto: user?.fotoPerfil, radius: 17)),
+                    const SizedBox(width: 10),
+                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      InkWell(onTap: () => _perfil(id), child: Text(nome,
+                        style: const TextStyle(fontWeight: FontWeight.w800))),
+                      const SizedBox(height: 5),
+                      Text((c['conteudo'] ?? '').toString()),
+                      ...fotos.map((f) => Padding(padding: const EdgeInsets.only(top: 7),
+                        child: ClipRRect(borderRadius: BorderRadius.circular(9),
+                          child: Image.network(ApiService.formatarUrlMidia(f) ?? '',
+                            height: 210, fit: BoxFit.contain, alignment: Alignment.centerLeft,
+                            errorBuilder: (_, __, ___) => const Text('Imagem indisponível'))))),
+                    ])),
+                  ])));
+            }),
+            const SizedBox(height: 30),
+          ]))),
+        if (AuthService.logado) Container(color: Colors.white,
+          padding: EdgeInsets.fromLTRB(10, 8, 10, MediaQuery.of(context).viewInsets.bottom > 0 ? 8 : 12),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            if (_preview != null) Row(children: [
+              ClipRRect(borderRadius: BorderRadius.circular(8),
+                child: Image.memory(_preview!, width: 58, height: 58, fit: BoxFit.cover)),
+              IconButton(onPressed: () => setState(() { _preview = null; _nomeArquivo = null; }),
+                icon: const Icon(Icons.close)),
+            ]),
+            Row(children: [
+              IconButton(onPressed: _enviando ? null : _selecionarFoto,
+                icon: const Icon(Icons.add_photo_alternate_outlined, color: Color(0xFFEA3F74))),
+              Expanded(child: TextField(controller: _controller, minLines: 1, maxLines: 3,
+                decoration: const InputDecoration(hintText: 'Escreva um comentário...', border: InputBorder.none))),
+              IconButton.filled(onPressed: _enviando ? null : _enviar,
+                style: IconButton.styleFrom(backgroundColor: const Color(0xFFEA3F74)),
+                icon: _enviando ? const SizedBox(width: 18, height: 18,
+                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                : const Icon(Icons.arrow_upward_rounded)),
+            ]),
+          ])),
+      ]),
     );
   }
 }
