@@ -6,6 +6,7 @@ class AuthService {
   static String? username;
   static String? bio;
   static String? fotoPerfil;
+  static String? token;
 
   static void fazerLogin({
     required int idUsuario,
@@ -14,6 +15,7 @@ class AuthService {
     String? username,
     String? bio,
     String? fotoPerfil,
+    String? token,
   }) {
     AuthService.logado = true;
     AuthService.idUsuario = idUsuario;
@@ -22,6 +24,7 @@ class AuthService {
     AuthService.username = username;
     AuthService.bio = bio;
     AuthService.fotoPerfil = fotoPerfil;
+    AuthService.token = token;
   }
 
   static void fazerLogout() {
@@ -32,5 +35,6 @@ class AuthService {
     username = null;
     bio = null;
     fotoPerfil = null;
+    token = null;
   }
 }

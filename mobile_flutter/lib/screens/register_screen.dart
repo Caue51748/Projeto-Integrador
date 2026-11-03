@@ -154,6 +154,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         email: emailFinal,
         username: usernameFinal,
         bio: novoUsuario.bio,
+        token: novoUsuario.token,
       );
 
       ScaffoldMessenger.of(context).showSnackBar(

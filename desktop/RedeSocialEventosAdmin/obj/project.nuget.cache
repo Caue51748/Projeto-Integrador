@@ -1,9 +1,10 @@
 {
   "version": 2,
-  "dgSpecHash": "x+uEroKb+0I=",
+  "dgSpecHash": "Ddd0TaYh+kE=",
   "success": true,
   "projectFilePath": "C:\\Geral 2026\\Projetos\\VS Code\\-\\SocialJoin\\Projeto-Integrador\\desktop\\RedeSocialEventosAdmin\\RedeSocialEventosAdmin.csproj",
   "expectedPackageFiles": [
+    "C:\\Users\\caueb\\.nuget\\packages\\bcrypt.net-next\\4.2.0\\bcrypt.net-next.4.2.0.nupkg.sha512",
     "C:\\Users\\caueb\\.nuget\\packages\\bouncycastle.cryptography\\2.6.2\\bouncycastle.cryptography.2.6.2.nupkg.sha512",
     "C:\\Users\\caueb\\.nuget\\packages\\fontawesome.sharp\\5.15.4\\fontawesome.sharp.5.15.4.nupkg.sha512",
     "C:\\Users\\caueb\\.nuget\\packages\\google.protobuf\\3.32.0\\google.protobuf.3.32.0.nupkg.sha512",

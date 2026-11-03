@@ -58,6 +58,20 @@ export class ApiService {
         return user ? (user.idUsuario || user.id_usuario || user.id) : null;
     }
 
+    static getToken() {
+        const user = this.getUsuarioLogado();
+        return user ? (user.token || user.jwt || null) : null;
+    }
+
+    static authHeaders(customHeaders = {}) {
+        const headers = { ...customHeaders };
+        const token = this.getToken();
+        if (token && !headers['Authorization'] && !headers['authorization']) {
+            headers['Authorization'] = 'Bearer ' + token;
+        }
+        return headers;
+    }
+
     // --- FORMATAÇÃO DE URL DE FOTO (GOOGLE DRIVE / LOCAL) ---
     static formatarUrlFotoPerfil(fotoPerfil) {
         if (!fotoPerfil) return null;
@@ -704,4 +718,40 @@ export class ApiService {
 
         return await resposta.json();
     }
+}
+
+// Interceptor global para anexar JWT em requisicoes a API
+if (typeof window !== 'undefined' && window.fetch) {
+    const originalFetch = window.fetch;
+    window.fetch = async function(resource, init = {}) {
+        try {
+            const url = typeof resource === 'string' ? resource : (resource && resource.url ? resource.url : '');
+            if (url && (url.includes(':8080') || url.includes('/usuarios') || url.includes('/posts') || url.includes('/comunidades') || url.includes('/comentarios') || url.includes('/api/eventos') || url.includes('/votos') || url.includes('/posts_salvos') || url.includes('/conversas') || url.includes('/mensagens') || url.includes('/imagens-post'))) {
+                const token = ApiService.getToken();
+                if (token) {
+                    init = init || {};
+                    let headers = init.headers;
+                    if (!headers) {
+                        headers = {};
+                    }
+                    if (headers instanceof Headers) {
+                        if (!headers.has('Authorization')) {
+                            headers.set('Authorization', `Bearer ${token}`);
+                        }
+                    } else if (Array.isArray(headers)) {
+                        const hasAuth = headers.some(([k]) => k.toLowerCase() === 'authorization');
+                        if (!hasAuth) {
+                            headers.push(['Authorization', `Bearer ${token}`]);
+                        }
+                    } else {
+                        if (!headers['Authorization'] && !headers['authorization']) {
+                            headers['Authorization'] = `Bearer ${token}`;
+                        }
+                    }
+                    init.headers = headers;
+                }
+            }
+        } catch (_) {}
+        return originalFetch(resource, init);
+    };
 }

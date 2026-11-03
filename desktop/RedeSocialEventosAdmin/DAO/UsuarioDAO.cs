@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using MySql.Data.MySqlClient;
@@ -29,11 +29,10 @@ namespace RedeSocialEventosAdmin.DAO
       var result = new LoginResult();
       using (MySqlConnection conn = Conexao.GetConnection())
       {
-        string sql = "SELECT * FROM usuarios WHERE (email = @login OR username = @login) AND senha = @senha LIMIT 1";
+        string sql = "SELECT * FROM usuarios WHERE (email = @login OR username = @login) LIMIT 1";
         using (MySqlCommand cmd = new MySqlCommand(sql, conn))
         {
           cmd.Parameters.AddWithValue("@login", loginOuEmail);
-          cmd.Parameters.AddWithValue("@senha", senha);
 
           try
           {
@@ -43,6 +42,33 @@ namespace RedeSocialEventosAdmin.DAO
               if (reader.Read())
               {
                 var user = MapearUsuario(reader);
+
+                bool senhaValida = false;
+                if (!string.IsNullOrEmpty(user.Senha))
+                {
+                  if (user.Senha.StartsWith("$2a$") || user.Senha.StartsWith("$2b$") || user.Senha.StartsWith("$2y$"))
+                  {
+                    try
+                    {
+                      senhaValida = BCrypt.Net.BCrypt.Verify(senha, user.Senha);
+                    }
+                    catch
+                    {
+                      senhaValida = false;
+                    }
+                  }
+                  else
+                  {
+                    senhaValida = user.Senha == senha;
+                  }
+                }
+
+                if (!senhaValida)
+                {
+                  result.Status = LoginStatus.CredenciaisInvalidas;
+                  result.Mensagem = "E-mail/usuário ou senha incorretos.";
+                  return result;
+                }
 
                 if (user.Status.Equals("suspenso", StringComparison.OrdinalIgnoreCase))
                 {
@@ -92,10 +118,16 @@ namespace RedeSocialEventosAdmin.DAO
 
         using (MySqlCommand cmd = new MySqlCommand(sql, conn))
         {
+          string senhaFinal = usuario.Senha;
+          if (!string.IsNullOrEmpty(senhaFinal) && !senhaFinal.StartsWith("$2a$") && !senhaFinal.StartsWith("$2b$") && !senhaFinal.StartsWith("$2y$"))
+          {
+            senhaFinal = BCrypt.Net.BCrypt.HashPassword(senhaFinal);
+          }
+
           cmd.Parameters.AddWithValue("@username", string.IsNullOrWhiteSpace(usuario.Username) ? usuario.Email.Split('@')[0] : usuario.Username);
           cmd.Parameters.AddWithValue("@nome", (object?)usuario.Nome ?? DBNull.Value);
           cmd.Parameters.AddWithValue("@email", usuario.Email);
-          cmd.Parameters.AddWithValue("@senha", usuario.Senha);
+          cmd.Parameters.AddWithValue("@senha", senhaFinal);
           cmd.Parameters.AddWithValue("@telefone", (object?)usuario.Telefone ?? DBNull.Value);
           cmd.Parameters.AddWithValue("@nome_completo", string.IsNullOrWhiteSpace(usuario.NomeCompleto) ? (usuario.Nome ?? usuario.Username) : usuario.NomeCompleto);
           cmd.Parameters.AddWithValue("@data_nascimento", usuario.DataNascimento.HasValue ? usuario.DataNascimento.Value.ToString("yyyy-MM-dd") : DateTime.Now.AddYears(-20).ToString("yyyy-MM-dd"));
@@ -152,7 +184,12 @@ namespace RedeSocialEventosAdmin.DAO
 
           if (atualizarSenha && !string.IsNullOrWhiteSpace(usuario.Senha))
           {
-            cmd.Parameters.AddWithValue("@senha", usuario.Senha);
+            string senhaFinal = usuario.Senha;
+            if (!senhaFinal.StartsWith("$2a$") && !senhaFinal.StartsWith("$2b$") && !senhaFinal.StartsWith("$2y$"))
+            {
+              senhaFinal = BCrypt.Net.BCrypt.HashPassword(senhaFinal);
+            }
+            cmd.Parameters.AddWithValue("@senha", senhaFinal);
           }
 
           try

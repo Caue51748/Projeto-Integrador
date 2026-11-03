@@ -11,6 +11,7 @@ import com.backendpi.backend.model.Usuario;
 import com.backendpi.backend.repository.ConversaRepository;
 import com.backendpi.backend.repository.MensagemRepository;
 import com.backendpi.backend.repository.UsuarioRepository;
+import com.backendpi.backend.security.SecuritySanitizerService;
 import com.backendpi.backend.websocket.ChatWebSocketHandler;
 
 import tools.jackson.databind.ObjectMapper;
@@ -23,19 +24,22 @@ public class MensagemService {
     private final UsuarioRepository usuarioRepository;
     private final ChatWebSocketHandler chatWebSocketHandler;
     private final ObjectMapper objectMapper;
+    private final SecuritySanitizerService sanitizerService;
 
     public MensagemService(
             MensagemRepository mensagemRepository,
             ConversaRepository conversaRepository,
             UsuarioRepository usuarioRepository,
             ChatWebSocketHandler chatWebSocketHandler,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            SecuritySanitizerService sanitizerService
     ) {
         this.mensagemRepository = mensagemRepository;
         this.conversaRepository = conversaRepository;
         this.usuarioRepository = usuarioRepository;
         this.chatWebSocketHandler = chatWebSocketHandler;
         this.objectMapper = objectMapper;
+        this.sanitizerService = sanitizerService;
     }
 
     public MensagemDTO enviarMensagem(
@@ -49,6 +53,9 @@ public class MensagemService {
                     "A mensagem não pode ficar vazia."
             );
         }
+
+        // Moderação e sanitização de palavras inadequadas, SQL Injection e XSS
+        String conteudoLimpo = sanitizerService.validarEModerar(conteudo, "Mensagem");
 
         Conversa conversa
                 = conversaRepository.findById(idConversa)
@@ -84,7 +91,7 @@ public class MensagemService {
 
         mensagem.setConversa(conversa);
         mensagem.setRemetente(remetente);
-        mensagem.setConteudo(conteudo.trim());
+        mensagem.setConteudo(conteudoLimpo);
 
         mensagem = mensagemRepository.save(mensagem);
 
