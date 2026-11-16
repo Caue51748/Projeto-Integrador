@@ -11,7 +11,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap"
         rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css?v=dark-mode-2">
+    <link rel="stylesheet" href="css/style.css?v=community-modal-1">
 </head>
 
 <body>
@@ -789,28 +789,93 @@
         </div>
     </div>
 
-    <div class="modal-overlay" id="comunidade-modal">
-        <div class="modal">
-            <h2>Criar Comunidade</h2>
-            <input type="text" id="comunidade-nome" placeholder="Ex: Desenvolvedores Java">
-            <textarea id="comunidade-desc" placeholder="Qual o foco do grupo?"></textarea>
-            <select id="comunidade-categoria">
-                <option value="">Selecione uma categoria</option>
-                <option>Tecnologia</option>
-                <option>Arte</option>
-                <option>Música</option>
-                <option>Esportes</option>
-                <option>Educação</option>
-                <option>Networking</option>
-                <option>Cultura</option>
-            </select>
-            <label for="comunidade-cor">Cor da comunidade</label>
-            <input type="color" id="comunidade-cor" value="#EA3F74">
-            <label for="comunidade-imagem">Imagem da comunidade (opcional)</label>
-            <input type="file" id="comunidade-imagem" accept="image/*">
-            <small class="form-hint">Escolha uma imagem que represente os interesses da sua comunidade.</small>
-            <button class="btn-full" onclick="app.criarComunidade()">Salvar</button>
-            <button class="btn-cancel" onclick="app.fecharModal('comunidade-modal')">Cancelar</button>
+    <div class="modal-overlay" id="comunidade-modal" role="dialog" aria-modal="true"
+        aria-labelledby="comunidade-modal-title">
+        <div class="modal comunidade-criar-modal">
+            <button type="button" class="modal-close-btn" onclick="app.fecharModal('comunidade-modal')"
+                aria-label="Fechar criação de comunidade">
+                <i class="material-icons" aria-hidden="true">close</i>
+            </button>
+
+            <div class="modal-header-intro comunidade-criar-header">
+                <span class="modal-kicker">
+                    <i class="material-icons" aria-hidden="true">groups</i>
+                    Comunidades
+                </span>
+                <h2 id="comunidade-modal-title">Criar comunidade</h2>
+                <p>Crie um espaço para reunir pessoas com interesses em comum.</p>
+            </div>
+
+            <div class="comunidade-criar-fields">
+                <div class="comunidade-criar-field">
+                    <label for="comunidade-nome">Nome da comunidade</label>
+                    <div class="comunidade-criar-control">
+                        <i class="material-icons" aria-hidden="true">group</i>
+                        <input type="text" id="comunidade-nome" placeholder="Ex.: Desenvolvedores Java">
+                    </div>
+                </div>
+
+                <div class="comunidade-criar-field">
+                    <label for="comunidade-desc">Sobre a comunidade</label>
+                    <textarea class="comunidade-criar-descricao" id="comunidade-desc"
+                        placeholder="Qual é o foco do grupo? Que assuntos vocês querem compartilhar?"></textarea>
+                </div>
+
+                <div class="comunidade-criar-opcoes">
+                    <div class="comunidade-criar-field">
+                        <label for="comunidade-categoria">Categoria</label>
+                        <div class="comunidade-criar-control">
+                            <i class="material-icons" aria-hidden="true">category</i>
+                            <select id="comunidade-categoria">
+                                <option value="">Selecione uma categoria</option>
+                                <option>Tecnologia</option>
+                                <option>Arte</option>
+                                <option>Música</option>
+                                <option>Esportes</option>
+                                <option>Educação</option>
+                                <option>Networking</option>
+                                <option>Cultura</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="comunidade-criar-field">
+                        <label for="comunidade-cor">Cor de destaque</label>
+                        <div class="comunidade-criar-cor">
+                            <input type="color" id="comunidade-cor" value="#EA3F74"
+                                aria-label="Escolha a cor de destaque da comunidade">
+                            <span>Escolha uma cor para representar sua comunidade.</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="comunidade-criar-field">
+                    <label for="comunidade-imagem">Imagem da comunidade <span>(opcional)</span></label>
+                    <input type="file" id="comunidade-imagem" class="comunidade-criar-upload-input"
+                        accept="image/*">
+                    <label class="comunidade-criar-upload" for="comunidade-imagem">
+                        <span class="comunidade-criar-upload-icon">
+                            <i class="material-icons" aria-hidden="true">add_photo_alternate</i>
+                        </span>
+                        <span class="comunidade-criar-upload-info">
+                            <strong>Escolher imagem</strong>
+                            <small id="comunidade-imagem-nome">JPG, PNG ou WEBP · Você pode adicionar depois</small>
+                        </span>
+                        <i class="material-icons comunidade-criar-upload-action" aria-hidden="true">upload</i>
+                    </label>
+                    <small class="form-hint">Uma imagem ajuda as pessoas a reconhecerem sua comunidade.</small>
+                </div>
+            </div>
+
+            <div class="comunidade-criar-acoes">
+                <button class="btn-full" type="button" onclick="app.criarComunidade()">
+                    <i class="material-icons" aria-hidden="true">add</i>
+                    Criar comunidade
+                </button>
+                <button class="btn-cancel" type="button" onclick="app.fecharModal('comunidade-modal')">
+                    Cancelar
+                </button>
+            </div>
         </div>
     </div>
 

@@ -110,6 +110,13 @@ class AppController {
             );
         }
 
+        const imagemComunidadeInput = document.getElementById('comunidade-imagem');
+        imagemComunidadeInput?.addEventListener('change', () => {
+            const nomeArquivo = imagemComunidadeInput.files?.[0]?.name;
+            document.getElementById('comunidade-imagem-nome').textContent =
+                nomeArquivo || 'JPG, PNG ou WEBP · Você pode adicionar depois';
+        });
+
         const chatCloseBtn =
             document.getElementById('chat-close-btn');
 
@@ -2248,6 +2255,8 @@ class AppController {
             document.getElementById('comunidade-categoria').value = '';
             document.getElementById('comunidade-cor').value = '#EA3F74';
             document.getElementById('comunidade-imagem').value = '';
+            document.getElementById('comunidade-imagem-nome').textContent =
+                'JPG, PNG ou WEBP · Você pode adicionar depois';
             this.carregarComunidades();
         } else {
             this.mostrarFeedbackGlobal("Não foi possível criar a comunidade.");
