@@ -11,7 +11,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap"
         rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css?v=event-cycle-3">
+    <link rel="stylesheet" href="css/style.css?v=dark-mode-2">
 </head>
 
 <body>
@@ -1868,6 +1868,27 @@
 
         <div class="configuracoes-lista">
 
+            <div class="configuracoes-item configuracoes-theme-item">
+                <span class="configuracoes-item-icon">
+                    <i class="material-icons" aria-hidden="true">dark_mode</i>
+                </span>
+                <span class="configuracoes-item-info">
+                    <strong id="tema-escuro-label">Modo escuro</strong>
+                    <small id="tema-escuro-descricao">Altere a aparência da aplicação.</small>
+                </span>
+                <label class="configuracoes-theme-toggle">
+                    <input
+                        id="tema-escuro-toggle"
+                        type="checkbox"
+                        role="switch"
+                        aria-labelledby="tema-escuro-label"
+                        aria-describedby="tema-escuro-descricao"
+                        onchange="app.definirTemaEscuro(this.checked)"
+                    >
+                    <span class="configuracoes-theme-switch" aria-hidden="true"></span>
+                </label>
+            </div>
+
             <button
                 type="button"
                 class="configuracoes-item"
@@ -2032,7 +2053,7 @@
 </div>
 
     <!-- type="module" permite importar ApiService; servir esta página por HTTP evita bloqueios de módulos em file://. -->
-    <script type="module" src="js/app.js?v=event-cycle-3"></script>
+    <script type="module" src="js/app.js?v=dark-mode-1"></script>
     <div id="toast-container" class="toast-container" aria-label="Avisos" aria-live="polite"
         aria-relevant="additions text"></div>
 </body>

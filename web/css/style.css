@@ -9050,3 +9050,249 @@ button:disabled {
     outline: 3px solid rgba(234, 63, 116, .2);
     outline-offset: 2px;
 }
+
+html[data-theme="dark"] {
+    color-scheme: dark;
+    --bg-dark: #191a23;
+    --bg-darker: #13141b;
+    --bg-light: #252733;
+    --card-bg: #1d1f29;
+    --text-main: #f0f1f5;
+    --text-muted: #a9adbb;
+    --border-color: #363946;
+    --secondary-pink: #482737;
+    --primary-hover: #f05584;
+    --danger: #ff718b;
+    --shadow-soft: 0 12px 30px rgba(0, 0, 0, 0.24);
+}
+
+html[data-theme="dark"] body {
+    background: var(--bg-darker);
+    color: var(--text-main);
+}
+
+html[data-theme="dark"] .welcome-screen {
+    background: linear-gradient(135deg, #191720 0%, #211821 100%);
+}
+
+html[data-theme="dark"] .preview-window {
+    background: rgba(29, 31, 41, 0.96);
+    border-color: var(--border-color);
+    box-shadow: 0 28px 65px rgba(0, 0, 0, 0.35);
+}
+
+html[data-theme="dark"] .app-shell,
+html[data-theme="dark"] main,
+html[data-theme="dark"] .app-content {
+    background-color: var(--bg-darker);
+    color: var(--text-main);
+}
+
+html[data-theme="dark"] .app-shell aside,
+html[data-theme="dark"] .account-trigger,
+html[data-theme="dark"] .account-dropdown,
+html[data-theme="dark"] .chat-sidebar,
+html[data-theme="dark"] .chat-conversations,
+html[data-theme="dark"] .chat-message-form,
+html[data-theme="dark"] .modal,
+html[data-theme="dark"] .configuracoes-item,
+html[data-theme="dark"] .participante-item,
+html[data-theme="dark"] .checkbox-card,
+html[data-theme="dark"] .evento-meta-box,
+html[data-theme="dark"] .agenda-export-btn,
+html[data-theme="dark"] .agenda-action-remove,
+html[data-theme="dark"] .evento-action-secondary,
+html[data-theme="dark"] .btn-localizacao-filtro,
+html[data-theme="dark"] .comunidade-btn-secundario,
+html[data-theme="dark"] .editar-perfil-escolher-foto,
+html[data-theme="dark"] .btn-perfil-mensagem,
+html[data-theme="dark"] .btn-perfil-seguir,
+html[data-theme="dark"] .feed-toolbar select,
+html[data-theme="dark"] .comunidades-toolbar select,
+html[data-theme="dark"] .pessoas-toolbar select {
+    background-color: var(--card-bg);
+    color: var(--text-main);
+    border-color: var(--border-color);
+}
+
+html[data-theme="dark"] .app-shell .card,
+html[data-theme="dark"] .app-shell [class*="-card"],
+html[data-theme="dark"] .app-shell [class*="-modal"],
+html[data-theme="dark"] .app-shell [class*="-panel"],
+html[data-theme="dark"] .app-shell [class$="-box"] {
+    background-color: var(--card-bg);
+    color: var(--text-main);
+    border-color: var(--border-color);
+}
+
+html[data-theme="dark"] input:not([type="checkbox"]):not([type="radio"]),
+html[data-theme="dark"] textarea,
+html[data-theme="dark"] select {
+    background-color: #191b24;
+    color: var(--text-main);
+    border-color: var(--border-color);
+}
+
+html[data-theme="dark"] input::placeholder,
+html[data-theme="dark"] textarea::placeholder {
+    color: #9298a8;
+}
+
+html[data-theme="dark"] .app-shell .chat-message-row.received .chat-message-bubble,
+html[data-theme="dark"] .app-shell .form-section,
+html[data-theme="dark"] .app-shell .evento-coordenadas-box,
+html[data-theme="dark"] .app-shell .notificacao-item.nao-lida {
+    background-color: var(--bg-light);
+    color: var(--text-main);
+}
+
+html[data-theme="dark"] .app-shell .configuracoes-item:hover,
+html[data-theme="dark"] .app-shell .account-menu-item:hover,
+html[data-theme="dark"] .app-shell .post-action:hover,
+html[data-theme="dark"] .app-shell .post-action.active,
+html[data-theme="dark"] .app-shell .btn-localizacao-filtro:hover,
+html[data-theme="dark"] .app-shell .agenda-action-remove:hover {
+    background-color: var(--bg-light);
+}
+
+html[data-theme="dark"] .feed-sidebar {
+    background: var(--card-bg);
+    border-color: var(--border-color);
+    box-shadow: var(--shadow-soft);
+}
+
+html[data-theme="dark"] .feed-recomendado-item {
+    background: linear-gradient(135deg, rgba(234, 63, 116, 0.1), rgba(86, 51, 72, 0.22));
+    border-color: rgba(234, 63, 116, 0.22);
+}
+
+html[data-theme="dark"] .feed-recomendado-item:hover {
+    border-color: rgba(234, 63, 116, 0.48);
+}
+
+html[data-theme="dark"] .chat-sidebar {
+    background: linear-gradient(180deg, #1d1f29 0%, #171922 100%);
+    border-color: var(--border-color);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.24);
+}
+
+html[data-theme="dark"] .chat-sidebar-header {
+    background: linear-gradient(135deg, rgba(234, 63, 116, 0.12), rgba(90, 94, 125, 0.14));
+    border-color: var(--border-color);
+}
+
+html[data-theme="dark"] .chat-conversations {
+    background: linear-gradient(180deg, #191b24 0%, #161821 100%);
+}
+
+html[data-theme="dark"] .chat-conversation-item {
+    background: rgba(255, 255, 255, 0.025);
+    border-color: rgba(255, 255, 255, 0.06);
+}
+
+html[data-theme="dark"] .chat-conversation-item:hover {
+    background: rgba(234, 63, 116, 0.1);
+    border-color: rgba(234, 63, 116, 0.2);
+}
+
+html[data-theme="dark"] .chat-conversation-item.active {
+    background: linear-gradient(135deg, rgba(234, 63, 116, 0.16), rgba(90, 94, 125, 0.14));
+    border-color: rgba(234, 63, 116, 0.28);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+html[data-theme="dark"] .chat-toggle-btn,
+html[data-theme="dark"] .chat-close-btn {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-main);
+}
+
+html[data-theme="dark"] .chat-search input:focus {
+    background: #191b24;
+}
+
+html[data-theme="dark"] .evento-destaque-container {
+    background: var(--card-bg);
+    border-color: var(--border-color);
+}
+
+html[data-theme="dark"] .evento-destaque-imagem-vazia {
+    background: linear-gradient(135deg, #30222c, #222530);
+}
+
+html[data-theme="dark"] .evento-destaque-badge {
+    background: rgba(234, 63, 116, 0.14);
+    color: #ff84a4;
+}
+
+html[data-theme="dark"] .comment-input-container button {
+    background: var(--primary-blue);
+    color: #fff;
+}
+
+html[data-theme="dark"] .configuracoes-theme-item {
+    cursor: default;
+}
+
+.configuracoes-theme-toggle {
+    position: relative;
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    cursor: pointer;
+}
+
+.configuracoes-theme-toggle input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+}
+
+.configuracoes-theme-switch {
+    position: relative;
+    display: block;
+    width: 42px;
+    height: 24px;
+    border: 1px solid #c9cdd5;
+    border-radius: 999px;
+    background: #e5e7eb;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.configuracoes-theme-switch::after {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.22);
+    content: "";
+    transition: transform 0.2s ease;
+}
+
+.configuracoes-theme-toggle input:checked + .configuracoes-theme-switch {
+    border-color: var(--primary-blue);
+    background: var(--primary-blue);
+}
+
+.configuracoes-theme-toggle input:checked + .configuracoes-theme-switch::after {
+    transform: translateX(18px);
+}
+
+.configuracoes-theme-toggle input:focus-visible + .configuracoes-theme-switch {
+    outline: 3px solid rgba(234, 63, 116, 0.3);
+    outline-offset: 2px;
+}
+
+html[data-theme="dark"] .configuracoes-theme-switch {
+    border-color: #555968;
+    background: #343744;
+}
+
+html[data-theme="dark"] .configuracoes-theme-toggle input:checked + .configuracoes-theme-switch {
+    border-color: var(--primary-blue);
+    background: var(--primary-blue);
+}

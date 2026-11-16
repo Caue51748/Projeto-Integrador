@@ -65,6 +65,7 @@ class AppController {
     }
     // Ponto de entrada da aplicação: registra eventos da interface e decide entre boas-vindas e sessão existente.
     async inicializar() {
+        this.inicializarTema();
 
         // Listener para Scroll Infinito no Feed
         window.addEventListener('scroll', () => {
@@ -8858,9 +8859,42 @@ ${ApiService.getIdUsuarioLogado() ? `
             .querySelector('.account-menu')
             ?.classList.remove('open');
 
+        this.atualizarControleTema();
         this.abrirModal(
             'configuracoes-modal'
         );
+    }
+
+    inicializarTema() {
+        let temaEscuro = false;
+        try {
+            temaEscuro = window.localStorage.getItem('socialjoin-theme') === 'dark';
+        } catch (erro) {
+            console.warn('Não foi possível carregar a preferência de tema:', erro);
+        }
+        this.aplicarTemaEscuro(temaEscuro);
+    }
+
+    definirTemaEscuro(ativado) {
+        this.aplicarTemaEscuro(ativado);
+        try {
+            window.localStorage.setItem('socialjoin-theme', ativado ? 'dark' : 'light');
+        } catch (erro) {
+            console.error('Não foi possível salvar a preferência de tema:', erro);
+            this.mostrarFeedbackGlobal('A aparência foi alterada, mas a preferência não pôde ser salva neste navegador.');
+        }
+    }
+
+    aplicarTemaEscuro(ativado) {
+        document.documentElement.dataset.theme = ativado ? 'dark' : 'light';
+        this.atualizarControleTema();
+    }
+
+    atualizarControleTema() {
+        const controle = document.getElementById('tema-escuro-toggle');
+        if (controle) {
+            controle.checked = document.documentElement.dataset.theme === 'dark';
+        }
     }
 
     abrirAlteracaoSenhaPelasConfiguracoes() {
