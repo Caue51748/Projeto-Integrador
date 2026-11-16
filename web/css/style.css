@@ -2249,7 +2249,7 @@ textarea:focus,
     border-left: 4px solid var(--toast-color);
     border-radius: 13px;
     color: var(--text-main);
-    background: #fff;
+    background: var(--card-bg);
     box-shadow: 0 12px 32px rgba(43, 23, 32, .16);
     pointer-events: auto;
     animation: toast-entrance .22s ease-out both;
@@ -9382,11 +9382,11 @@ html[data-theme="dark"] .pessoas-toolbar select {
     border-color: var(--border-color);
 }
 
-html[data-theme="dark"] .app-shell .card,
-html[data-theme="dark"] .app-shell [class*="-card"],
-html[data-theme="dark"] .app-shell [class*="-modal"],
-html[data-theme="dark"] .app-shell [class*="-panel"],
-html[data-theme="dark"] .app-shell [class$="-box"] {
+html[data-theme="dark"] .card,
+html[data-theme="dark"] [class*="-card"],
+html[data-theme="dark"] [class*="-modal"],
+html[data-theme="dark"] [class*="-panel"],
+html[data-theme="dark"] [class$="-box"] {
     background-color: var(--card-bg);
     color: var(--text-main);
     border-color: var(--border-color);
@@ -9405,20 +9405,20 @@ html[data-theme="dark"] textarea::placeholder {
     color: #9298a8;
 }
 
-html[data-theme="dark"] .app-shell .chat-message-row.received .chat-message-bubble,
-html[data-theme="dark"] .app-shell .form-section,
-html[data-theme="dark"] .app-shell .evento-coordenadas-box,
-html[data-theme="dark"] .app-shell .notificacao-item.nao-lida {
+html[data-theme="dark"] .chat-message-row.received .chat-message-bubble,
+html[data-theme="dark"] .form-section,
+html[data-theme="dark"] .evento-coordenadas-box,
+html[data-theme="dark"] .notificacao-item.nao-lida {
     background-color: var(--bg-light);
     color: var(--text-main);
 }
 
-html[data-theme="dark"] .app-shell .configuracoes-item:hover,
-html[data-theme="dark"] .app-shell .account-menu-item:hover,
-html[data-theme="dark"] .app-shell .post-action:hover,
-html[data-theme="dark"] .app-shell .post-action.active,
-html[data-theme="dark"] .app-shell .btn-localizacao-filtro:hover,
-html[data-theme="dark"] .app-shell .agenda-action-remove:hover {
+html[data-theme="dark"] .configuracoes-item:hover,
+html[data-theme="dark"] .account-menu-item:hover,
+html[data-theme="dark"] .post-action:hover,
+html[data-theme="dark"] .post-action.active,
+html[data-theme="dark"] .btn-localizacao-filtro:hover,
+html[data-theme="dark"] .agenda-action-remove:hover {
     background-color: var(--bg-light);
 }
 
@@ -9607,4 +9607,188 @@ html[data-theme="dark"] .configuracoes-theme-switch {
 html[data-theme="dark"] .configuracoes-theme-toggle input:checked + .configuracoes-theme-switch {
     border-color: var(--primary-blue);
     background: var(--primary-blue);
+}
+
+html[data-theme="dark"] .search-bar,
+html[data-theme="dark"] .modal-close-btn,
+html[data-theme="dark"] .btn-secondary,
+html[data-theme="dark"] .auth-tab.active,
+html[data-theme="dark"] .interesse-chip,
+html[data-theme="dark"] .auth-input-wrap,
+html[data-theme="dark"] .form-input-wrap,
+html[data-theme="dark"] .custom-file-upload,
+html[data-theme="dark"] .checkbox-custom,
+html[data-theme="dark"] .post-menu,
+html[data-theme="dark"] .feed-comunidade-chip,
+html[data-theme="dark"] .feed-comunidades-empty,
+html[data-theme="dark"] .comunidades-tab,
+html[data-theme="dark"] .comunidade-gerenciar-btn,
+html[data-theme="dark"] .comunidade-empty,
+html[data-theme="dark"] .pessoas-filtro-btn,
+html[data-theme="dark"] .pessoa-mensagem-btn,
+html[data-theme="dark"] .pessoas-empty,
+html[data-theme="dark"] .comunidade-detalhe-header,
+html[data-theme="dark"] .comunidade-aba-empty,
+html[data-theme="dark"] .comunidade-admin-action,
+html[data-theme="dark"] .comunidade-delete-btn,
+html[data-theme="dark"] .comunidade-gerenciar-modal .modal-close,
+html[data-theme="dark"] .salvos-empty,
+html[data-theme="dark"] .editar-perfil-username {
+    background-color: var(--card-bg);
+    border-color: var(--border-color);
+}
+
+html[data-theme="dark"] .editar-perfil-alterar-foto {
+    background: var(--primary-blue);
+    color: #fff;
+}
+
+html[data-theme="dark"] .btn-secondary {
+    color: var(--text-main);
+}
+
+html[data-theme="dark"] .btn-secondary:hover {
+    background: var(--bg-light);
+    color: var(--text-main);
+}
+
+html[data-theme="dark"] .interesse-chip.active,
+html[data-theme="dark"] .comunidades-tab.active,
+html[data-theme="dark"] .pessoas-filtro-btn.active {
+    border-color: rgba(234, 63, 116, .35);
+    background-color: rgba(234, 63, 116, .14);
+}
+
+html[data-theme="dark"] .participante-item:hover,
+html[data-theme="dark"] .agenda-export-btn:hover,
+html[data-theme="dark"] .comunidade-gerenciar-btn:hover,
+html[data-theme="dark"] .pessoa-mensagem-btn:hover,
+html[data-theme="dark"] .comunidade-gerenciar-modal .modal-close:hover,
+html[data-theme="dark"] .post-menu-delete:hover {
+    background-color: var(--bg-light);
+}
+
+html[data-theme="dark"] .comunidade-danger-zone {
+    border-color: rgba(255, 113, 139, .3);
+    background: rgba(255, 113, 139, .08);
+}
+
+html[data-theme="dark"] .btn-warning-soft {
+    border-color: rgba(245, 158, 11, .32);
+    background: rgba(245, 158, 11, .1);
+    color: #fbbf24;
+}
+
+html[data-theme="dark"] .btn-warning-soft:hover {
+    background: rgba(245, 158, 11, .18);
+    color: #fcd34d;
+}
+
+html[data-theme="dark"] .btn-danger-soft,
+html[data-theme="dark"] .evento-status-badge.status-cancelado,
+html[data-theme="dark"] .evento-status-badge.cancelado,
+html[data-theme="dark"] .coords-badge.sem-coords,
+html[data-theme="dark"] .agenda-error-state .agenda-empty-icon {
+    border-color: rgba(255, 113, 139, .3);
+    background: rgba(255, 113, 139, .1);
+    color: #ff9bab;
+}
+
+html[data-theme="dark"] .btn-danger-soft:hover {
+    background: rgba(255, 113, 139, .18);
+    color: #ffb1be;
+}
+
+html[data-theme="dark"] .badge-presenca.presente,
+html[data-theme="dark"] .badge-presenca.inscrito,
+html[data-theme="dark"] .evento-status-badge.status-acontecendo,
+html[data-theme="dark"] .evento-status-badge.agora,
+html[data-theme="dark"] .agenda-evento-salvo,
+html[data-theme="dark"] .coords-badge.com-coords,
+html[data-theme="dark"] .badge-distancia {
+    border-color: rgba(74, 222, 128, .28);
+    background: rgba(34, 197, 94, .12);
+    color: #86efac;
+}
+
+html[data-theme="dark"] .badge-presenca.pendente,
+html[data-theme="dark"] .evento-status-badge.status-encerrado,
+html[data-theme="dark"] .evento-status-badge.encerrado {
+    border-color: var(--border-color);
+    background: var(--bg-light);
+    color: var(--text-muted);
+}
+
+html[data-theme="dark"] .evento-status-badge.status-agendado,
+html[data-theme="dark"] .evento-status-badge.agendado,
+html[data-theme="dark"] .agenda-evento-categoria,
+html[data-theme="dark"] .agenda-evento-data {
+    border-color: rgba(234, 63, 116, .25);
+    background: rgba(234, 63, 116, .12);
+    color: #ff9db8;
+}
+
+html[data-theme="dark"] .evento-detalhes-descricao,
+html[data-theme="dark"] .evento-detalhes-categoria {
+    background: var(--bg-light);
+    color: var(--text-main);
+}
+
+html[data-theme="dark"] .evento-detalhes-descricao {
+    border-left-color: var(--primary-blue);
+}
+
+html[data-theme="dark"] .agenda-evento-card {
+    background: linear-gradient(110deg, var(--card-bg), var(--bg-light));
+}
+
+html[data-theme="dark"] .agenda-empty-state,
+html[data-theme="dark"] .agenda-loading-state {
+    border-color: var(--border-color);
+    background: linear-gradient(145deg, var(--card-bg), var(--bg-light));
+}
+
+html[data-theme="dark"] .agenda-empty-icon {
+    background: rgba(234, 63, 116, .14);
+}
+
+html[data-theme="dark"] .evento-detalhes-hero-vazio {
+    background: linear-gradient(135deg, #30222c, #222530);
+}
+
+html[data-theme="dark"] .evento-info-icon {
+    background: rgba(234, 63, 116, .14);
+}
+
+html[data-theme="dark"] .btn-gps {
+    border-color: rgba(56, 189, 248, .25);
+    background: rgba(14, 165, 233, .12);
+    color: #7dd3fc;
+}
+
+html[data-theme="dark"] .btn-gps:hover {
+    background: rgba(14, 165, 233, .2);
+    color: #bae6fd;
+}
+
+html[data-theme="dark"] .coords-badge.buscando {
+    border-color: rgba(96, 165, 250, .25);
+    background: rgba(59, 130, 246, .12);
+    color: #93c5fd;
+}
+
+html[data-theme="dark"] .evento-rota-btn,
+html[data-theme="dark"] .perfil-tag {
+    border-color: rgba(234, 63, 116, .25);
+    background: rgba(234, 63, 116, .1);
+}
+
+html[data-theme="dark"] .evento-rota-btn:hover {
+    background: rgba(234, 63, 116, .18);
+}
+
+html[data-theme="dark"] .form-feedback {
+    border-color: rgba(255, 113, 139, .3);
+    background: rgba(255, 113, 139, .1);
+    color: #ff9bab;
 }
