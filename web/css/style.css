@@ -644,8 +644,17 @@ aside {
     font-weight: 700;
     color: var(--primary-blue);
     background-color: transparent;
+    border: 0;
+    font-family: inherit;
     text-align: left;
     white-space: nowrap;
+    cursor: pointer;
+}
+
+.brand:focus-visible {
+    outline: 2px solid var(--primary-blue);
+    outline-offset: -5px;
+    border-radius: 8px;
 }
 
 .nav-menu {

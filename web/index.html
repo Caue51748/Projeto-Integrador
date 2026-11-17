@@ -71,7 +71,8 @@
 
     <div id="app-shell" class="app-shell">
         <aside>
-            <div class="brand">SocialJoin</div>
+            <button type="button" class="brand" aria-label="Voltar para Eventos"
+                onclick="app.mudarAba('eventos')">SocialJoin</button>
             <nav class="nav-menu">
                 <button class="nav-btn active" id="tab-eventos" onclick="app.mudarAba('eventos')">
                     <i class="material-icons">event</i> Eventos
@@ -249,7 +250,7 @@
 
                         <select id="filtro-evento-periodo" onchange="app.filtrarEventos()">
 
-                            <option value="">Selecione um período</option>
+                            <option value="">Período</option>
                             <option value="hoje">Hoje</option>
                             <option value="semana">Esta semana</option>
                             <option value="mes">Este mês</option>
@@ -257,13 +258,13 @@
                         </select>
 
                         <select id="filtro-evento-preco" onchange="app.filtrarEventos()">
-                            <option value="">Selecione uma faixa de preço</option>
+                            <option value="">Preço</option>
                             <option value="gratuito">Gratuitos</option>
                             <option value="pago">Pagos</option>
                         </select>
 
                         <select id="filtro-evento-categoria" onchange="app.filtrarEventos()">
-                            <option value="">Selecione uma categoria</option>
+                            <option value="">Categoria</option>
                             <option value="Tecnologia">Tecnologia</option>
                             <option value="Arte">Arte</option>
                             <option value="Música">Música</option>
@@ -273,7 +274,7 @@
                             <option value="Cultura">Cultura</option>
                         </select>
                                                 <select id="filtro-evento-formato" onchange="app.filtrarEventos()">
-                            <option value="">Selecione um formato</option>
+                            <option value="">Formato</option>
                             <option value="presencial">Presenciais</option>
                             <option value="online">Online</option>
                         </select>
@@ -827,7 +828,7 @@
                         <div class="comunidade-criar-control">
                             <i class="material-icons" aria-hidden="true">category</i>
                             <select id="comunidade-categoria">
-                                <option value="">Selecione uma categoria</option>
+                                <option value="">Categoria</option>
                                 <option>Tecnologia</option>
                                 <option>Arte</option>
                                 <option>Música</option>
@@ -917,7 +918,7 @@
                             <div class="form-input-wrap">
                                 <i class="material-icons">category</i>
                                 <select id="evento-categoria" required>
-                                    <option value="">Selecione uma categoria</option>
+                                    <option value="">Categoria</option>
                                     <option value="Tecnologia">Tecnologia</option>
                                     <option value="Arte">Arte</option>
                                     <option value="Música">Música</option>
@@ -939,7 +940,7 @@
                             <div class="form-input-wrap">
                                 <i class="material-icons">groups</i>
                                 <select id="evento-comunidade-id">
-                                    <option value="">Selecione uma comunidade (opcional)</option>
+                                    <option value="">Comunidade (opcional)</option>
                                 </select>
                             </div>
                             <small class="form-hint">Sem comunidade vinculada, o evento ficará aberto ao público.</small>
@@ -1201,7 +1202,7 @@
                         </label>
 
                         <select id="editar-comunidade-categoria">
-                            <option value="">Selecione uma categoria</option>
+                            <option value="">Categoria</option>
                             <option>Tecnologia</option>
                             <option>Arte</option>
                             <option>Música</option>
@@ -1540,7 +1541,7 @@
                             <div class="form-input-wrap">
                                 <i class="material-icons">category</i>
                                 <select id="editar-evento-categoria" required>
-                                    <option value="">Selecione uma categoria</option>
+                                    <option value="">Categoria</option>
                                     <option value="Tecnologia">Tecnologia</option>
                                     <option value="Arte">Arte</option>
                                     <option value="Música">Música</option>
@@ -1562,7 +1563,7 @@
                             <div class="form-input-wrap">
                                 <i class="material-icons">groups</i>
                                 <select id="editar-evento-comunidade">
-                                    <option value="">Selecione uma comunidade (opcional)</option>
+                                    <option value="">Comunidade (opcional)</option>
                                 </select>
                             </div>
                             <small class="form-hint">Sem comunidade vinculada, o evento ficará aberto ao público.</small>
