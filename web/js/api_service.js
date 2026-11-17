@@ -230,6 +230,19 @@ export class ApiService {
         return await resp.json();
     }
 
+    static async listarPostsSeguindo(page = 0, size = 10) {
+        const resposta = await fetch(
+            `${this.API_URL}/posts/seguindo?page=${page}&size=${size}`
+        );
+        if (!resposta.ok) {
+            throw new Error(await this.mensagemErroResposta(
+                resposta,
+                'Não foi possível carregar as publicações de quem você segue.'
+            ));
+        }
+        return resposta.json();
+    }
+
     static async buscarPostPorId(idPost) {
         const resposta = await fetch(`${this.API_URL}/posts/${idPost}`);
         if (!resposta.ok) throw new Error('Post não encontrado');

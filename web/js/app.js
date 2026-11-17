@@ -1,4 +1,4 @@
-import { ApiService } from './api_service.js?v=event-cycle-3';
+import { ApiService } from './api_service.js?v=feed-following-1';
 
 // Controlador central da interface: mantém o estado em memória, atualiza o DOM e delega o acesso ao servidor ao ApiService.
 class AppController {
@@ -14,6 +14,11 @@ class AppController {
         this.listaComunidades = [];
         this.comentariosPorPost = {};
         this.posts = [];
+        this.postsSeguidos = [];
+        this.paginaPostsSeguidos = 0;
+        this.temMaisPostsSeguidos = true;
+        this.carregandoPostsSeguidos = false;
+        this.erroCarregarPostsSeguidos = false;
         this.paginaFeed = 0;
         this.tamanhoPaginaFeed = 10;
         this.temMaisPosts = true;
@@ -75,7 +80,11 @@ class AppController {
                 const visibleHeight = window.innerHeight;
                 const totalHeight = document.documentElement.scrollHeight || document.body.scrollHeight;
                 if (scrollY + visibleHeight >= totalHeight - 350) {
-                    this.carregarMaisPosts();
+                    if (this.filtroFeed === 'seguindo') {
+                        this.carregarMaisPostsSeguidos();
+                    } else {
+                        this.carregarMaisPosts();
+                    }
                 }
             }
         });
@@ -361,6 +370,65 @@ class AppController {
         } catch (erro) {
             console.warn('Não foi possível carregar a agenda inicial.', erro);
             container.innerHTML = '<div class="preview-empty">A agenda estará disponível em instantes.</div>';
+        }
+    }
+
+    async carregarMaisPostsSeguidos(reset = false) {
+        if (this.carregandoPostsSeguidos || (!reset && !this.temMaisPostsSeguidos)) return;
+
+        if (!ApiService.getIdUsuarioLogado()) {
+            this.postsSeguidos = [];
+            this.temMaisPostsSeguidos = false;
+            this.erroCarregarPostsSeguidos = false;
+            this.renderizarFeedGeral();
+            return;
+        }
+
+        if (reset) {
+            this.paginaPostsSeguidos = 0;
+            this.postsSeguidos = [];
+            this.temMaisPostsSeguidos = true;
+            this.erroCarregarPostsSeguidos = false;
+            const container = document.getElementById('feed-container');
+            if (container) container.textContent = 'Carregando publicações de quem você segue...';
+        }
+
+        this.carregandoPostsSeguidos = true;
+        const indicadorId = 'feed-seguidos-loading-indicator';
+        let indicador = document.getElementById(indicadorId);
+        const container = document.getElementById('feed-container');
+        if (!indicador && container?.parentNode) {
+            indicador = document.createElement('p');
+            indicador.id = indicadorId;
+            indicador.className = 'feed-sidebar-empty';
+            indicador.textContent = 'Carregando mais publicações...';
+            container.parentNode.insertBefore(indicador, container.nextSibling);
+        }
+        if (indicador) indicador.hidden = false;
+
+        try {
+            const resposta = await ApiService.listarPostsSeguindo(
+                this.paginaPostsSeguidos,
+                this.tamanhoPaginaFeed
+            );
+            const novosPosts = Array.isArray(resposta) ? resposta : (resposta.content || []);
+            const idsExistentes = new Set(this.postsSeguidos.map(post => post.idPost || post.id));
+            const postsNovos = novosPosts.filter(post => !idsExistentes.has(post.idPost || post.id));
+
+            this.postsSeguidos = reset
+                ? novosPosts
+                : [...this.postsSeguidos, ...postsNovos];
+            this.temMaisPostsSeguidos = novosPosts.length === this.tamanhoPaginaFeed;
+            this.paginaPostsSeguidos++;
+            this.erroCarregarPostsSeguidos = false;
+            this.renderizarFeedGeral();
+        } catch (erro) {
+            console.error('Erro ao carregar posts das contas seguidas:', erro);
+            this.erroCarregarPostsSeguidos = true;
+            this.renderizarFeedGeral();
+        } finally {
+            this.carregandoPostsSeguidos = false;
+            if (indicador) indicador.hidden = true;
         }
     }
 
@@ -1390,6 +1458,9 @@ class AppController {
 
             // Carrega os primeiros posts sob demanda (primeira página)
             await this.carregarMaisPosts(true);
+            if (this.filtroFeed === 'seguindo') {
+                await this.carregarMaisPostsSeguidos(true);
+            }
 
             // Atualiza a view que estiver visível depois dos dados compartilhados carregarem.
             if (this.comunidadeAtivaId) this.renderizarSubreddit(this.comunidadeAtivaId);
@@ -1613,6 +1684,9 @@ class AppController {
             }
             this.erroCarregarUsuariosSeguidos = false;
             this.mensagemErroUsuariosSeguidos = '';
+            if (this.filtroFeed === 'seguindo') {
+                await this.carregarMaisPostsSeguidos(true);
+            }
             this.mostrarFeedbackGlobal(
                 deixarDeSeguir ? 'Você deixou de seguir esta pessoa.' : 'Você começou a seguir esta pessoa.'
             );
@@ -2863,7 +2937,7 @@ class AppController {
 
     renderizarFeedGeral() {
 
-        let posts = [...this.posts];
+        let posts = [...(this.filtroFeed === 'seguindo' ? this.postsSeguidos : this.posts)];
 
         const idUsuario =
             ApiService.getIdUsuarioLogado();
@@ -2914,19 +2988,6 @@ class AppController {
 
 
         // =========================
-        // MEUS POSTS
-        // =========================
-        if (this.filtroFeed === 'meus') {
-
-            posts = posts.filter(post =>
-                (
-                    post.idUsuario ||
-                    post.id_usuario
-                ) == idUsuario
-            );
-        }
-
-
         // =========================
         // ORDENAÇÃO
         // =========================
@@ -2976,6 +3037,53 @@ class AppController {
         // Atualiza elementos auxiliares
         this.renderizarFiltrosComunidadesFeed();
         this.atualizarSidebarFeed();
+
+        if (this.filtroFeed === 'seguindo') {
+            const container = document.getElementById('feed-container');
+            if (!container) return;
+
+            if (!idUsuario) {
+                container.innerHTML = `
+                    <div class="feed-comunidades-empty">
+                        <div class="feed-empty-icon"><i class="material-icons">person</i></div>
+                        <h3>Entre para ver este feed</h3>
+                        <p>Faça login para acompanhar as publicações das contas que você segue.</p>
+                        <button type="button" class="btn-primary" onclick="app.abrirModal('auth-modal')">
+                            Fazer login
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+
+            if (this.erroCarregarPostsSeguidos) {
+                container.innerHTML = `
+                    <div class="feed-comunidades-empty" role="alert">
+                        <h3>Não foi possível carregar o feed</h3>
+                        <p>Tente novamente para buscar as publicações de quem você segue.</p>
+                        <button type="button" class="btn-primary" onclick="app.carregarMaisPostsSeguidos(true)">
+                            Tentar novamente
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+
+            if (!posts.length && !this.carregandoPostsSeguidos) {
+                const segueAlguem = this.usuariosSeguidos.size > 0;
+                container.innerHTML = `
+                    <div class="feed-comunidades-empty">
+                        <div class="feed-empty-icon"><i class="material-icons">${segueAlguem ? 'dynamic_feed' : 'person_add'}</i></div>
+                        <h3>${segueAlguem ? 'Nenhuma publicação por enquanto' : 'Comece a seguir pessoas'}</h3>
+                        <p>${segueAlguem
+                            ? 'Quando as contas que você segue publicarem, os posts aparecerão aqui.'
+                            : 'Encontre pessoas e acompanhe as publicações delas neste feed.'}</p>
+                        ${segueAlguem ? '' : '<button type="button" class="btn-primary" onclick="app.mudarAba(&#39;busca&#39;)">Encontrar pessoas</button>'}
+                    </div>
+                `;
+                return;
+            }
+        }
 
 
         // Estado vazio especial
@@ -3055,7 +3163,11 @@ class AppController {
             )
             ?.classList.add('active');
 
-        this.renderizarFeedGeral();
+        if (filtro === 'seguindo') {
+            this.carregarMaisPostsSeguidos(true);
+        } else {
+            this.renderizarFeedGeral();
+        }
     }
 
     mudarOrdenacaoFeed(ordenacao) {

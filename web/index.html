@@ -141,8 +141,8 @@
                                         onclick="app.mudarFiltroFeed('todos')">Tudo</button>
                                     <button class="feed-tab" id="feed-tab-comunidades"
                                         onclick="app.mudarFiltroFeed('comunidades')">Comunidades</button>
-                                    <button class="feed-tab" id="feed-tab-meus"
-                                        onclick="app.mudarFiltroFeed('meus')">Meus posts</button>
+                                    <button class="feed-tab" id="feed-tab-seguindo"
+                                        onclick="app.mudarFiltroFeed('seguindo')">Seguindo</button>
                                 </div>
                                 <select id="feed-ordenacao" onchange="app.mudarOrdenacaoFeed(this.value)"
                                     aria-label="Ordenar feed">
@@ -2119,7 +2119,7 @@
 </div>
 
     <!-- type="module" permite importar ApiService; servir esta página por HTTP evita bloqueios de módulos em file://. -->
-    <script type="module" src="js/app.js?v=dark-mode-1"></script>
+    <script type="module" src="js/app.js?v=feed-following-1"></script>
     <div id="toast-container" class="toast-container" aria-label="Avisos" aria-live="polite"
         aria-relevant="additions text"></div>
 </body>

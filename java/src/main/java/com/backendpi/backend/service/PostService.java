@@ -13,6 +13,7 @@ import com.backendpi.backend.model.Post;
 import com.backendpi.backend.repository.ComentarioRepository;
 import com.backendpi.backend.repository.ComunidadeRepository;
 import com.backendpi.backend.repository.PostRepository;
+import com.backendpi.backend.repository.UsuarioSeguidoRepository;
 import com.backendpi.backend.security.AuthenticatedUserContext;
 
 @Service
@@ -22,17 +23,20 @@ public class PostService {
     private final ComentarioRepository comentarioRepository;
     private final ComunidadeRepository comunidadeRepository;
     private final ImagensPostService imagensPostService;
+    private final UsuarioSeguidoRepository usuarioSeguidoRepository;
 
     public PostService(
             PostRepository repository,
             ComentarioRepository comentarioRepository,
             ComunidadeRepository comunidadeRepository,
-            ImagensPostService imagensPostService) {
+            ImagensPostService imagensPostService,
+            UsuarioSeguidoRepository usuarioSeguidoRepository) {
 
         this.repository = repository;
         this.comentarioRepository = comentarioRepository;
         this.comunidadeRepository = comunidadeRepository;
         this.imagensPostService = imagensPostService;
+        this.usuarioSeguidoRepository = usuarioSeguidoRepository;
     }
 
     public List<Post> listar() {
@@ -41,6 +45,21 @@ public class PostService {
 
     public Page<Post> listarPaginado(Pageable pageable) {
         return repository.findAllByOrderByIdPostDesc(pageable);
+    }
+
+    public Page<Post> listarPostsSeguidos(Pageable pageable) {
+        Long idUsuario = AuthenticatedUserContext.requireUserId();
+        List<Long> idsSeguidos = usuarioSeguidoRepository
+                .findBySeguidorIdOrderBySeguidoEmDesc(idUsuario)
+                .stream()
+                .map(seguido -> seguido.getSeguidoId())
+                .toList();
+
+        if (idsSeguidos.isEmpty()) {
+            return Page.empty(pageable);
+        }
+
+        return repository.findByIdUsuarioInOrderByIdPostDesc(idsSeguidos, pageable);
     }
 
     public Page<Post> listarPorComunidade(Long idComunidade, Pageable pageable) {
