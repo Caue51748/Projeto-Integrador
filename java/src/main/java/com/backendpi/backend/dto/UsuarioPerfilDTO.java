@@ -11,9 +11,29 @@ public class UsuarioPerfilDTO {
     private String bio;
     private String fotoPerfil;
     private List<String> interesses;
+    private String token;
     private String authToken;
 
-    // Construtor completo
+    // Construtor completo com token
+    public UsuarioPerfilDTO(
+            Long idUsuario,
+            String nome,
+            String username,
+            String bio,
+            String fotoPerfil,
+            List<String> interesses,
+            String token) {
+
+        this.idUsuario = idUsuario;
+        this.nome = nome;
+        this.username = username;
+        this.bio = bio;
+        this.fotoPerfil = fotoPerfil;
+        this.interesses = interesses;
+        this.token = token;
+    }
+
+    // Construtor completo sem token (mantém compatibilidade)
     public UsuarioPerfilDTO(
             Long idUsuario,
             String nome,
@@ -22,16 +42,18 @@ public class UsuarioPerfilDTO {
             String fotoPerfil,
             List<String> interesses) {
 
-        this.idUsuario = idUsuario;
-        this.nome = nome;
-        this.username = username;
-        this.bio = bio;
-        this.fotoPerfil = fotoPerfil;
-        this.interesses = interesses;
+        this(
+                idUsuario,
+                nome,
+                username,
+                bio,
+                fotoPerfil,
+                interesses,
+                null
+        );
     }
 
     // Construtor antigo, com 5 parâmetros
-    // Mantém compatibilidade com o código que já existe
     public UsuarioPerfilDTO(
             Long idUsuario,
             String nome,
@@ -45,7 +67,8 @@ public class UsuarioPerfilDTO {
                 username,
                 bio,
                 fotoPerfil,
-                Collections.emptyList()
+                Collections.emptyList(),
+                null
         );
     }
 
@@ -77,11 +100,25 @@ public class UsuarioPerfilDTO {
         this.interesses = interesses;
     }
 
+    public String getToken() {
+        return token != null ? token : authToken;
+    }
+
+    public void setToken(String token) {
+        this.token = token;
+        if (this.authToken == null) {
+            this.authToken = token;
+        }
+    }
+
     public String getAuthToken() {
-        return authToken;
+        return authToken != null ? authToken : token;
     }
 
     public void setAuthToken(String authToken) {
         this.authToken = authToken;
+        if (this.token == null) {
+            this.token = authToken;
+        }
     }
 }

@@ -41,7 +41,7 @@ class PostService {
       if (lista is! List) return [];
       final posts = lista.whereType<Map>().map((v) =>
           Post.fromJson(Map<String, dynamic>.from(v))).toList();
-      return _comImagens(posts);
+      return await _comImagens(posts);
     } catch (e) {
       if (kDebugMode) debugPrint('Erro ao buscar posts do usuário: $e');
       return [];

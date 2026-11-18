@@ -8,7 +8,7 @@ import 'register_screen.dart';
 /// Tela de Login Mobile — Fiel à Estilização Real da Tela WEB (.auth-modal, .auth-kicker, .auth-intro, .auth-input-wrap, .auth-submit).
 /// Fonte da Verdade: web/style.css
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  const LoginScreen({super.key}); 
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -56,16 +56,18 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    AuthService.fazerLogin(
-      idUsuario: usuario.idUsuario!,
-      nome: usuario.nome,
-      email: usuario.email.isNotEmpty ? usuario.email : emailController.text.trim(),
-      username: usuario.username,
-      bio: usuario.bio,
-      fotoPerfil: usuario.fotoPerfil,
-      authToken: usuario.authToken,
-    );
-
+  AuthService.fazerLogin(
+  idUsuario: usuario.idUsuario!,
+  nome: usuario.nome,
+  email: usuario.email.isNotEmpty
+      ? usuario.email
+      : emailController.text.trim(),
+  username: usuario.username,
+  bio: usuario.bio,
+  fotoPerfil: usuario.fotoPerfil,
+  authToken: usuario.token,
+  );
+  
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (_) => const HomeScreen()),

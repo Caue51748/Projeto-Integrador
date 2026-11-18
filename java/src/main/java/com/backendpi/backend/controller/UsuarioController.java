@@ -28,6 +28,8 @@ import com.backendpi.backend.dto.AlterarSenhaRequest;
 import com.backendpi.backend.dto.UsuarioPerfilDTO;
 import com.backendpi.backend.model.Usuario;
 import com.backendpi.backend.repository.UsuarioRepository;
+import com.backendpi.backend.security.JwtService;
+import com.backendpi.backend.security.SecuritySanitizerService;
 import com.backendpi.backend.service.UsuarioService;
 import com.backendpi.backend.security.AuthSessionService;
 import com.backendpi.backend.security.AuthenticatedUserContext;
@@ -40,17 +42,23 @@ public class UsuarioController {
     private static final Logger logger = LoggerFactory.getLogger(UsuarioController.class);
     private final UsuarioRepository usuarioRepository;
     private final UsuarioService usuarioService;
+    private final JwtService jwtService;
+    private final SecuritySanitizerService sanitizerService;
     private final AuthSessionService authSessionService;
     private final CloudinaryImageStorageService imageStorage;
 
     public UsuarioController(
             UsuarioRepository usuarioRepository,
             UsuarioService usuarioService,
+            JwtService jwtService,
+            SecuritySanitizerService sanitizerService,
             AuthSessionService authSessionService,
             CloudinaryImageStorageService imageStorage) {
 
         this.usuarioRepository = usuarioRepository;
         this.usuarioService = usuarioService;
+        this.jwtService = jwtService;
+        this.sanitizerService = sanitizerService;
         this.authSessionService = authSessionService;
         this.imageStorage = imageStorage;
     }
@@ -65,6 +73,19 @@ public class UsuarioController {
 
     @PostMapping
     public UsuarioPerfilDTO criar(@RequestBody Usuario usuario) {
+        if (usuario.getNome() != null) {
+            usuario.setNome(sanitizerService.validarEModerar(usuario.getNome(), "Nome"));
+        }
+        if (usuario.getNomeCompleto() != null) {
+            usuario.setNomeCompleto(sanitizerService.validarEModerar(usuario.getNomeCompleto(), "Nome Completo"));
+        }
+        if (usuario.getUsername() != null) {
+            usuario.setUsername(sanitizerService.validarEModerar(usuario.getUsername(), "Username"));
+        }
+        if (usuario.getBio() != null) {
+            usuario.setBio(sanitizerService.validarEModerar(usuario.getBio(), "Bio"));
+        }
+
         Usuario salvo = usuarioService.salvar(usuario);
         return criarPerfilComSessao(salvo);
     }
@@ -79,6 +100,18 @@ public class UsuarioController {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "Use a opção de alteração de senha para atualizar sua senha.");
+        }
+        if (usuario.getNome() != null) {
+            usuario.setNome(sanitizerService.validarEModerar(usuario.getNome(), "Nome"));
+        }
+        if (usuario.getNomeCompleto() != null) {
+            usuario.setNomeCompleto(sanitizerService.validarEModerar(usuario.getNomeCompleto(), "Nome Completo"));
+        }
+        if (usuario.getUsername() != null) {
+            usuario.setUsername(sanitizerService.validarEModerar(usuario.getUsername(), "Username"));
+        }
+        if (usuario.getBio() != null) {
+            usuario.setBio(sanitizerService.validarEModerar(usuario.getBio(), "Bio"));
         }
         return criarPerfil(usuarioService.atualizar(id, usuario));
     }
@@ -131,7 +164,7 @@ public class UsuarioController {
                                 .body("Username é obrigatório.");
                     }
 
-                    novoUsername = novoUsername.trim();
+                    novoUsername = sanitizerService.validarEModerar(novoUsername.trim(), "Username");
 
                     // Só verifica duplicidade se o username realmente mudou
                     if (!novoUsername.equals(usuario.getUsername())
@@ -142,9 +175,13 @@ public class UsuarioController {
                                 .body("Username já está em uso.");
                     }
 
-                    usuario.setNome(dadosPerfil.getNome());
+                    if (dadosPerfil.getNome() != null) {
+                        usuario.setNome(sanitizerService.validarEModerar(dadosPerfil.getNome(), "Nome"));
+                    }
                     usuario.setUsername(novoUsername);
-                    usuario.setBio(dadosPerfil.getBio());
+                    if (dadosPerfil.getBio() != null) {
+                        usuario.setBio(sanitizerService.validarEModerar(dadosPerfil.getBio(), "Bio"));
+                    }
 
                     Usuario atualizado
                             = usuarioRepository.save(usuario);
@@ -210,6 +247,33 @@ public class UsuarioController {
         if (usuario == null) {
             return ResponseEntity.notFound().build();
         }
+
+        if (foto.isEmpty()) {
+            return ResponseEntity
+                    .badRequest()
+                    .body(Map.of("success", false, "error", "Selecione uma imagem."));
+        }
+
+        String extensao = switch (foto.getContentType() == null ? "" : foto.getContentType()) {
+            case "image/jpeg" -> ".jpg";
+            case "image/png" -> ".png";
+            case "image/webp" -> ".webp";
+            default -> null;
+        };
+
+        if (extensao == null) {
+            return ResponseEntity
+                    .badRequest()
+                    .body(Map.of("success", false, "error", "Use uma imagem JPG, PNG ou WEBP."));
+        }
+
+        // Limite de 5 MB
+        if (foto.getSize() > 5 * 1024 * 1024) {
+            return ResponseEntity
+                    .badRequest()
+                    .body(Map.of("success", false, "error", "A foto deve ter no máximo 5 MB."));
+        }
+
         try {
             CloudinaryImageStorageService.UploadedImage enviada =
                     imageStorage.upload(foto, "projeto-integrador/perfis");
@@ -281,7 +345,10 @@ public class UsuarioController {
 
     private UsuarioPerfilDTO criarPerfilComSessao(Usuario usuario) {
         UsuarioPerfilDTO perfil = criarPerfil(usuario);
-        perfil.setAuthToken(authSessionService.criarSessao(usuario.getIdUsuario()));
+        String sessionToken = authSessionService.criarSessao(usuario.getIdUsuario());
+        perfil.setAuthToken(sessionToken);
+        String jwt = jwtService.gerarToken(usuario.getIdUsuario(), usuario.getUsername(), usuario.getEmail());
+        perfil.setToken(jwt);
         return perfil;
     }
 }
