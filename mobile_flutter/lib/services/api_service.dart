@@ -1,15 +1,22 @@
 import 'auth_service.dart';
 
 class ApiService {
-  // Configure sem editar código:
+
   // Chrome + backend no mesmo PC: http://localhost:8080
   // Emulador Android + backend no PC: http://10.0.2.2:8080
   // Celular na mesma rede: http://IP_DO_PC:8080
   // Render: https://projeto-integrador-m4jn.onrender.com
+
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
     defaultValue: 'http://localhost:8080',
+    //defaultValue: 'http://143.106.241.xx:8080',
+    //defaultValue: 'https://projeto-integrador-m4jn.onrender.com',
+
   );
+
+  //Para teste no navegador:
+  // https://projeto-integrador-m4jn.onrender.com/usuarios
 
   static String usuarios = '$baseUrl/usuarios';
   static String posts = '$baseUrl/posts';
