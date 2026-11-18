@@ -101,18 +101,24 @@ public class UsuarioPerfilDTO {
     }
 
     public String getToken() {
-        return token;
+        return token != null ? token : authToken;
     }
 
     public void setToken(String token) {
         this.token = token;
+        if (this.authToken == null) {
+            this.authToken = token;
+        }
     }
-}
+
     public String getAuthToken() {
-        return authToken;
+        return authToken != null ? authToken : token;
     }
 
     public void setAuthToken(String authToken) {
         this.authToken = authToken;
+        if (this.token == null) {
+            this.token = authToken;
+        }
     }
 }

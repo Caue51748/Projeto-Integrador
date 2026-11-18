@@ -105,7 +105,8 @@ export class ApiService {
     }
 
     static getAuthToken() {
-        return this.getUsuarioLogado()?.authToken || null;
+        const user = this.getUsuarioLogado();
+        return user ? (user.authToken || user.token || user.jwt || null) : null;
     }
 
     static request(input, init = {}) {
@@ -130,7 +131,7 @@ export class ApiService {
 
     static getToken() {
         const user = this.getUsuarioLogado();
-        return user ? (user.token || user.jwt || null) : null;
+        return user ? (user.token || user.jwt || user.authToken || null) : null;
     }
 
     static authHeaders(customHeaders = {}) {

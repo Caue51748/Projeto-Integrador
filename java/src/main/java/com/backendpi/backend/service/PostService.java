@@ -29,7 +29,7 @@ public class PostService {
             PostRepository repository,
             ComentarioRepository comentarioRepository,
             ComunidadeRepository comunidadeRepository,
-            SecuritySanitizerService sanitizerService) {
+            SecuritySanitizerService sanitizerService,
             ImagensPostService imagensPostService) {
 
         this.repository = repository;

@@ -45,15 +45,12 @@ public class ComentarioService {
         Long idUsuario = AuthenticatedUserContext.requireUserId();
         return repository.findById(id).map(c -> {
 
-            String conteudoLimpo = sanitizerService.validarEModerar(novo.getConteudo(), "Conteúdo do comentário");
-            c.setConteudo(conteudoLimpo);
-            c.setIdUsuario(novo.getIdUsuario());
-            c.setIdPost(novo.getIdPost());
-
             if (!c.getIdUsuario().equals(idUsuario)) {
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Usuário sem permissão para editar este comentário.");
             }
-            c.setConteudo(novo.getConteudo());
+
+            String conteudoLimpo = sanitizerService.validarEModerar(novo.getConteudo(), "Conteúdo do comentário");
+            c.setConteudo(conteudoLimpo);
             return repository.save(c);
 
         }).orElseThrow(() -> new RuntimeException("Comentário não encontrado"));

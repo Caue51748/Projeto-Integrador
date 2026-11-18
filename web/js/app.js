@@ -3167,8 +3167,8 @@ class AppController {
                     const err = await resposta.json();
                     if (err.message) msg = err.message;
                 } catch (_) {}
-                return alert(msg);
-                return this.mostrarFeedbackGlobal('Não foi possível publicar o post.');
+                this.mostrarFeedbackGlobal(msg);
+                return;
             }
 
             const post = await resposta.json();
@@ -3729,9 +3729,9 @@ ${ApiService.getIdUsuarioLogado() ? `
                 const err = await resposta.json();
                 if (err.message) msg = err.message;
             } catch (_) {}
-            return alert(msg);
+            this.mostrarFeedbackGlobal(msg);
+            return;
         }
-        if (!resposta.ok) return this.mostrarFeedbackGlobal('Não foi possível enviar o comentário.');
         await this.carregarDadosGlobais();
         await this.abrirDetalhesPost(idPost);
     }

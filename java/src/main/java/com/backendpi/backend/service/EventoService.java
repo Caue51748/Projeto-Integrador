@@ -40,17 +40,14 @@ public class EventoService {
     public EventoService(
             EventoRepository eventoRepository,
             ParticipacaoEventoRepository participacaoEventoRepository,
-            SecuritySanitizerService sanitizerService) {
-
-        this.eventoRepository = eventoRepository;
-        this.participacaoEventoRepository = participacaoEventoRepository;
-        this.sanitizerService = sanitizerService;
+            SecuritySanitizerService sanitizerService,
             EventoListaEsperaRepository listaEsperaRepository,
             NotificacaoEventoService notificacaoService,
             ParticipacaoEventoService participacaoService) {
 
         this.eventoRepository = eventoRepository;
         this.participacaoEventoRepository = participacaoEventoRepository;
+        this.sanitizerService = sanitizerService;
         this.listaEsperaRepository = listaEsperaRepository;
         this.notificacaoService = notificacaoService;
         this.participacaoService = participacaoService;

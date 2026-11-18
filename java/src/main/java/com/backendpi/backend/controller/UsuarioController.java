@@ -51,17 +51,14 @@ public class UsuarioController {
             UsuarioRepository usuarioRepository,
             UsuarioService usuarioService,
             JwtService jwtService,
-            SecuritySanitizerService sanitizerService) {
-
-        this.usuarioRepository = usuarioRepository;
-        this.usuarioService = usuarioService;
-        this.jwtService = jwtService;
-        this.sanitizerService = sanitizerService;
+            SecuritySanitizerService sanitizerService,
             AuthSessionService authSessionService,
             CloudinaryImageStorageService imageStorage) {
 
         this.usuarioRepository = usuarioRepository;
         this.usuarioService = usuarioService;
+        this.jwtService = jwtService;
+        this.sanitizerService = sanitizerService;
         this.authSessionService = authSessionService;
         this.imageStorage = imageStorage;
     }
@@ -75,7 +72,7 @@ public class UsuarioController {
     }
 
     @PostMapping
-    public Usuario criar(@RequestBody Usuario usuario) {
+    public UsuarioPerfilDTO criar(@RequestBody Usuario usuario) {
         if (usuario.getNome() != null) {
             usuario.setNome(sanitizerService.validarEModerar(usuario.getNome(), "Nome"));
         }
@@ -89,11 +86,6 @@ public class UsuarioController {
             usuario.setBio(sanitizerService.validarEModerar(usuario.getBio(), "Bio"));
         }
 
-        Usuario salvo = usuarioService.salvar(usuario);
-        String token = jwtService.gerarToken(salvo.getIdUsuario(), salvo.getUsername(), salvo.getEmail());
-        salvo.setToken(token);
-        return salvo;
-    public UsuarioPerfilDTO criar(@RequestBody Usuario usuario) {
         Usuario salvo = usuarioService.salvar(usuario);
         return criarPerfilComSessao(salvo);
     }
@@ -103,6 +95,12 @@ public class UsuarioController {
             @PathVariable Long id,
             @RequestBody Usuario usuario
     ) {
+        AuthenticatedUserContext.requireMatches(id);
+        if (usuario.getSenha() != null && !usuario.getSenha().isEmpty()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Use a opção de alteração de senha para atualizar sua senha.");
+        }
         if (usuario.getNome() != null) {
             usuario.setNome(sanitizerService.validarEModerar(usuario.getNome(), "Nome"));
         }
@@ -114,13 +112,6 @@ public class UsuarioController {
         }
         if (usuario.getBio() != null) {
             usuario.setBio(sanitizerService.validarEModerar(usuario.getBio(), "Bio"));
-        }
-        return usuarioService.atualizar(id, usuario);
-        AuthenticatedUserContext.requireMatches(id);
-        if (usuario.getSenha() != null && !usuario.getSenha().isEmpty()) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Use a opção de alteração de senha para atualizar sua senha.");
         }
         return criarPerfil(usuarioService.atualizar(id, usuario));
     }
@@ -243,20 +234,6 @@ public class UsuarioController {
             return ResponseEntity.status(401).build();
         }
 
-        String token = jwtService.gerarToken(usuario.getIdUsuario(), usuario.getUsername(), usuario.getEmail());
-
-        UsuarioPerfilDTO perfil
-                = new UsuarioPerfilDTO(
-                        usuario.getIdUsuario(),
-                        usuario.getNome(),
-                        usuario.getUsername(),
-                        usuario.getBio(),
-                        usuario.getFotoPerfil(),
-                        usuario.getInteresses(),
-                        token
-                );
-
-        return ResponseEntity.ok(perfil);
         return ResponseEntity.ok(criarPerfilComSessao(usuario));
     }
 
@@ -298,53 +275,6 @@ public class UsuarioController {
         }
 
         try {
-            Path diretorio = Paths.get("uploads", "perfis").toAbsolutePath().normalize();
-            Files.createDirectories(diretorio);
-            Path destino = diretorio.resolve(UUID.randomUUID() + extensao).normalize();
-            if (!destino.startsWith(diretorio)) {
-                return ResponseEntity.badRequest()
-                        .body(Map.of("success", false, "error", "Nome de arquivo inválido."));
-            }
-
-            try (InputStream arquivo = foto.getInputStream()) {
-                Files.copy(arquivo, destino);
-            }
-
-            String caminhoFoto = "uploads/perfis/" + destino.getFileName();
-            String caminhoAnterior = usuario.getFotoPerfil();
-            usuario.setFotoPerfil(caminhoFoto);
-            Usuario salvo;
-            try {
-                salvo = usuarioRepository.save(usuario);
-            } catch (RuntimeException erroBanco) {
-                Files.deleteIfExists(destino);
-                throw erroBanco;
-            }
-
-            if (caminhoAnterior != null && caminhoAnterior.startsWith("uploads/perfis/")) {
-                try {
-                    String nomeAnterior = Paths.get(caminhoAnterior).getFileName().toString();
-                    Path fotoAnterior = diretorio.resolve(nomeAnterior).normalize();
-                    if (fotoAnterior.startsWith(diretorio) && !fotoAnterior.equals(destino)) {
-                        Files.deleteIfExists(fotoAnterior);
-                    }
-                } catch (Exception erroLimpeza) {
-                    System.err.println("Não foi possível remover a foto de perfil anterior: "
-                            + erroLimpeza.getMessage());
-                }
-            }
-
-            UsuarioPerfilDTO perfil = new UsuarioPerfilDTO(
-                    salvo.getIdUsuario(),
-                    salvo.getNome(),
-                    salvo.getUsername(),
-                    salvo.getBio(),
-                    salvo.getFotoPerfil(),
-                    salvo.getInteresses()
-            );
-
-            return ResponseEntity.ok(perfil);
-        try {
             CloudinaryImageStorageService.UploadedImage enviada =
                     imageStorage.upload(foto, "projeto-integrador/perfis");
             String caminhoAnterior = usuario.getFotoPerfil();
@@ -381,9 +311,6 @@ public class UsuarioController {
         } catch (ResponseStatusException erro) {
             throw erro;
         } catch (Exception erro) {
-            erro.printStackTrace();
-            return ResponseEntity
-                    .internalServerError()
             logger.error("Não foi possível atualizar a foto de perfil.", erro);
             return ResponseEntity.internalServerError()
                     .body(Map.of("success", false, "error", "Não foi possível salvar a foto de perfil."));
@@ -418,7 +345,10 @@ public class UsuarioController {
 
     private UsuarioPerfilDTO criarPerfilComSessao(Usuario usuario) {
         UsuarioPerfilDTO perfil = criarPerfil(usuario);
-        perfil.setAuthToken(authSessionService.criarSessao(usuario.getIdUsuario()));
+        String sessionToken = authSessionService.criarSessao(usuario.getIdUsuario());
+        perfil.setAuthToken(sessionToken);
+        String jwt = jwtService.gerarToken(usuario.getIdUsuario(), usuario.getUsername(), usuario.getEmail());
+        perfil.setToken(jwt);
         return perfil;
     }
 }
