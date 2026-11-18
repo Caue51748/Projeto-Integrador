@@ -13,6 +13,7 @@ import com.backendpi.backend.model.Post;
 import com.backendpi.backend.repository.ComentarioRepository;
 import com.backendpi.backend.repository.ComunidadeRepository;
 import com.backendpi.backend.repository.PostRepository;
+import com.backendpi.backend.security.SecuritySanitizerService;
 import com.backendpi.backend.security.AuthenticatedUserContext;
 
 @Service
@@ -21,17 +22,20 @@ public class PostService {
     private final PostRepository repository;
     private final ComentarioRepository comentarioRepository;
     private final ComunidadeRepository comunidadeRepository;
+    private final SecuritySanitizerService sanitizerService;
     private final ImagensPostService imagensPostService;
 
     public PostService(
             PostRepository repository,
             ComentarioRepository comentarioRepository,
             ComunidadeRepository comunidadeRepository,
+            SecuritySanitizerService sanitizerService,
             ImagensPostService imagensPostService) {
 
         this.repository = repository;
         this.comentarioRepository = comentarioRepository;
         this.comunidadeRepository = comunidadeRepository;
+        this.sanitizerService = sanitizerService;
         this.imagensPostService = imagensPostService;
     }
 
@@ -53,6 +57,14 @@ public class PostService {
 
     public Post salvar(Post post) {
         AuthenticatedUserContext.requireMatches(post.getIdUsuario());
+
+        // Moderação e sanitização de palavras inadequadas, SQL Injection e XSS
+        if (post.getTitulo() != null) {
+            post.setTitulo(sanitizerService.validarEModerar(post.getTitulo(), "Título da publicação"));
+        }
+        if (post.getConteudo() != null) {
+            post.setConteudo(sanitizerService.validarEModerar(post.getConteudo(), "Conteúdo da publicação"));
+        }
 
         // Post global: não precisa pertencer a comunidade
         if (post.getIdComunidade() == null) {
@@ -125,6 +137,13 @@ public class PostService {
                 );
             }
 
+            String tituloLimpo = sanitizerService.validarEModerar(novo.getTitulo(), "Título da publicação");
+            String conteudoLimpo = sanitizerService.validarEModerar(novo.getConteudo(), "Conteúdo da publicação");
+
+            post.setTitulo(tituloLimpo);
+            post.setConteudo(conteudoLimpo);
+            post.setIdUsuario(novo.getIdUsuario());
+            post.setIdComunidade(novo.getIdComunidade());
             post.setTitulo(novo.getTitulo());
             post.setConteudo(novo.getConteudo());
 

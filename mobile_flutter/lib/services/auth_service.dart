@@ -13,6 +13,7 @@ class AuthService {
   static String? username;
   static String? bio;
   static String? fotoPerfil;
+  static String? token;
   static String? authToken;
 
   static void fazerLogin({

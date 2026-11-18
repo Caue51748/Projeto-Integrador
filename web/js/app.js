@@ -2259,6 +2259,12 @@ class AppController {
                 'JPG, PNG ou WEBP · Você pode adicionar depois';
             this.carregarComunidades();
         } else {
+            let msg = 'Não foi possível criar a comunidade.';
+            try {
+                const err = await res.json();
+                if (err.message) msg = err.message;
+            } catch (_) {}
+            alert(msg);
             this.mostrarFeedbackGlobal("Não foi possível criar a comunidade.");
         }
     }
@@ -3156,7 +3162,13 @@ class AppController {
                 comunidadeSelecionada || null
             );
             if (!resposta.ok) {
-                return this.mostrarFeedbackGlobal('Não foi possível publicar o post.');
+                let msg = 'Não foi possível publicar o post.';
+                try {
+                    const err = await resposta.json();
+                    if (err.message) msg = err.message;
+                } catch (_) {}
+                this.mostrarFeedbackGlobal(msg);
+                return;
             }
 
             const post = await resposta.json();
@@ -3361,6 +3373,12 @@ class AppController {
         if (res.ok) {
             await this.carregarDadosGlobais();
         } else {
+            let msg = 'Não foi possível enviar o comentário.';
+            try {
+                const err = await res.json();
+                if (err.message) msg = err.message;
+            } catch (_) {}
+            alert(msg);
             this.mostrarFeedbackGlobal("Não foi possível enviar o comentário.");
         }
     }
@@ -3705,7 +3723,15 @@ ${ApiService.getIdUsuarioLogado() ? `
         const conteudo = input.value.trim();
         if (!conteudo) return;
         const resposta = await ApiService.criarComentario(conteudo, ApiService.getIdUsuarioLogado(), idPost);
-        if (!resposta.ok) return this.mostrarFeedbackGlobal('Não foi possível enviar o comentário.');
+        if (!resposta.ok) {
+            let msg = 'Não foi possível enviar o comentário.';
+            try {
+                const err = await resposta.json();
+                if (err.message) msg = err.message;
+            } catch (_) {}
+            this.mostrarFeedbackGlobal(msg);
+            return;
+        }
         await this.carregarDadosGlobais();
         await this.abrirDetalhesPost(idPost);
     }
@@ -5068,7 +5094,12 @@ ${ApiService.getIdUsuarioLogado() ? `
                     ? "Evento publicado, mas o banner não foi enviado. Você pode tentar novamente editando o evento."
                     : "🎉 Evento publicado com sucesso!");
             } else {
-                this.mostrarEventoFeedback("Não foi possível criar o evento. Verifique os dados e tente novamente.");
+                let msg = 'Não foi possível criar o evento. Verifique os dados e tente novamente.';
+                try {
+                    const err = await res.json();
+                    if (err.message) msg = err.message;
+                } catch (_) {}
+                this.mostrarEventoFeedback(msg);
             }
         } catch (error) {
             console.error(error);

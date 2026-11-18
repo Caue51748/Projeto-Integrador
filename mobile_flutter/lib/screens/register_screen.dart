@@ -148,15 +148,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ? novoUsuario.email
           : email;
 
-      AuthService.fazerLogin(
-        idUsuario: id,
-        nome: nomeFinal,
-        email: emailFinal,
-        username: usernameFinal,
-        bio: novoUsuario.bio,
-        authToken: novoUsuario.authToken,
-      );
-
+  AuthService.fazerLogin(
+  idUsuario: id,
+  nome: nomeFinal,
+  email: emailFinal,
+  username: usernameFinal,
+  bio: novoUsuario.bio,
+  authToken: novoUsuario.token,
+  );
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Conta criada com sucesso! Bem-vindo(a) ao SocialJoin!', style: GoogleFonts.manrope()),

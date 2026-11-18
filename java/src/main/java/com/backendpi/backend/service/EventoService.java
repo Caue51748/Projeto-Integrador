@@ -24,14 +24,15 @@ import com.backendpi.backend.model.Evento;
 import com.backendpi.backend.repository.EventoRepository;
 import com.backendpi.backend.repository.EventoListaEsperaRepository;
 import com.backendpi.backend.repository.ParticipacaoEventoRepository;
+import com.backendpi.backend.security.SecuritySanitizerService;
 import com.backendpi.backend.security.AuthenticatedUserContext;
 
 @Service
 public class EventoService {
 
     private final EventoRepository eventoRepository;
-
     private final ParticipacaoEventoRepository participacaoEventoRepository;
+    private final SecuritySanitizerService sanitizerService;
     private final EventoListaEsperaRepository listaEsperaRepository;
     private final NotificacaoEventoService notificacaoService;
     private final ParticipacaoEventoService participacaoService;
@@ -39,12 +40,14 @@ public class EventoService {
     public EventoService(
             EventoRepository eventoRepository,
             ParticipacaoEventoRepository participacaoEventoRepository,
+            SecuritySanitizerService sanitizerService,
             EventoListaEsperaRepository listaEsperaRepository,
             NotificacaoEventoService notificacaoService,
             ParticipacaoEventoService participacaoService) {
 
         this.eventoRepository = eventoRepository;
         this.participacaoEventoRepository = participacaoEventoRepository;
+        this.sanitizerService = sanitizerService;
         this.listaEsperaRepository = listaEsperaRepository;
         this.notificacaoService = notificacaoService;
         this.participacaoService = participacaoService;
@@ -99,6 +102,20 @@ public class EventoService {
             throw new RuntimeException(
                     "O limite de participantes deve ser maior que zero"
             );
+        }
+
+        // Moderação e sanitização de palavras inadequadas, SQL Injection e XSS
+        if (evento.getTitulo() != null) {
+            evento.setTitulo(sanitizerService.validarEModerar(evento.getTitulo(), "Título do evento"));
+        }
+        if (evento.getDescricao() != null) {
+            evento.setDescricao(sanitizerService.validarEModerar(evento.getDescricao(), "Descrição do evento"));
+        }
+        if (evento.getCategoria() != null) {
+            evento.setCategoria(sanitizerService.validarEModerar(evento.getCategoria(), "Categoria do evento"));
+        }
+        if (evento.getLocalEvento() != null) {
+            evento.setLocalEvento(sanitizerService.validarEModerar(evento.getLocalEvento(), "Local do evento"));
         }
 
         evento.setStatus("AGENDADO");
@@ -179,6 +196,20 @@ public class EventoService {
             );
         }
 
+        // Moderação e sanitização
+        if (novo.getTitulo() != null) {
+            evento.setTitulo(sanitizerService.validarEModerar(novo.getTitulo(), "Título do evento"));
+        }
+        if (novo.getDescricao() != null) {
+            evento.setDescricao(sanitizerService.validarEModerar(novo.getDescricao(), "Descrição do evento"));
+        }
+        if (novo.getCategoria() != null) {
+            evento.setCategoria(sanitizerService.validarEModerar(novo.getCategoria(), "Categoria do evento"));
+        }
+        if (novo.getLocalEvento() != null) {
+            evento.setLocalEvento(sanitizerService.validarEModerar(novo.getLocalEvento(), "Local do evento"));
+        }
+
         boolean detalhesAlterados =
                 !java.util.Objects.equals(evento.getTitulo(), novo.getTitulo())
                 || !java.util.Objects.equals(evento.getDataEvento(), novo.getDataEvento())
@@ -199,7 +230,6 @@ public class EventoService {
         evento.setHorarioInicio(novo.getHorarioInicio());
         evento.setHorarioFim(novo.getHorarioFim());
         evento.setEncerramentoInscricoes(novo.getEncerramentoInscricoes());
-        evento.setLocalEvento(novo.getLocalEvento());
         evento.setLatitude(novo.getLatitude());
         evento.setLongitude(novo.getLongitude());
         evento.setComunidadeId(novo.getComunidadeId());
@@ -271,8 +301,8 @@ public class EventoService {
             LocalDate dataFim,
             String formato,
             Double lat,
-        Double lng,
-        Double raioKm,
+            Double lng,
+            Double raioKm,
             int pagina,
             int tamanho) {
 

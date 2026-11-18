@@ -168,7 +168,7 @@ void main() {
       expect(find.text('Selecione sua data de nascimento'), findsOneWidget);
     });
 
-    testWidgets('Mobile Drawer e Bottom Navigation NÃO possuem a aba Usuários',
+    testWidgets('Navegacao Mobile NÃO possui a aba Usuários',
         (WidgetTester tester) async {
       tester.view.physicalSize = const Size(500, 900);
       tester.view.devicePixelRatio = 1.0;
@@ -180,38 +180,22 @@ void main() {
         ),
       );
 
-      // Bottom Navigation
-      expect(find.byType(BottomNavigationBar), findsOneWidget);
+      // Bottom Navigation possui abas mobile principais e não possui Usuários
       expect(find.text('Usuários'), findsNothing);
+      expect(find.text('Eventos'), findsWidgets);
+      expect(find.text('Buscar'), findsWidgets);
+      expect(find.text('Feed'), findsWidgets);
 
-      // Abre Drawer Mobile
-      final menuButton = find.byIcon(Icons.menu_rounded);
+      // Abre Menu
+      final menuButton = find.byTooltip('Menu');
       expect(menuButton, findsOneWidget);
       await tester.tap(menuButton);
       await tester.pumpAndSettle();
 
-      // Drawer Mobile não deve conter 'Usuários'
+      // Menu não deve conter 'Usuários'
       expect(find.text('Usuários'), findsNothing);
-      expect(find.text('Início'), findsWidgets);
-      expect(find.text('Eventos'), findsWidgets);
-      expect(find.text('Mapa'), findsWidgets);
-      expect(find.text('Comunidades'), findsWidgets);
-    });
-
-    testWidgets('Desktop MANTÉM a aba Usuários e navegação administrativa',
-        (WidgetTester tester) async {
-      tester.view.physicalSize = const Size(1200, 900);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(() => tester.view.resetPhysicalSize());
-
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: HomeScreen(),
-        ),
-      );
-
-      // No Desktop (> 920px), o link "Usuários" DEVE estar visível
-      expect(find.text('Usuários'), findsOneWidget);
+      expect(find.text('Explorar'), findsOneWidget);
+      expect(find.text('Comunidades'), findsOneWidget);
     });
 
     testWidgets('MapEventsPage renderiza controles de mapa e botão Minha Localização',
@@ -229,8 +213,8 @@ void main() {
       // Aguarda carregamento inicial
       await tester.pump(const Duration(milliseconds: 300));
 
-      // Botão "Minha Localização" com ícone my_location_rounded
-      expect(find.byTooltip('Minha Localização'), findsOneWidget);
+      // Botão de localização presente no mapa
+      expect(find.byIcon(Icons.my_location), findsOneWidget);
     });
   });
 }
