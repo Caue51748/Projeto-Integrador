@@ -107,6 +107,16 @@ class AppController {
             if (!evento.target.closest('.account-menu')) {
                 document.querySelector('.account-menu')?.classList.remove('open');
             }
+            if (evento.target.classList && evento.target.classList.contains('modal-overlay')) {
+                this.fecharModal(evento.target.id);
+            }
+        });
+
+        window.addEventListener('popstate', () => {
+            const hash = window.location.hash.replace('#', '');
+            if (['feed', 'eventos', 'comunidades', 'busca', 'salvos'].includes(hash)) {
+                this.ativarAba(hash);
+            }
         });
 
         const chatForm =
@@ -193,6 +203,10 @@ class AppController {
                 await this.carregarNotificacoesEventos();
                 this.iniciarAtualizacaoNotificacoes();
                 await this.abrirPostPeloLink();
+                const hashInicial = window.location.hash.replace('#', '');
+                if (['feed', 'eventos', 'comunidades', 'busca', 'salvos'].includes(hashInicial) && hashInicial !== 'feed') {
+                    this.ativarAba(hashInicial);
+                }
             } catch (erro) {
                 console.error(
                     "Erro ao carregar dados iniciais:",
@@ -577,6 +591,15 @@ class AppController {
 
     ativarAba(nomeAba) {
         this.salvarViewAtual(nomeAba);
+        if (typeof window !== 'undefined' && ['feed', 'eventos', 'comunidades', 'busca', 'salvos'].includes(nomeAba)) {
+            if (window.location.hash !== '#' + nomeAba) {
+                try {
+                    window.history.pushState({ aba: nomeAba }, '', '#' + nomeAba);
+                } catch (_) {
+                    window.location.hash = nomeAba;
+                }
+            }
+        }
         document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
         document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
 
@@ -2346,8 +2369,7 @@ class AppController {
                 const err = await res.json();
                 if (err.message) msg = err.message;
             } catch (_) {}
-            alert(msg);
-            this.mostrarFeedbackGlobal("Não foi possível criar a comunidade.");
+            this.mostrarFeedbackGlobal(msg);
         }
     }
 
@@ -3206,31 +3228,45 @@ class AppController {
     async alternarCurtida(idPost) {
         const idUsuario = ApiService.getIdUsuarioLogado();
         if (!idUsuario) return this.mostrarFeedbackGlobal('Faça login para curtir publicações.');
-        const voto = this.votoDoUsuario(idPost);
-        const resposta = voto
-            ? await ApiService.deletarVoto(voto.idVoto)
-            : await ApiService.criarVoto(idUsuario, idPost);
-        if (!resposta.ok) return this.mostrarFeedbackGlobal('Não foi possível atualizar a curtida.');
-        this.votos = voto ? this.votos.filter(item => item.idVoto !== voto.idVoto) : [...this.votos, await resposta.json()];
-        this.renderizarFeedGeral();
+        if (this.travasCurtidas && this.travasCurtidas[idPost]) return;
+        this.travasCurtidas = this.travasCurtidas || {};
+        this.travasCurtidas[idPost] = true;
+        try {
+            const voto = this.votoDoUsuario(idPost);
+            const resposta = voto
+                ? await ApiService.deletarVoto(voto.idVoto)
+                : await ApiService.criarVoto(idUsuario, idPost);
+            if (!resposta.ok) return this.mostrarFeedbackGlobal('Não foi possível atualizar a curtida.');
+            this.votos = voto ? this.votos.filter(item => item.idVoto !== voto.idVoto) : [...this.votos, await resposta.json()];
+            this.renderizarFeedGeral();
+        } finally {
+            delete this.travasCurtidas[idPost];
+        }
     }
 
     async alternarPostSalvo(idPost) {
         const idUsuario = ApiService.getIdUsuarioLogado();
         if (!idUsuario) return this.mostrarFeedbackGlobal('Faça login para salvar publicações.');
-        const salvo = this.postEstaSalvo(idPost);
-        const resposta = salvo
-            ? await ApiService.removerPostSalvo(salvo.id)
-            : await ApiService.salvarPost(idUsuario, idPost);
-        if (!resposta.ok) return this.mostrarFeedbackGlobal('Não foi possível atualizar os salvos.');
-        this.postsSalvos = salvo ? this.postsSalvos.filter(item => item.id !== salvo.id) : [...this.postsSalvos, await resposta.json()];
-        this.renderizarFeedGeral();
-        if (
-            document
-                .getElementById('view-salvos')
-                ?.classList.contains('active')
-        ) {
-            this.renderizarItensSalvos();
+        if (this.travasSalvos && this.travasSalvos[idPost]) return;
+        this.travasSalvos = this.travasSalvos || {};
+        this.travasSalvos[idPost] = true;
+        try {
+            const salvo = this.postEstaSalvo(idPost);
+            const resposta = salvo
+                ? await ApiService.removerPostSalvo(salvo.id)
+                : await ApiService.salvarPost(idUsuario, idPost);
+            if (!resposta.ok) return this.mostrarFeedbackGlobal('Não foi possível atualizar os salvos.');
+            this.postsSalvos = salvo ? this.postsSalvos.filter(item => item.id !== salvo.id) : [...this.postsSalvos, await resposta.json()];
+            this.renderizarFeedGeral();
+            if (
+                document
+                    .getElementById('view-salvos')
+                    ?.classList.contains('active')
+            ) {
+                this.renderizarItensSalvos();
+            }
+        } finally {
+            delete this.travasSalvos[idPost];
         }
     }
 
@@ -3498,8 +3534,7 @@ class AppController {
                 const err = await res.json();
                 if (err.message) msg = err.message;
             } catch (_) {}
-            alert(msg);
-            this.mostrarFeedbackGlobal("Não foi possível enviar o comentário.");
+            this.mostrarFeedbackGlobal(msg);
         }
     }
 
@@ -3677,7 +3712,7 @@ class AppController {
 
                 <div class="post-actions">
                     <button class="post-action ${curtido ? 'active' : ''}" onclick="app.alternarCurtida(${idPost})"><i class="material-icons">${curtido ? 'favorite' : 'favorite_border'}</i><span>${totalCurtidas}</span></button>
-                    <button class="post-action" onclick="document.getElementById('comentario-${idPost}').focus()"><i class="material-icons">chat_bubble_outline</i><span>${comentarios.length}</span></button>
+                    <button class="post-action" onclick="const input = document.getElementById('comentario-${idPost}'); if (input) { input.focus(); } else { app.abrirDetalhesPost(${idPost}); }"><i class="material-icons">chat_bubble_outline</i><span>${comentarios.length}</span></button>
                     <button class="post-action ${salvo ? 'active' : ''}" onclick="app.alternarPostSalvo(${idPost})"><i class="material-icons">${salvo ? 'bookmark' : 'bookmark_border'}</i></button>
                 </div>
 
@@ -4692,29 +4727,6 @@ ${ApiService.getIdUsuarioLogado() ? `
         return new Date(`${data}T00:00:00`).toLocaleDateString('pt-BR', {
             weekday: 'long', day: 'numeric', month: 'long'
         });
-    }
-
-    renderizarEventoDestaque(evento) {
-        const container = document.getElementById('evento-destaque');
-        if (!container) return;
-        if (!evento) {
-            container.innerHTML = '<div class="evento-destaque-vazio">Nenhum evento encontrado com esses filtros.</div>';
-            return;
-        }
-        const data = evento.dataEvento ? new Date(`${evento.dataEvento}T00:00:00`).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '') : '--';
-        const categoria = this.escaparHtmlDestaque(evento.categoria || 'Em destaque');
-        const titulo = this.escaparHtmlDestaque(evento.titulo || 'Evento');
-        const descricao = this.escaparHtmlDestaque(
-            evento.descricao || 'Uma nova experiência está esperando por você.'
-        );
-        const local = this.escaparHtmlDestaque(evento.localEvento || 'Local a confirmar');
-        const imagemCapaUrl = evento.imagemCapa
-            ? this.escaparHtmlDestaque(this.urlCapaEvento(evento.imagemCapa))
-            : '';
-        const idEvento = Number(evento.idEvento || evento.id);
-        container.innerHTML = `
-            <div class="evento-destaque-copy"><span class="section-kicker">${categoria}</span><h2>${titulo}</h2><p>${descricao}</p><div class="evento-destaque-details"><span>📅 ${this.escaparHtmlDestaque(data)} · ${this.escaparHtmlDestaque(evento.horarioInicio?.substring(0, 5) || '--:--')}</span><span>📍 ${local}</span></div><button class="btn-primary" onclick="app.abrirDetalhesEvento(${idEvento})">Ver detalhes <i class="material-icons">arrow_forward</i></button></div><div class="evento-destaque-art" ${imagemCapaUrl ? `style="background-image:linear-gradient(135deg,rgba(43,23,32,.2),rgba(234,63,116,.5)),url('${imagemCapaUrl}');background-size:cover;background-position:center;"` : ''}><i class="material-icons">celebration</i></div>
-        `;
     }
 
     urlCapaEvento(caminho) {
@@ -9350,39 +9362,6 @@ ${ApiService.getIdUsuarioLogado() ? `
             );
         }
 
-        // Obtém a posição do usuário no navegador
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    const userLat = position.coords.latitude;
-                    const userLng = position.coords.longitude;
-
-                    // Faz a chamada para a sua API enviando as coordenadas
-                    carregarEventosProximos(userLat, userLng);
-                },
-                (error) => {
-                    console.warn("Geolocalização recusada ou indisponível. Carregando sem filtro de distância.");
-                    carregarEventosProximos(null, null);
-                }
-            );
-        } else {
-            carregarEventosProximos(null, null);
-        }
-
-        function carregarEventosProximos(lat, lng) {
-            let url = `/api/eventos/buscar?page=0&size=12`;
-
-            if (lat && lng) {
-                url += `&lat=${lat}&lng=${lng}&raioKm=30`; // Busca eventos num raio de 30km
-            }
-
-            fetch(url)
-                .then(res => res.json())
-                .then(data => {
-                    console.log("Eventos encontrados:", data.content);
-                    // Renderiza os cards na tela
-                });
-        }
     }
 
     abrirModalConfirmacao({ titulo, mensagem, textoConfirmar = 'Confirmar', classeBotao = 'btn-primary', onSuccess }) {

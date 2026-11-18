@@ -171,7 +171,7 @@ export class ApiService {
         }
 
         if (foto.startsWith('uploads/')) {
-            if (!/^uploads\/(perfis|eventos)\/[A-Za-z0-9_-]+\.(jpg|jpeg|png|webp)$/i.test(foto)) {
+            if (!/^uploads\/(perfis|eventos|comunidades)\/[A-Za-z0-9_.-]+\.(jpg|jpeg|png|webp)$/i.test(foto)) {
                 return null;
             }
             const url = new URL(foto, `${this.API_URL}/`);
@@ -1014,7 +1014,21 @@ if (typeof window !== 'undefined' && window.fetch) {
                 }
             }
         } catch (_) {}
-        return originalFetch(resource, init);
+        const resposta = await originalFetch(resource, init);
+        if (resposta && resposta.status === 401) {
+            try {
+                const url = typeof resource === 'string' ? resource : (resource && resource.url ? resource.url : '');
+                if (url && !url.includes('/login') && ApiService.getUsuarioLogado()) {
+                    console.warn('Sessão expirada ou não autorizada (401). Limpando sessão local...');
+                    ApiService.fazerLogout();
+                    if (typeof window !== 'undefined' && window.app) {
+                        window.app.mostrarFeedbackGlobal('Sua sessão expirou. Por favor, entre novamente.', 'error');
+                        window.app.mostrarTelaBoasVindas();
+                    }
+                }
+            } catch (_) {}
+        }
+        return resposta;
     };
 }
 const fetch = (input, init) => ApiService.request(input, init);
