@@ -4,7 +4,9 @@ import java.util.List;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.backendpi.backend.model.Comunidade;
 import com.backendpi.backend.model.Post;
@@ -12,6 +14,7 @@ import com.backendpi.backend.repository.ComentarioRepository;
 import com.backendpi.backend.repository.ComunidadeRepository;
 import com.backendpi.backend.repository.PostRepository;
 import com.backendpi.backend.security.SecuritySanitizerService;
+import com.backendpi.backend.security.AuthenticatedUserContext;
 
 @Service
 public class PostService {
@@ -20,17 +23,20 @@ public class PostService {
     private final ComentarioRepository comentarioRepository;
     private final ComunidadeRepository comunidadeRepository;
     private final SecuritySanitizerService sanitizerService;
+    private final ImagensPostService imagensPostService;
 
     public PostService(
             PostRepository repository,
             ComentarioRepository comentarioRepository,
             ComunidadeRepository comunidadeRepository,
             SecuritySanitizerService sanitizerService) {
+            ImagensPostService imagensPostService) {
 
         this.repository = repository;
         this.comentarioRepository = comentarioRepository;
         this.comunidadeRepository = comunidadeRepository;
         this.sanitizerService = sanitizerService;
+        this.imagensPostService = imagensPostService;
     }
 
     public List<Post> listar() {
@@ -50,6 +56,7 @@ public class PostService {
     }
 
     public Post salvar(Post post) {
+        AuthenticatedUserContext.requireMatches(post.getIdUsuario());
 
         // Moderação e sanitização de palavras inadequadas, SQL Injection e XSS
         if (post.getTitulo() != null) {
@@ -87,6 +94,7 @@ public class PostService {
     }
 
     public void deletar(Long idPost, Long idUsuario) {
+        AuthenticatedUserContext.requireMatches(idUsuario);
 
         Post post = repository.findById(idPost)
                 .orElseThrow(() -> new RuntimeException("Post não encontrado"));
@@ -107,9 +115,10 @@ public class PostService {
         }
 
         if (!eAutor && !eAdministrador) {
-            throw new RuntimeException("Usuário sem permissão para excluir este post");
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Usuário sem permissão para excluir este post");
         }
 
+        imagensPostService.deletarPorPost(idPost);
         comentarioRepository.deleteAll(
                 comentarioRepository.findByIdPost(idPost)
         );
@@ -118,8 +127,15 @@ public class PostService {
     }
 
     public Post atualizar(Long id, Post novo) {
+        Long idUsuario = AuthenticatedUserContext.requireUserId();
 
         return repository.findById(id).map(post -> {
+            if (!post.getIdUsuario().equals(idUsuario)) {
+                throw new ResponseStatusException(
+                        HttpStatus.FORBIDDEN,
+                        "Usuário sem permissão para editar esta publicação"
+                );
+            }
 
             String tituloLimpo = sanitizerService.validarEModerar(novo.getTitulo(), "Título da publicação");
             String conteudoLimpo = sanitizerService.validarEModerar(novo.getConteudo(), "Conteúdo da publicação");
@@ -128,6 +144,8 @@ public class PostService {
             post.setConteudo(conteudoLimpo);
             post.setIdUsuario(novo.getIdUsuario());
             post.setIdComunidade(novo.getIdComunidade());
+            post.setTitulo(novo.getTitulo());
+            post.setConteudo(novo.getConteudo());
 
             return repository.save(post);
 

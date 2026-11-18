@@ -5,6 +5,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
@@ -50,6 +51,10 @@ public class Usuario {
 
     @Column(name = "foto_perfil")
     private String fotoPerfil;
+
+    @JsonIgnore
+    @Column(name = "foto_perfil_public_id")
+    private String fotoPerfilPublicId;
 
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(
@@ -140,6 +145,14 @@ public class Usuario {
 
     public void setFotoPerfil(String fotoPerfil) {
         this.fotoPerfil = fotoPerfil;
+    }
+
+    public String getFotoPerfilPublicId() {
+        return fotoPerfilPublicId;
+    }
+
+    public void setFotoPerfilPublicId(String fotoPerfilPublicId) {
+        this.fotoPerfilPublicId = fotoPerfilPublicId;
     }
 
     public List<String> getInteresses() {

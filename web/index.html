@@ -4,13 +4,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="api-base-url" content="">
     <title>Painel - Rede Social</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap"
         rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css?v=chat-avatar-1">
+    <link rel="stylesheet" href="css/style.css?v=dark-mode-6">
 </head>
 
 <body>
@@ -83,6 +84,10 @@
                 </button>
                 <button class="nav-btn" id="tab-busca" onclick="app.mudarAba('busca')">
                     <i class="material-icons">people</i> Pessoas
+                </button>
+                <button class="nav-btn" id="tab-notificacoes" onclick="app.mudarAba('notificacoes')">
+                    <i class="material-icons">notifications</i> Notificações
+                    <span id="notificacoes-nao-lidas" class="notificacoes-contador" hidden></span>
                 </button>
             </nav>
             <div class="sidebar-footer" id="header-buttons"></div>
@@ -239,29 +244,26 @@
                             eventos</button>
                     </div>
                     <div class="eventos-filtros">
-                        <input type="text" id="filtro-evento-texto" placeholder="Buscar por nome ou descrição..."
+                        <input type="text" id="filtro-evento-texto" placeholder="Buscar"
                             oninput="app.buscarEventosComDebounce()">
 
                         <select id="filtro-evento-periodo" onchange="app.filtrarEventos()">
 
-                            <option value="">Qualquer data</option>
+                            <option value="">Selecione um período</option>
                             <option value="hoje">Hoje</option>
                             <option value="semana">Esta semana</option>
                             <option value="mes">Este mês</option>
                             <option value="personalizado">Intervalo personalizado</option>
                         </select>
 
-                        <select id="filtro-evento-comunidade" onchange="app.filtrarEventos()">
-                            <option value="">Todas as comunidades</option>
+                        <select id="filtro-evento-preco" onchange="app.filtrarEventos()">
+                            <option value="">Selecione uma faixa de preço</option>
+                            <option value="gratuito">Gratuitos</option>
+                            <option value="pago">Pagos</option>
                         </select>
 
-                        <select id="filtro-evento-status" onchange="app.filtrarEventos()">
-                            <option value="">Todos os status</option>
-                            <option value="AGENDADO">Agendados</option>
-                            <option value="CANCELADO">Cancelados</option>
-                        </select>
                         <select id="filtro-evento-categoria" onchange="app.filtrarEventos()">
-                            <option value="">Todas as categorias</option>
+                            <option value="">Selecione uma categoria</option>
                             <option value="Tecnologia">Tecnologia</option>
                             <option value="Arte">Arte</option>
                             <option value="Música">Música</option>
@@ -271,13 +273,13 @@
                             <option value="Cultura">Cultura</option>
                         </select>
                                                 <select id="filtro-evento-formato" onchange="app.filtrarEventos()">
-                            <option value="">Todos os formatos</option>
+                            <option value="">Selecione um formato</option>
                             <option value="presencial">Presenciais</option>
                             <option value="online">Online</option>
                         </select>
 
                         <div class="filtro-localizacao-wrap" style="display: flex; gap: 8px; align-items: center;">
-                            <button id="btn-localizacao-filtro" class="btn-secondary" onclick="app.alternarFiltroProximidade()" style="white-space: nowrap; height: 38px; display: flex; align-items: center; gap: 5px;">
+                            <button id="btn-localizacao-filtro" class="btn-localizacao-filtro" onclick="app.alternarFiltroProximidade()" style="white-space: nowrap; height: 38px; display: flex; align-items: center; gap: 5px;">
                                 <i class="material-icons" style="font-size: 18px;">my_location</i>
                                 Perto de mim
                             </button>
@@ -330,6 +332,7 @@
                             <span class="section-kicker">Encontre sua turma</span>
                             <h1>Comunidades</h1>
                         </div>
+
                         <button class="btn-primary" onclick="app.abrirModal('comunidade-modal')">Nova
                             Comunidade</button>
                     </div>
@@ -360,6 +363,35 @@
                         </select>
                     </div>
                     <div id="comunidades-container" class="comunidades-grid">Carregando comunidades...</div>
+                </div>
+
+                <div id="view-agenda" class="view-section">
+                    <div class="page-header agenda-page-header">
+                        <div>
+                            <span class="section-kicker">Seus próximos encontros</span>
+                            <h1>Minha agenda</h1>
+                            <p>Encontre rapidamente os eventos que você salvou.</p>
+                        </div>
+                        <button class="agenda-export-btn" onclick="app.exportarAgendaIcs()">
+                            <i class="material-icons" aria-hidden="true">calendar_month</i>
+                            <span>Exportar calendário</span>
+                        </button>
+                    </div>
+                    <div id="agenda-eventos-container" class="eventos-container agenda-eventos-container">
+                        Carregando agenda...
+                    </div>
+                </div>
+
+                <div id="view-notificacoes" class="view-section">
+                    <div class="page-header">
+                        <div>
+                            <span class="section-kicker">Atualizações da sua comunidade</span>
+                            <h1>Notificações</h1>
+                        </div>
+                    </div>
+                    <div id="notificacoes-container" class="notificacoes-lista">
+                        Carregando notificações...
+                    </div>
                 </div>
 
                 <!-- PERFIL -->
@@ -424,7 +456,18 @@
                     </div>
 
                     <div id="users-container" class="pessoas-grid">Carregando...</div>
-
+                    <nav id="pessoas-paginacao" class="pessoas-paginacao" aria-label="Paginação de pessoas"
+                        hidden>
+                        <button class="btn-secondary" id="btn-pessoas-anterior" type="button"
+                            onclick="app.paginaAnteriorPessoas()" disabled>
+                            Anterior
+                        </button>
+                        <span id="pessoas-pagina-info" aria-live="polite">Página 1 de 1</span>
+                        <button class="btn-secondary" id="btn-pessoas-proxima" type="button"
+                            onclick="app.proximaPaginaPessoas()" disabled>
+                            Próxima
+                        </button>
+                    </nav>
 
                 </div>
 
@@ -730,36 +773,109 @@
             <input type="file" id="post-imagens" accept="image/jpeg,image/png,image/webp" multiple hidden>
             <small class="form-hint">Escolha várias de uma vez ou adicione mais depois. Até 4 imagens JPG, PNG ou WEBP; máximo de 5 MB cada.</small>
             <div id="post-imagens-preview" class="post-image-preview" aria-live="polite"></div>
-            <select id="post-comunidade-id">
-                <option value="">Publicar no feed global</option>
-            </select>
+            <div class="post-destination-field">
+                <label for="post-comunidade-id">Onde publicar?</label>
+                <div class="post-destination-select">
+                    <i class="material-icons" aria-hidden="true">public</i>
+                    <select id="post-comunidade-id" aria-label="Destino da publicação">
+                        <option value="">Publicar no feed global</option>
+                    </select>
+                    <i class="material-icons post-destination-chevron" aria-hidden="true">expand_more</i>
+                </div>
+                <small>Escolha o feed global ou uma comunidade da qual você participa.</small>
+            </div>
             <button class="btn-full" id="post-publicar-btn" onclick="app.enviarPost()">Publicar</button>
             <button class="btn-cancel" onclick="app.fecharModal('post-modal')">Cancelar</button>
         </div>
     </div>
 
-    <div class="modal-overlay" id="comunidade-modal">
-        <div class="modal">
-            <h2>Criar Comunidade</h2>
-            <input type="text" id="comunidade-nome" placeholder="Ex: Desenvolvedores Java">
-            <textarea id="comunidade-desc" placeholder="Qual o foco do grupo?"></textarea>
-            <select id="comunidade-categoria">
-                <option value="">Categoria</option>
-                <option>Tecnologia</option>
-                <option>Arte</option>
-                <option>Música</option>
-                <option>Esportes</option>
-                <option>Educação</option>
-                <option>Networking</option>
-                <option>Cultura</option>
-            </select>
-            <label for="comunidade-cor">Cor da comunidade</label>
-            <input type="color" id="comunidade-cor" value="#EA3F74">
-            <label for="comunidade-imagem">Imagem da comunidade (opcional)</label>
-            <input type="file" id="comunidade-imagem" accept="image/*">
-            <small class="form-hint">Escolha uma imagem que represente os interesses da sua comunidade.</small>
-            <button class="btn-full" onclick="app.criarComunidade()">Salvar</button>
-            <button class="btn-cancel" onclick="app.fecharModal('comunidade-modal')">Cancelar</button>
+    <div class="modal-overlay" id="comunidade-modal" role="dialog" aria-modal="true"
+        aria-labelledby="comunidade-modal-title">
+        <div class="modal comunidade-criar-modal">
+            <button type="button" class="modal-close-btn" onclick="app.fecharModal('comunidade-modal')"
+                aria-label="Fechar criação de comunidade">
+                <i class="material-icons" aria-hidden="true">close</i>
+            </button>
+
+            <div class="modal-header-intro comunidade-criar-header">
+                <span class="modal-kicker">
+                    <i class="material-icons" aria-hidden="true">groups</i>
+                    Comunidades
+                </span>
+                <h2 id="comunidade-modal-title">Criar comunidade</h2>
+                <p>Crie um espaço para reunir pessoas com interesses em comum.</p>
+            </div>
+
+            <div class="comunidade-criar-fields">
+                <div class="comunidade-criar-field">
+                    <label for="comunidade-nome">Nome da comunidade</label>
+                    <div class="comunidade-criar-control">
+                        <i class="material-icons" aria-hidden="true">group</i>
+                        <input type="text" id="comunidade-nome" placeholder="Ex.: Desenvolvedores Java">
+                    </div>
+                </div>
+
+                <div class="comunidade-criar-field">
+                    <label for="comunidade-desc">Sobre a comunidade</label>
+                    <textarea class="comunidade-criar-descricao" id="comunidade-desc"
+                        placeholder="Qual é o foco do grupo? Que assuntos vocês querem compartilhar?"></textarea>
+                </div>
+
+                <div class="comunidade-criar-opcoes">
+                    <div class="comunidade-criar-field">
+                        <label for="comunidade-categoria">Categoria</label>
+                        <div class="comunidade-criar-control">
+                            <i class="material-icons" aria-hidden="true">category</i>
+                            <select id="comunidade-categoria">
+                                <option value="">Selecione uma categoria</option>
+                                <option>Tecnologia</option>
+                                <option>Arte</option>
+                                <option>Música</option>
+                                <option>Esportes</option>
+                                <option>Educação</option>
+                                <option>Networking</option>
+                                <option>Cultura</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="comunidade-criar-field">
+                        <label for="comunidade-cor">Cor de destaque</label>
+                        <div class="comunidade-criar-cor">
+                            <input type="color" id="comunidade-cor" value="#EA3F74"
+                                aria-label="Escolha a cor de destaque da comunidade">
+                            <span>Escolha uma cor para representar sua comunidade.</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="comunidade-criar-field">
+                    <label for="comunidade-imagem">Imagem da comunidade <span>(opcional)</span></label>
+                    <input type="file" id="comunidade-imagem" class="comunidade-criar-upload-input"
+                        accept="image/*">
+                    <label class="comunidade-criar-upload" for="comunidade-imagem">
+                        <span class="comunidade-criar-upload-icon">
+                            <i class="material-icons" aria-hidden="true">add_photo_alternate</i>
+                        </span>
+                        <span class="comunidade-criar-upload-info">
+                            <strong>Escolher imagem</strong>
+                            <small id="comunidade-imagem-nome">JPG, PNG ou WEBP · Você pode adicionar depois</small>
+                        </span>
+                        <i class="material-icons comunidade-criar-upload-action" aria-hidden="true">upload</i>
+                    </label>
+                    <small class="form-hint">Uma imagem ajuda as pessoas a reconhecerem sua comunidade.</small>
+                </div>
+            </div>
+
+            <div class="comunidade-criar-acoes">
+                <button class="btn-full" type="button" onclick="app.criarComunidade()">
+                    <i class="material-icons" aria-hidden="true">add</i>
+                    Criar comunidade
+                </button>
+                <button class="btn-cancel" type="button" onclick="app.fecharModal('comunidade-modal')">
+                    Cancelar
+                </button>
+            </div>
         </div>
     </div>
 
@@ -823,9 +939,10 @@
                             <div class="form-input-wrap">
                                 <i class="material-icons">groups</i>
                                 <select id="evento-comunidade-id">
-                                    <option value="">Nenhuma (Evento aberto / Global)</option>
+                                    <option value="">Selecione uma comunidade (opcional)</option>
                                 </select>
                             </div>
+                            <small class="form-hint">Sem comunidade vinculada, o evento ficará aberto ao público.</small>
                         </div>
                     </div>
 
@@ -916,7 +1033,7 @@
                     <div id="wrap-evento-coordenadas" class="evento-coordenadas-box">
                         <div class="evento-coordenadas-topo">
                             <div class="evento-coordenadas-texto">
-                                <strong><i class="material-icons">map</i> Geolocalização para o Aplicativo Mobile</strong>
+                                <strong><i class="material-icons">map</i> Geolocalização</strong>
                                 <span>Permite que participantes encontrem este evento no mapa de eventos próximos.</span>
                             </div>
                             <button type="button" class="btn-gps" onclick="app.capturarCoordenadasEvento()" title="Usar minha localização atual via GPS">
@@ -947,6 +1064,18 @@
                                 <input type="number" id="evento-preco" min="0" step="0.01" placeholder="0,00">
                             </div>
                             <small class="form-hint">Deixe em branco ou informe 0 para um evento gratuito.</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="evento-taxa-repassada">Taxa da plataforma</label>
+                            <div class="form-input-wrap">
+                                <i class="material-icons">payments</i>
+                                <select id="evento-taxa-repassada">
+                                    <option value="false">Absorvida pelo organizador</option>
+                                    <option value="true">Repassada ao comprador</option>
+                                </select>
+                            </div>
+                            <small class="form-hint">Taxa: 8% do ingresso + R$ 2,00 por ingresso.</small>
                         </div>
                     </div>
                 </div>
@@ -1072,7 +1201,14 @@
                         </label>
 
                         <select id="editar-comunidade-categoria">
-                            <!-- mantenha suas options atuais -->
+                            <option value="">Selecione uma categoria</option>
+                            <option>Tecnologia</option>
+                            <option>Arte</option>
+                            <option>Música</option>
+                            <option>Esportes</option>
+                            <option>Educação</option>
+                            <option>Networking</option>
+                            <option>Cultura</option>
                         </select>
                     </div>
 
@@ -1371,6 +1507,16 @@
             </div>
 
             <div id="editar-evento-feedback" class="form-feedback" role="alert" aria-live="polite"></div>
+            <section class="evento-organizador-resumo" aria-live="polite">
+                <div>
+                    <strong>Resumo do evento</strong>
+                    <span id="evento-organizador-indicadores">Carregando inscrições...</span>
+                </div>
+                <button type="button" class="btn-secondary"
+                    onclick="app.exportarParticipantesEvento()">
+                    <i class="material-icons">download</i> Exportar participantes
+                </button>
+            </section>
 
             <form id="form-editar-evento" onsubmit="event.preventDefault(); app.salvarEdicaoEvento();">
                 <div class="form-section">
@@ -1416,9 +1562,10 @@
                             <div class="form-input-wrap">
                                 <i class="material-icons">groups</i>
                                 <select id="editar-evento-comunidade">
-                                    <option value="">Nenhuma (Evento aberto / Global)</option>
+                                    <option value="">Selecione uma comunidade (opcional)</option>
                                 </select>
                             </div>
+                            <small class="form-hint">Sem comunidade vinculada, o evento ficará aberto ao público.</small>
                         </div>
                     </div>
 
@@ -1539,6 +1686,30 @@
                         <i class="material-icons">settings</i> Configurações
                     </div>
 
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label for="editar-evento-preco">Valor do ingresso</label>
+                            <div class="form-input-wrap">
+                                <i class="material-icons">confirmation_number</i>
+                                <input type="number" id="editar-evento-preco" min="0" step="0.01"
+                                    placeholder="0,00">
+                            </div>
+                            <small class="form-hint">Deixe em branco ou informe 0 para um evento gratuito.</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="editar-evento-taxa-repassada">Taxa da plataforma</label>
+                            <div class="form-input-wrap">
+                                <i class="material-icons">payments</i>
+                                <select id="editar-evento-taxa-repassada">
+                                    <option value="false">Absorvida pelo organizador</option>
+                                    <option value="true">Repassada ao comprador</option>
+                                </select>
+                            </div>
+                            <small class="form-hint">Taxa: 8% do ingresso + R$ 2,00 por ingresso.</small>
+                        </div>
+                    </div>
+
                     <div class="checkbox-card">
                         <label class="checkbox-container">
                             <input type="checkbox" id="editar-evento-checkin">
@@ -1637,9 +1808,19 @@
             <strong id="compra-ingresso-evento-nome">Evento</strong>
         </div>
 
-        <div class="compra-ingresso-preco-area">
-            <span>Valor do ingresso</span>
-            <strong id="compra-ingresso-preco">R$ 0,00</strong>
+        <div class="compra-ingresso-resumo">
+            <div class="compra-ingresso-linha">
+                <span>Subtotal do ingresso</span>
+                <strong id="compra-ingresso-subtotal">R$ 0,00</strong>
+            </div>
+            <div class="compra-ingresso-linha">
+                <span>Taxa da plataforma</span>
+                <strong id="compra-ingresso-taxa">R$ 0,00</strong>
+            </div>
+            <div class="compra-ingresso-linha compra-ingresso-total">
+                <span>Total a pagar</span>
+                <strong id="compra-ingresso-total">R$ 0,00</strong>
+            </div>
         </div>
 
         <div class="compra-ingresso-aviso">
@@ -1675,10 +1856,47 @@
     </div>
 </div>
 
+    <div class="modal-overlay" id="modal-confirmacao" role="dialog" aria-modal="true"
+        aria-labelledby="modal-confirmacao-titulo">
+        <div class="modal">
+            <h2 id="modal-confirmacao-titulo">Confirmar ação</h2>
+            <p id="modal-confirmacao-mensagem"></p>
+            <div class="modal-confirmacao-acoes">
+                <button type="button" class="btn-secondary"
+                    onclick="app.fecharModal('modal-confirmacao')">
+                    Cancelar
+                </button>
+                <button type="button" class="btn-danger" id="btn-modal-confirmar">
+                    Confirmar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="compartilhar-link-modal" role="dialog" aria-modal="true"
+        aria-labelledby="compartilhar-link-titulo">
+        <div class="modal compartilhar-link-modal">
+            <div class="compartilhar-link-icon">
+                <i class="material-icons" aria-hidden="true">link</i>
+            </div>
+            <span class="section-kicker">Compartilhar</span>
+            <h2 id="compartilhar-link-titulo">Link da publicação</h2>
+            <p>Copie o link para compartilhar esta publicação com outras pessoas.</p>
+            <label for="post-link-compartilhado">Endereço</label>
+            <input id="post-link-compartilhado" type="text" readonly>
+            <button type="button" class="btn-full" onclick="app.copiarLinkCompartilhado()">
+                Copiar link
+            </button>
+            <button type="button" class="btn-cancel" onclick="app.fecharModal('compartilhar-link-modal')">
+                Fechar
+            </button>
+        </div>
+    </div>
+
     <div
     class="modal-overlay"
     id="configuracoes-modal"
->
+    >
 
     <div class="modal configuracoes-modal">
 
@@ -1714,6 +1932,27 @@
 
 
         <div class="configuracoes-lista">
+
+            <div class="configuracoes-item configuracoes-theme-item">
+                <span class="configuracoes-item-icon">
+                    <i class="material-icons" aria-hidden="true">dark_mode</i>
+                </span>
+                <span class="configuracoes-item-info">
+                    <strong id="tema-escuro-label">Modo escuro</strong>
+                    <small id="tema-escuro-descricao">Altere a aparência da aplicação.</small>
+                </span>
+                <label class="configuracoes-theme-toggle">
+                    <input
+                        id="tema-escuro-toggle"
+                        type="checkbox"
+                        role="switch"
+                        aria-labelledby="tema-escuro-label"
+                        aria-describedby="tema-escuro-descricao"
+                        onchange="app.definirTemaEscuro(this.checked)"
+                    >
+                    <span class="configuracoes-theme-switch" aria-hidden="true"></span>
+                </label>
+            </div>
 
             <button
                 type="button"
@@ -1772,6 +2011,21 @@
 
             </button>
 
+            <button
+                type="button"
+                class="configuracoes-item"
+                onclick="app.abrirAlteracaoSenhaPelasConfiguracoes()"
+            >
+                <span class="configuracoes-item-icon">
+                    <i class="material-icons">lock_reset</i>
+                </span>
+                <span class="configuracoes-item-info">
+                    <strong>Alterar senha</strong>
+                    <small>Confirme sua senha atual para criar uma nova.</small>
+                </span>
+                <i class="material-icons">chevron_right</i>
+            </button>
+
         </div>
 
 
@@ -1782,8 +2036,7 @@
             </i>
 
             <span>
-                Alteração de senha poderá ser
-                adicionada futuramente.
+                As outras sessões serão encerradas após a alteração.
             </span>
 
         </div>
@@ -1792,8 +2045,82 @@
 
 </div>
 
+<div
+    class="modal-overlay"
+    id="alterar-senha-modal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="alterar-senha-titulo"
+>
+    <div class="modal configuracoes-modal">
+        <button
+            type="button"
+            class="modal-close-btn"
+            onclick="app.fecharModal('alterar-senha-modal')"
+            aria-label="Fechar"
+        >
+            <i class="material-icons">close</i>
+        </button>
+
+        <div class="configuracoes-header">
+            <span class="section-kicker">Segurança da conta</span>
+            <h2 id="alterar-senha-titulo">Alterar senha</h2>
+            <p>Informe sua senha atual e escolha uma nova senha.</p>
+        </div>
+
+        <form onsubmit="event.preventDefault(); app.alterarSenha()">
+            <div class="auth-field">
+                <label for="senha-atual">Senha atual</label>
+                <div class="auth-input-wrap">
+                    <i class="material-icons" aria-hidden="true">lock_outline</i>
+                    <input id="senha-atual" type="password" autocomplete="current-password" required>
+                    <button type="button" class="password-toggle"
+                        onclick="app.alternarVisibilidadeSenha('senha-atual', this)"
+                        aria-label="Mostrar senha atual">
+                        <i class="material-icons">visibility</i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="auth-field">
+                <label for="senha-nova">Nova senha</label>
+                <div class="auth-input-wrap">
+                    <i class="material-icons" aria-hidden="true">lock_reset</i>
+                    <input id="senha-nova" type="password" autocomplete="new-password" required>
+                    <button type="button" class="password-toggle"
+                        onclick="app.alternarVisibilidadeSenha('senha-nova', this)"
+                        aria-label="Mostrar nova senha">
+                        <i class="material-icons">visibility</i>
+                    </button>
+                </div>
+                <small class="form-hint">Use pelo menos 8 caracteres, com até 72 bytes.</small>
+            </div>
+
+            <div class="auth-field">
+                <label for="senha-confirmacao">Confirmar nova senha</label>
+                <div class="auth-input-wrap">
+                    <i class="material-icons" aria-hidden="true">lock_reset</i>
+                    <input id="senha-confirmacao" type="password" autocomplete="new-password" required>
+                    <button type="button" class="password-toggle"
+                        onclick="app.alternarVisibilidadeSenha('senha-confirmacao', this)"
+                        aria-label="Mostrar confirmação da senha">
+                        <i class="material-icons">visibility</i>
+                    </button>
+                </div>
+            </div>
+
+            <div id="senha-feedback" class="auth-feedback" role="alert" aria-live="polite"></div>
+            <button type="submit" class="auth-submit" id="alterar-senha-submit">
+                Salvar nova senha
+            </button>
+        </form>
+    </div>
+</div>
+
     <!-- type="module" permite importar ApiService; servir esta página por HTTP evita bloqueios de módulos em file://. -->
-    <script type="module" src="js/app.js?v=chat-avatar-1"></script>
+    <script type="module" src="js/app.js?v=dark-mode-1"></script>
+    <div id="toast-container" class="toast-container" aria-label="Avisos" aria-live="polite"
+        aria-relevant="additions text"></div>
 </body>
 
 </html>

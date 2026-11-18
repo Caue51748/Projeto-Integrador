@@ -11,6 +11,11 @@ import '../services/post_service.dart';
 import '../services/evento_service.dart';
 import '../services/comunidade_service.dart';
 import '../services/api_service.dart';
+import '../services/seguimento_service.dart';
+import '../widgets/social_avatar.dart';
+import 'seguidores_page.dart';
+import 'public_profile_page.dart';
+import 'configuracoes_social_page.dart';
 import 'post_detail_screen.dart';
 import 'home_screen.dart';
 
@@ -31,6 +36,12 @@ class _ProfilePageState extends State<ProfilePage>
   final ComunidadeService _comunidadeService = ComunidadeService();
 
   Usuario? _usuario;
+  final SeguimentoService _seguimentoService = SeguimentoService();
+  int _seguidores = 0;
+  int _seguindo = 0;
+  List<Usuario> _sugestoes = [];
+  final Set<int> _idsSeguindo = {};
+  bool _carregandoSeguimento = false;
   List<Post> _userPosts = [];
   List<Evento> _userEventos = [];
   List<Comunidade> _userComunidades = [];
@@ -45,6 +56,7 @@ class _ProfilePageState extends State<ProfilePage>
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
     _carregarDadosCompletos();
+    _carregarSocial();
   }
 
   @override
@@ -99,9 +111,15 @@ class _ProfilePageState extends State<ProfilePage>
               bio: AuthService.bio,
             );
           } else {
-            if (_usuario!.nome.isNotEmpty) AuthService.nomeUsuario = _usuario!.nome;
-            if (_usuario!.username != null) AuthService.username = _usuario!.username;
-            if (_usuario!.bio != null) AuthService.bio = _usuario!.bio;
+            if (_usuario!.nome.isNotEmpty) {
+              AuthService.nomeUsuario = _usuario!.nome;
+            }
+            if (_usuario!.username != null) {
+              AuthService.username = _usuario!.username;
+            }
+            if (_usuario!.bio != null) {
+              AuthService.bio = _usuario!.bio;
+            }
             AuthService.fotoPerfil = _usuario!.fotoPerfil;
           }
         });
@@ -198,10 +216,131 @@ class _ProfilePageState extends State<ProfilePage>
     }
   }
 
+  Future<void> _carregarSocial() async {
+    final id = AuthService.idUsuario;
+    if (!mounted || id == null || _carregandoSeguimento) return;
+    _carregandoSeguimento = true;
+    try {
+      final resumo = await _seguimentoService.resumo(id);
+      final idsSeguindo = await _seguimentoService.ids(id, seguidores: false);
+      final usuarios = await _usuarioService.listarUsuarios();
+      if (!mounted) return;
+      setState(() {
+        _seguidores = resumo.seguidores;
+        _seguindo = resumo.seguindo;
+        _idsSeguindo..clear()..addAll(idsSeguindo);
+        _sugestoes = usuarios.where((u) => u.idUsuario != null &&
+            u.idUsuario != id && !_idsSeguindo.contains(u.idUsuario))
+            .take(8).toList();
+      });
+    } catch (e) {
+      // O feed e o perfil continuam disponíveis caso o novo módulo não esteja iniciado.
+      debugPrint('Seguimentos indisponíveis: $e');
+    } finally {
+      _carregandoSeguimento = false;
+    }
+  }
+
+  Future<void> _seguirSugestao(Usuario usuario) async {
+    final meuId = AuthService.idUsuario;
+    final id = usuario.idUsuario;
+    if (meuId == null || id == null) return;
+    try {
+      await _seguimentoService.alterar(meuId: meuId, outroId: id, seguir: true);
+      if (!mounted) return;
+      setState(() {
+        _idsSeguindo.add(id);
+        _seguindo++;
+        _sugestoes.removeWhere((u) => u.idUsuario == id);
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Não foi possível seguir: $e')),
+        );
+      }
+    }
+  }
+
+  void _abrirSeguimentos({required bool seguidores}) {
+    final id = AuthService.idUsuario;
+    if (id == null) return;
+    Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => SeguidoresPage(usuarioId: id, seguidores: seguidores),
+    )).then((_) => _carregarSocial());
+  }
+
+  Future<void> _abrirConfiguracoes() async {
+    final usuario = _usuario;
+    if (usuario == null) return;
+    await Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (ctx) => ConfiguracoesSocialPage(
+        usuario: usuario,
+        onEditar: () { Navigator.pop(ctx); _abrirEditar(); },
+        onAlterarFoto: () { Navigator.pop(ctx); _alterarFotoPerfil(); },
+        onSair: () {
+          AuthService.fazerLogout();
+          Navigator.of(ctx).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => const HomeScreen()), (_) => false);
+        },
+      ),
+    ));
+  }
+
+  Widget _sugestoesPerfis() {
+    if (_sugestoes.isEmpty) return const SizedBox.shrink();
+    return Container(color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(17, 14, 0, 19),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text('Pessoas para conhecer', style: TextStyle(
+          fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF222631))),
+        const SizedBox(height: 5),
+        const Text('Encontre novos perfis no SocialJoin',
+          style: TextStyle(fontSize: 12, color: Color(0xFF818596))),
+        const SizedBox(height: 14),
+        SizedBox(height: 153, child: ListView.separated(
+          padding: const EdgeInsets.only(right: 18),
+          scrollDirection: Axis.horizontal,
+          itemCount: _sugestoes.length,
+          separatorBuilder: (_, __) => const SizedBox(width: 10),
+          itemBuilder: (_, i) {
+            final usuario = _sugestoes[i];
+            return Container(width: 144, padding: const EdgeInsets.all(11),
+              decoration: BoxDecoration(color: const Color(0xFFF9F9FB),
+                borderRadius: BorderRadius.circular(15),
+                border: Border.all(color: const Color(0xFFECECF0))),
+              child: Column(children: [
+                InkWell(onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) => PublicProfilePage(usuarioId: usuario.idUsuario!))),
+                  child: SocialAvatar(nome: usuario.nome,
+                    foto: usuario.fotoPerfil, radius: 27)),
+                const SizedBox(height: 5),
+                Text(usuario.nome, maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12)),
+                Text('@${usuario.username ?? ''}', maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 10, color: Color(0xFF848A99))),
+                const Spacer(),
+                SizedBox(height: 29, width: double.infinity,
+                  child: FilledButton(onPressed: () => _seguirSugestao(usuario),
+                    style: FilledButton.styleFrom(backgroundColor: const Color(0xFFEA3F74),
+                      padding: EdgeInsets.zero, shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(9))),
+                    child: const Text('Seguir', style: TextStyle(fontSize: 12))),
+                ),
+              ]),
+            );
+          },
+        )),
+      ]),
+    );
+  }
+
   void _abrirEditar() {
     if (_usuario == null) return;
 
     final nomeCtrl = TextEditingController(text: _usuario!.nome);
+    final usernameCtrl = TextEditingController(text: _usuario!.username ?? '');
     final bioCtrl = TextEditingController(text: _usuario!.bio ?? '');
     bool salvando = false;
 
@@ -210,7 +349,7 @@ class _ProfilePageState extends State<ProfilePage>
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setModal) => Container(
+        builder: (ctx, setModal) => SingleChildScrollView(child: Container(
           padding: EdgeInsets.only(
             bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
             left: 20,
@@ -255,6 +394,13 @@ class _ProfilePageState extends State<ProfilePage>
               const SizedBox(height: 12),
 
               TextField(
+                controller: usernameCtrl,
+                maxLength: 30,
+                autocorrect: false,
+                decoration: _inputDecoration('Nome de usuário (@)', Icons.alternate_email_rounded),
+              ),
+              const SizedBox(height: 4),
+              TextField(
                 controller: bioCtrl,
                 maxLines: 3,
                 maxLength: 300,
@@ -264,7 +410,7 @@ class _ProfilePageState extends State<ProfilePage>
               const SizedBox(height: 6),
 
               Text(
-                'Seu username @${_usuario!.username ?? ''} não pode ser alterado.',
+                'O nome de usuário deve ser único na rede.',
                 style: GoogleFonts.manrope(color: const Color(0xFF6B7280), fontSize: 12),
               ),
               const SizedBox(height: 20),
@@ -291,6 +437,12 @@ class _ProfilePageState extends State<ProfilePage>
                             return;
                           }
 
+                          final novoUsername = usernameCtrl.text.trim().replaceFirst(RegExp(r'^@'), '');
+                          if (!RegExp(r'^[a-zA-Z0-9._]{3,30}$').hasMatch(novoUsername)) {
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                              content: Text('Use de 3 a 30 caracteres: letras, números, ponto ou _.')));
+                            return;
+                          }
                           setModal(() => salvando = true);
 
                           final messenger = ScaffoldMessenger.of(context);
@@ -300,6 +452,7 @@ class _ProfilePageState extends State<ProfilePage>
                             AuthService.idUsuario!,
                             nomeCtrl.text.trim(),
                             bioCtrl.text.trim(),
+                            novoUsername: novoUsername,
                           );
 
                           if (!mounted) return;
@@ -308,6 +461,7 @@ class _ProfilePageState extends State<ProfilePage>
                           if (ok) {
                             AuthService.nomeUsuario = nomeCtrl.text.trim();
                             AuthService.bio = bioCtrl.text.trim();
+                            AuthService.username = novoUsername;
 
                             messenger.showSnackBar(
                               SnackBar(
@@ -341,7 +495,7 @@ class _ProfilePageState extends State<ProfilePage>
               const SizedBox(height: 8),
             ],
           ),
-        ),
+        )),
       ),
     );
   }
@@ -404,7 +558,7 @@ class _ProfilePageState extends State<ProfilePage>
     final foto = ApiService.formatarUrlFotoPerfil(usuario.fotoPerfil);
 
     return RefreshIndicator(
-      onRefresh: _carregarDadosCompletos,
+      onRefresh: () async { await _carregarDadosCompletos(); await _carregarSocial(); },
       color: const Color(0xFFEA3F74),
       child: NestedScrollView(
         headerSliverBuilder: (context, innerBoxIsScrolled) => [
@@ -423,9 +577,9 @@ class _ProfilePageState extends State<ProfilePage>
                     color: const Color(0xFF202124)),
                 )),
                 IconButton(
-                  tooltip: 'Editar perfil',
-                  onPressed: _abrirEditar,
-                  icon: const Icon(Icons.edit_outlined, color: Color(0xFF202124)),
+                  tooltip: 'Configurações',
+                  onPressed: _abrirConfiguracoes,
+                  icon: const Icon(Icons.settings_outlined, color: Color(0xFF202124)),
                 ),
               ]),
               const SizedBox(height: 18),
@@ -475,8 +629,8 @@ class _ProfilePageState extends State<ProfilePage>
                 const SizedBox(width: 19),
                 Expanded(child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
                   _buildStatItem('posts', '${_userPosts.length}'),
-                  _buildStatItem('eventos', '${_userEventos.length}'),
-                  _buildStatItem('grupos', '${_userComunidades.length}'),
+                  _statClicavel('seguidores', '$_seguidores', () => _abrirSeguimentos(seguidores: true)),
+                  _statClicavel('seguindo', '$_seguindo', () => _abrirSeguimentos(seguidores: false)),
                 ])),
               ]),
               const SizedBox(height: 17),
@@ -503,7 +657,8 @@ class _ProfilePageState extends State<ProfilePage>
               ]),
             ]),
           )),
-          // TabBar Fiel ao `.perfil-tabs` da Web CSS
+          SliverToBoxAdapter(child: _sugestoesPerfis()),
+          // Abas de posts, eventos, comunidades e informações.
           SliverPersistentHeader(
             pinned: true,
             delegate: _SliverAppBarDelegate(
@@ -538,6 +693,12 @@ class _ProfilePageState extends State<ProfilePage>
     );
   }
 
+  Widget _statClicavel(String label, String value, VoidCallback onTap) {
+    return InkWell(onTap: onTap, borderRadius: BorderRadius.circular(10),
+      child: Padding(padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+        child: _buildStatItem(label, value)));
+  }
+
   Widget _buildStatItem(String label, String value) {
     return Column(
       children: [
@@ -558,14 +719,6 @@ class _ProfilePageState extends State<ProfilePage>
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildVerticalDivider() {
-    return Container(
-      height: 20,
-      width: 1,
-      color: const Color(0xFFE5E7EB),
     );
   }
 

@@ -1,4 +1,4 @@
-import { ApiService } from './api_service.js?v=post-images-1';
+import { ApiService } from './api_service.js?v=event-cycle-3';
 
 // Controlador central da interface: mantém o estado em memória, atualiza o DOM e delega o acesso ao servidor ao ApiService.
 class AppController {
@@ -11,7 +11,6 @@ class AppController {
         this.imagensPostSelecionadas = [];
         this.previewFotoPerfilUrl = null;
         this.comunidadesMap = {}; // Guarda id -> nome da comunidade
-        this.carregarFiltroComunidadesEventos();
         this.listaComunidades = [];
         this.comentariosPorPost = {};
         this.posts = [];
@@ -37,11 +36,14 @@ class AppController {
         this.tamanhoPaginaEventos = 12;
         this.interessesSelecionados = [];
         this.usuariosSeguidos = new Set();
+        this.usuariosSeguirEmAtualizacao = new Set();
+        this.erroCarregarUsuariosSeguidos = false;
+        this.mensagemErroUsuariosSeguidos = '';
         this.filtrosEventos = {
             texto: null,
-            status: null,
             categoria: null,
-            comunidadeId: null,
+            formato: null,
+            pago: null,
             dataInicio: null,
             dataFim: null
         };
@@ -54,11 +56,16 @@ class AppController {
         this.chatSocket = null;
         this.chatSidebarAberto = true;
         this.filtroPessoas = 'todas';
+        this.paginaPessoas = 0;
+        this.tamanhoPaginaPessoas = 12;
+        this.pessoasFiltradas = [];
         this.coordenadasUsuario = null;
         this.filtroProximidadeAtivo = false;
+        this.timerNotificacoes = null;
     }
     // Ponto de entrada da aplicação: registra eventos da interface e decide entre boas-vindas e sessão existente.
     async inicializar() {
+        this.inicializarTema();
 
         // Listener para Scroll Infinito no Feed
         window.addEventListener('scroll', () => {
@@ -77,7 +84,12 @@ class AppController {
             if (evento.key === 'Escape') {
                 document.querySelector('.account-menu')?.classList.remove('open');
                 document.querySelectorAll('.modal-overlay').forEach(modal => {
-                    if (modal.style.display === 'flex') modal.style.display = 'none';
+                    if (modal.style.display === 'flex') {
+                        modal.style.display = 'none';
+                        if (modal.id === 'alterar-senha-modal') {
+                            this.limparFormularioAlteracaoSenha();
+                        }
+                    }
                 });
             }
         });
@@ -97,6 +109,13 @@ class AppController {
                 (event) => this.enviarMensagemChat(event)
             );
         }
+
+        const imagemComunidadeInput = document.getElementById('comunidade-imagem');
+        imagemComunidadeInput?.addEventListener('change', () => {
+            const nomeArquivo = imagemComunidadeInput.files?.[0]?.name;
+            document.getElementById('comunidade-imagem-nome').textContent =
+                nomeArquivo || 'JPG, PNG ou WEBP · Você pode adicionar depois';
+        });
 
         const chatCloseBtn =
             document.getElementById('chat-close-btn');
@@ -162,6 +181,8 @@ class AppController {
             try {
                 await this.carregarDadosGlobais();
                 await this.carregarConversas();
+                await this.carregarNotificacoesEventos();
+                this.iniciarAtualizacaoNotificacoes();
                 await this.abrirPostPeloLink();
             } catch (erro) {
                 console.error(
@@ -287,7 +308,6 @@ class AppController {
 
         try {
             const resultado = await ApiService.buscarEventos({
-                status: 'AGENDADO',
                 page: 0,
                 size: 100
             });
@@ -483,6 +503,11 @@ class AppController {
         if (this.modoCadastro) this.renderizarSelecaoInteresses();
     }
     mudarAba(nomeAba) {
+        if (nomeAba === 'agenda') return;
+        this.ativarAba(nomeAba);
+    }
+
+    ativarAba(nomeAba) {
         this.salvarViewAtual(nomeAba);
         document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
         document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
@@ -494,13 +519,15 @@ class AppController {
 
         this.comunidadeAtivaId = null; // Reseta se sair da tela de subreddit
 
-        if (nomeAba === 'busca') this.renderizarUsuarios(this.listaUsuariosCompleta);
+        if (nomeAba === 'busca') this.filtrarUsuarios();
         if (nomeAba === 'feed') {
             this.renderizarFeedGeral();
             this.carregarEventosFeed();
         }
         if (nomeAba === 'comunidades') this.carregarComunidades();
         if (nomeAba === 'eventos') this.carregarEventos();
+        if (nomeAba === 'agenda') this.carregarAgendaEventos();
+        if (nomeAba === 'notificacoes') this.carregarNotificacoesEventos();
     }
 
     atualizarMenuLateral() {
@@ -509,9 +536,12 @@ class AppController {
         if (user) {
             const inicial = (user.nome || 'U').charAt(0).toUpperCase();
             const fotoUrl = ApiService.formatarUrlFotoPerfil(user.fotoPerfil);
+            const fotoUrlComCache = fotoUrl
+                ? `${fotoUrl}?v=${Date.now()}`
+                : null;
             const avatarHtml = fotoUrl
-                ? `<img src="${fotoUrl}?v=${Date.now()}" class="account-avatar" style="object-fit:cover; border-radius:50%; width:28px; height:28px;" onerror="this.outerHTML='<span class=\\'account-avatar\\'>${inicial}</span>'">`
-                : `<span class="account-avatar">${inicial}</span>`;
+                ? `<img src="${this.escaparHtmlDestaque(fotoUrlComCache)}" class="account-avatar" style="object-fit:cover; border-radius:50%; width:28px; height:28px;" onerror="this.remove()">`
+                : `<span class="account-avatar">${this.escaparHtmlDestaque(inicial)}</span>`;
 
             container.innerHTML = `
     <div class="account-menu">
@@ -535,6 +565,10 @@ class AppController {
         </i>
 
         Itens salvos
+    </button>
+    <button class="account-menu-item" role="menuitem" onclick="app.abrirMinhaAgenda()">
+        <i class="material-icons">calendar_month</i>
+        Minha agenda
     </button>
      <button
         class="account-menu-item"
@@ -612,7 +646,7 @@ class AppController {
         const select = document.getElementById('evento-comunidade-id');
         if (!select) return;
 
-        select.innerHTML = '<option value="">Nenhuma (Evento aberto / Global)</option>';
+        select.innerHTML = '<option value="">Selecione uma comunidade (opcional)</option>';
         if (Array.isArray(this.listaComunidades)) {
             this.listaComunidades.forEach(com => {
                 const id = com.idComunidade || com.id;
@@ -655,6 +689,10 @@ class AppController {
         if (mensagem) {
             feedback.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
+    }
+
+    async mensagemErroApi(resposta, mensagemPadrao) {
+        return ApiService.mensagemErroResposta(resposta, mensagemPadrao);
     }
 
     definirEventoLoading(carregando) {
@@ -751,7 +789,7 @@ class AppController {
         const coords = await ApiService.obterLocalizacaoAtual();
         if (!coords) {
             this.atualizarBadgeCoordsEvento('evento-coords-badge', null, null, 'Permissão de GPS negada ou indisponível.');
-            alert('Não foi possível obter sua localização via GPS. Verifique a permissão do seu navegador.');
+            this.mostrarFeedbackGlobal('Não foi possível obter sua localização via GPS. Verifique a permissão do seu navegador.');
             return;
         }
 
@@ -773,7 +811,7 @@ class AppController {
         const coords = await ApiService.obterLocalizacaoAtual();
         if (!coords) {
             this.atualizarBadgeCoordsEvento('editar-evento-coords-badge', null, null, 'Permissão de GPS negada ou indisponível.');
-            alert('Não foi possível obter sua localização via GPS. Verifique a permissão do seu navegador.');
+            this.mostrarFeedbackGlobal('Não foi possível obter sua localização via GPS. Verifique a permissão do seu navegador.');
             return;
         }
 
@@ -853,7 +891,7 @@ class AppController {
                 if (btn) btn.innerHTML = '<i class="material-icons">hourglass_empty</i> Obtendo GPS...';
                 this.coordenadasUsuario = await ApiService.obterLocalizacaoAtual();
                 if (!this.coordenadasUsuario) {
-                    alert("Não foi possível acessar a localização. Verifique se o GPS está ativo e permitido no navegador.");
+                    this.mostrarFeedbackGlobal("Não foi possível acessar a localização. Verifique se o GPS está ativo e permitido no navegador.");
                     this.filtroProximidadeAtivo = false;
                     btn?.classList.remove('ativo');
                     if (selectRaio) selectRaio.style.display = 'none';
@@ -916,6 +954,9 @@ class AppController {
 
     fecharModal(id) {
         document.getElementById(id).style.display = 'none';
+        if (id === 'alterar-senha-modal') {
+            this.limparFormularioAlteracaoSenha();
+        }
         if (id === 'post-modal') {
             const inputImagens = document.getElementById('post-imagens');
             if (inputImagens) inputImagens.value = '';
@@ -929,7 +970,7 @@ class AppController {
             ApiService.getIdUsuarioLogado();
 
         if (!idUsuario) {
-            return alert("Faça login primeiro.");
+            return this.mostrarFeedbackGlobal("Faça login primeiro.");
         }
 
 
@@ -939,7 +980,7 @@ class AppController {
             this.comunidadeAtivaId &&
             !this.usuarioParticipaDaComunidade
         ) {
-            return alert(
+            return this.mostrarFeedbackGlobal(
                 "Você precisa entrar na comunidade antes de publicar."
             );
         }
@@ -1273,7 +1314,19 @@ class AppController {
         this.atualizarMenuLateral();
         this.carregarDadosGlobais();
         this.carregarConversas();
+        this.carregarNotificacoesEventos();
         this.conectarWebSocketChat();
+        this.iniciarAtualizacaoNotificacoes();
+    }
+
+    iniciarAtualizacaoNotificacoes() {
+        if (!this.timerNotificacoes) {
+            this.timerNotificacoes = setInterval(() => {
+                if (ApiService.getIdUsuarioLogado()) {
+                    this.carregarNotificacoesEventos();
+                }
+            }, 60000);
+        }
     }
 
     fazerLogout() {
@@ -1315,7 +1368,6 @@ class AppController {
             comunidades.forEach(c =>
                 this.comunidadesMap[c.idComunidade || c.id] = c.nome
             );
-            this.carregarFiltroComunidadesEventos();
 
             this.comentariosPorPost = {};
             comentarios.forEach(c => {
@@ -1333,6 +1385,7 @@ class AppController {
                 porPost[idPost].push(imagem);
                 return porPost;
             }, {});
+            await this.carregarUsuariosSeguidos();
             this.renderizarSugestoesPessoas();
 
             // Carrega os primeiros posts sob demanda (primeira página)
@@ -1501,15 +1554,95 @@ class AppController {
         `).join('');
     }
 
-    alternarSeguirUsuario(idUsuario) {
-        const id = Number(idUsuario);
-        if (this.usuariosSeguidos.has(id)) {
-            this.usuariosSeguidos.delete(id);
-        } else {
-            this.usuariosSeguidos.add(id);
+    async carregarUsuariosSeguidos() {
+        if (!ApiService.getIdUsuarioLogado()) {
+            this.usuariosSeguidos.clear();
+            this.erroCarregarUsuariosSeguidos = false;
+            this.mensagemErroUsuariosSeguidos = '';
+            return;
         }
 
+        try {
+            const idsSeguidos = await ApiService.listarUsuariosSeguidos();
+            if (!Array.isArray(idsSeguidos)) {
+                throw new Error('A resposta de pessoas seguidas não é uma lista.');
+            }
+            this.usuariosSeguidos = new Set(idsSeguidos.map(Number));
+            this.erroCarregarUsuariosSeguidos = false;
+            this.mensagemErroUsuariosSeguidos = '';
+        } catch (erro) {
+            console.error('Não foi possível carregar as pessoas seguidas:', erro);
+            this.erroCarregarUsuariosSeguidos = true;
+            this.mensagemErroUsuariosSeguidos = erro.message
+                || 'Não foi possível carregar as pessoas que você segue.';
+        }
+    }
+
+    async alternarSeguirUsuario(idUsuario) {
+        const id = Number(idUsuario);
+        if (!Number.isSafeInteger(id) || id <= 0) return;
+        if (!ApiService.getIdUsuarioLogado()) {
+            this.abrirModal('auth-modal');
+            this.mostrarAuthFeedback('Entre na sua conta para seguir pessoas.');
+            return;
+        }
+        if (this.usuariosSeguirEmAtualizacao.has(id)) return;
+
+        const deixarDeSeguir = this.usuariosSeguidos.has(id);
+        this.usuariosSeguirEmAtualizacao.add(id);
         this.renderizarSugestoesPessoas();
+        this.atualizarBotoesSeguirUsuario(id);
+
+        try {
+            const resposta = deixarDeSeguir
+                ? await ApiService.deixarDeSeguirUsuario(id)
+                : await ApiService.seguirUsuario(id);
+            if (!resposta.ok) {
+                throw new Error(await this.mensagemErroApi(
+                    resposta,
+                    deixarDeSeguir
+                        ? 'Não foi possível deixar de seguir esta pessoa.'
+                        : 'Não foi possível seguir esta pessoa.'
+                ));
+            }
+
+            if (deixarDeSeguir) {
+                this.usuariosSeguidos.delete(id);
+            } else {
+                this.usuariosSeguidos.add(id);
+            }
+            this.erroCarregarUsuariosSeguidos = false;
+            this.mensagemErroUsuariosSeguidos = '';
+            this.mostrarFeedbackGlobal(
+                deixarDeSeguir ? 'Você deixou de seguir esta pessoa.' : 'Você começou a seguir esta pessoa.'
+            );
+        } catch (erro) {
+            console.error('Erro ao atualizar pessoa seguida:', erro);
+            this.mostrarFeedbackGlobal(erro.message || 'Não foi possível atualizar as pessoas seguidas.');
+        } finally {
+            this.usuariosSeguirEmAtualizacao.delete(id);
+            this.renderizarSugestoesPessoas();
+            this.atualizarBotoesSeguirUsuario(id);
+        }
+    }
+
+    atualizarBotoesSeguirUsuario(idUsuario) {
+        const seguindo = this.usuariosSeguidos.has(idUsuario);
+        const atualizando = this.usuariosSeguirEmAtualizacao.has(idUsuario);
+        document.querySelectorAll(`[data-follow-user-id="${idUsuario}"]`).forEach(botao => {
+            botao.disabled = atualizando;
+            botao.setAttribute('aria-busy', String(atualizando));
+            botao.setAttribute('aria-pressed', String(seguindo));
+            botao.classList.toggle('seguindo', seguindo);
+            if (botao.classList.contains('btn-perfil-seguir')) {
+                botao.innerHTML = `
+                    <i class="material-icons" aria-hidden="true">${seguindo ? 'check' : 'person_add'}</i>
+                    ${seguindo ? 'Seguindo' : 'Seguir'}
+                `;
+            } else {
+                botao.textContent = atualizando ? 'Atualizando...' : seguindo ? 'Seguindo' : 'Seguir';
+            }
+        });
     }
 
     renderizarSugestoesPessoas() {
@@ -1520,10 +1653,21 @@ class AppController {
         const usuarioAtualId = usuarioLogado ? (usuarioLogado.idUsuario || usuarioLogado.id) : null;
         const interesses = this.getInteressesSelecionados();
 
+        if (usuarioLogado && this.erroCarregarUsuariosSeguidos) {
+            container.innerHTML = `
+                <p class="feed-sidebar-empty">${this.escaparHtmlDestaque(this.mensagemErroUsuariosSeguidos)}</p>
+                <button class="btn-ghost" type="button"
+                    onclick="app.carregarUsuariosSeguidos().then(() => app.renderizarSugestoesPessoas())">
+                    Tentar novamente
+                </button>
+            `;
+            return;
+        }
+
         const candidatos = this.listaUsuariosCompleta
             .filter(usuario => {
                 const id = usuario.idUsuario || usuario.id;
-                if (!id || id === usuarioAtualId) return false;
+                if (!id || Number(id) === Number(usuarioAtualId)) return false;
 
                 const comunidades = this.listaComunidades.filter(comunidade =>
                     (comunidade.membros || []).some(membro => (membro.idUsuario || membro.id) == id)
@@ -1580,6 +1724,7 @@ class AppController {
         container.innerHTML = candidatos.map(({ usuario }) => {
             const id = usuario.idUsuario || usuario.id;
             const seguindo = this.usuariosSeguidos.has(Number(id));
+            const atualizando = this.usuariosSeguirEmAtualizacao.has(Number(id));
             return `
                 <div class="feed-pessoa-item">
                     <div class="feed-pessoa-item-top">
@@ -1590,7 +1735,14 @@ class AppController {
                         </div>
                     </div>
                     <p>${this.escaparHtmlDestaque((usuario.bio || 'Interessado em viver experiências incríveis.').slice(0, 72))}</p>
-                    <button class="feed-pessoa-btn ${seguindo ? 'seguindo' : ''}" onclick="app.alternarSeguirUsuario(${id})" type="button">${seguindo ? 'Seguindo' : 'Seguir'}</button>
+                    <button class="feed-pessoa-btn ${seguindo ? 'seguindo' : ''}"
+                        data-follow-user-id="${Number(id)}"
+                        aria-pressed="${seguindo}"
+                        aria-busy="${atualizando}"
+                        onclick="app.alternarSeguirUsuario(${Number(id)})"
+                        type="button" ${atualizando ? 'disabled' : ''}>
+                        ${atualizando ? 'Atualizando...' : !usuarioLogado ? 'Entrar para seguir' : seguindo ? 'Seguindo' : 'Seguir'}
+                    </button>
                 </div>
             `;
         }).join('');
@@ -2083,7 +2235,7 @@ class AppController {
     }
 
     async criarComunidade() {
-        if (!ApiService.getUsuarioLogado()) return alert("Faça login primeiro.");
+        if (!ApiService.getUsuarioLogado()) return this.mostrarFeedbackGlobal("Faça login primeiro.");
 
         const nome = document.getElementById('comunidade-nome').value.trim();
         const desc = document.getElementById('comunidade-desc').value.trim();
@@ -2103,6 +2255,8 @@ class AppController {
             document.getElementById('comunidade-categoria').value = '';
             document.getElementById('comunidade-cor').value = '#EA3F74';
             document.getElementById('comunidade-imagem').value = '';
+            document.getElementById('comunidade-imagem-nome').textContent =
+                'JPG, PNG ou WEBP · Você pode adicionar depois';
             this.carregarComunidades();
         } else {
             let msg = 'Não foi possível criar a comunidade.';
@@ -2111,6 +2265,7 @@ class AppController {
                 if (err.message) msg = err.message;
             } catch (_) {}
             alert(msg);
+            this.mostrarFeedbackGlobal("Não foi possível criar a comunidade.");
         }
     }
 
@@ -2540,16 +2695,13 @@ class AppController {
                 urlFoto
                     ? `
                             <img
-                                src="${urlFoto}"
+                                src="${this.escaparHtmlDestaque(urlFoto)}"
                                 class="
                                     avatar
                                     comunidade-membro-avatar
                                 "
                                 alt=""
-                                onerror="
-                                    this.outerHTML =
-                                    '<div class=\\'avatar comunidade-membro-avatar\\'>${inicial}</div>'
-                                "
+                                onerror="this.remove()"
                             >
                         `
                     : `
@@ -2627,7 +2779,7 @@ class AppController {
         const idLogado = ApiService.getIdUsuarioLogado();
 
         if (!idLogado) {
-            return alert("Faça login primeiro.");
+            return this.mostrarFeedbackGlobal("Faça login primeiro.");
         }
 
         const btn = document.getElementById('btn-participar');
@@ -2647,7 +2799,7 @@ class AppController {
             } else {
 
                 // Se ainda não participa, está tentando ENTRAR
-                resposta = await fetch(
+                resposta = await ApiService.request(
                     `${ApiService.API_URL}/comunidades/${this.comunidadeAtivaId}/participar/${idLogado}`,
                     {
                         method: "POST"
@@ -2656,7 +2808,7 @@ class AppController {
             }
 
             if (!resposta.ok) {
-                alert("Não foi possível realizar esta ação.");
+                this.mostrarFeedbackGlobal("Não foi possível realizar esta ação.");
                 return;
             }
             await this.carregarComunidades();
@@ -2667,7 +2819,7 @@ class AppController {
 
         } catch (e) {
             console.error(e);
-            alert("Erro ao atualizar participação na comunidade.");
+            this.mostrarFeedbackGlobal("Erro ao atualizar participação na comunidade.");
         }
     }
 
@@ -2933,24 +3085,24 @@ class AppController {
 
     async alternarCurtida(idPost) {
         const idUsuario = ApiService.getIdUsuarioLogado();
-        if (!idUsuario) return alert('Faça login para curtir publicações.');
+        if (!idUsuario) return this.mostrarFeedbackGlobal('Faça login para curtir publicações.');
         const voto = this.votoDoUsuario(idPost);
         const resposta = voto
             ? await ApiService.deletarVoto(voto.idVoto)
             : await ApiService.criarVoto(idUsuario, idPost);
-        if (!resposta.ok) return alert('Não foi possível atualizar a curtida.');
+        if (!resposta.ok) return this.mostrarFeedbackGlobal('Não foi possível atualizar a curtida.');
         this.votos = voto ? this.votos.filter(item => item.idVoto !== voto.idVoto) : [...this.votos, await resposta.json()];
         this.renderizarFeedGeral();
     }
 
     async alternarPostSalvo(idPost) {
         const idUsuario = ApiService.getIdUsuarioLogado();
-        if (!idUsuario) return alert('Faça login para salvar publicações.');
+        if (!idUsuario) return this.mostrarFeedbackGlobal('Faça login para salvar publicações.');
         const salvo = this.postEstaSalvo(idPost);
         const resposta = salvo
             ? await ApiService.removerPostSalvo(salvo.id)
             : await ApiService.salvarPost(idUsuario, idPost);
-        if (!resposta.ok) return alert('Não foi possível atualizar os salvos.');
+        if (!resposta.ok) return this.mostrarFeedbackGlobal('Não foi possível atualizar os salvos.');
         this.postsSalvos = salvo ? this.postsSalvos.filter(item => item.id !== salvo.id) : [...this.postsSalvos, await resposta.json()];
         this.renderizarFeedGeral();
         if (
@@ -2966,7 +3118,7 @@ class AppController {
         const container = document.getElementById('feed-eventos-destaque');
         if (!container) return;
         try {
-            const resultado = await ApiService.buscarEventos({ status: 'AGENDADO', page: 0, size: 6 });
+            const resultado = await ApiService.buscarEventos({ page: 0, size: 6 });
             const eventos = this.ordenarPorInteresses(resultado.content || []).slice(0, 3);
             container.innerHTML = eventos.length ? eventos.map(evento => `<button class="feed-evento-item" onclick="app.abrirDetalhesEvento(${evento.id})"><span>${evento.dataEvento ? evento.dataEvento.split('-').reverse().join('/') : '--'}</span><strong>${this.escaparHtmlDestaque(evento.titulo)}</strong><small>${this.escaparHtmlDestaque(evento.localEvento || 'Local a confirmar')}</small></button>`).join('') : '<p class="feed-sidebar-empty">Nenhum evento agendado.</p>';
         } catch (erro) {
@@ -2985,16 +3137,16 @@ class AppController {
         const imagens = [...(inputImagens?.files || [])];
         const botaoPublicar = document.getElementById('post-publicar-btn');
 
-        if (!idLogado) return alert('Entre para publicar.');
-        if (imagens.length > 4) return alert('Escolha no máximo quatro imagens.');
+        if (!idLogado) return this.mostrarFeedbackGlobal('Entre para publicar.');
+        if (imagens.length > 4) return this.mostrarFeedbackGlobal('Escolha no máximo quatro imagens.');
         if (imagens.some(imagem => !['image/jpeg', 'image/png', 'image/webp'].includes(imagem.type))) {
-            return alert('Use imagens JPG, PNG ou WEBP.');
+            return this.mostrarFeedbackGlobal('Use imagens JPG, PNG ou WEBP.');
         }
         if (imagens.some(imagem => imagem.size > 5 * 1024 * 1024)) {
-            return alert('Cada imagem deve ter no máximo 5 MB.');
+            return this.mostrarFeedbackGlobal('Cada imagem deve ter no máximo 5 MB.');
         }
         if (imagens.length && typeof ApiService.enviarImagemPost !== 'function') {
-            return alert('Atualize a página para habilitar o envio de imagens.');
+            return this.mostrarFeedbackGlobal('Atualize a página para habilitar o envio de imagens.');
         }
 
         if (botaoPublicar) {
@@ -3016,6 +3168,7 @@ class AppController {
                     if (err.message) msg = err.message;
                 } catch (_) {}
                 return alert(msg);
+                return this.mostrarFeedbackGlobal('Não foi possível publicar o post.');
             }
 
             const post = await resposta.json();
@@ -3042,11 +3195,11 @@ class AppController {
             await this.carregarDadosGlobais();
 
             if (falhasUpload.length) {
-                alert(`O post foi publicado, mas ${falhasUpload.length} imagem(ns) não foram enviadas:\n${falhasUpload.join('\n')}`);
+                this.mostrarFeedbackGlobal(`O post foi publicado, mas ${falhasUpload.length} imagem(ns) não foram enviadas:\n${falhasUpload.join('\n')}`);
             }
         } catch (erro) {
             console.error('Erro ao publicar post:', erro);
-            alert('Não foi possível publicar. Verifique a conexão e tente novamente.');
+            this.mostrarFeedbackGlobal('Não foi possível publicar. Verifique a conexão e tente novamente.');
         } finally {
             if (botaoPublicar) {
                 botaoPublicar.disabled = false;
@@ -3058,11 +3211,11 @@ class AppController {
     previsualizarFotoPerfil(foto) {
         if (!foto) return;
         if (!['image/jpeg', 'image/png', 'image/webp'].includes(foto.type)) {
-            alert('Use uma foto JPG, PNG ou WEBP.');
+            this.mostrarFeedbackGlobal('Use uma foto JPG, PNG ou WEBP.');
             return;
         }
         if (foto.size > 5 * 1024 * 1024) {
-            alert('A foto deve ter no máximo 5 MB.');
+            this.mostrarFeedbackGlobal('A foto deve ter no máximo 5 MB.');
             return;
         }
 
@@ -3115,7 +3268,7 @@ class AppController {
 
         const vagas = Math.max(0, 4 - this.imagensPostSelecionadas.length);
         if (novasUnicas.length > vagas) {
-            alert('Cada publicação aceita até quatro imagens. As primeiras disponíveis foram adicionadas.');
+            this.mostrarFeedbackGlobal('Cada publicação aceita até quatro imagens. As primeiras disponíveis foram adicionadas.');
         }
         this.imagensPostSelecionadas.push(...novasUnicas.slice(0, vagas));
 
@@ -3201,14 +3354,14 @@ class AppController {
         const idLogado = ApiService.getIdUsuarioLogado();
 
         if (!idLogado) {
-            return alert("Faça login primeiro!");
+            return this.mostrarFeedbackGlobal("Faça login primeiro!");
         }
 
         const input = botao.previousElementSibling;
         const conteudo = input.value.trim();
 
         if (!conteudo) {
-            return alert("Digite um comentário antes de enviar.");
+            return this.mostrarFeedbackGlobal("Digite um comentário antes de enviar.");
         }
 
         const res = await ApiService.criarComentario(
@@ -3226,6 +3379,7 @@ class AppController {
                 if (err.message) msg = err.message;
             } catch (_) {}
             alert(msg);
+            this.mostrarFeedbackGlobal("Não foi possível enviar o comentário.");
         }
     }
 
@@ -3245,8 +3399,8 @@ class AppController {
             let inicial = (nomeAutor || 'U').charAt(0).toUpperCase();
 
             let avatarHtml = urlFotoAutor
-                ? `<img src="${urlFotoAutor}" class="avatar" style="object-fit:cover;" onerror="this.outerHTML='<div class=\\'avatar\\'>${inicial}</div>'">`
-                : `<div class="avatar">${inicial}</div>`;
+                ? `<img src="${this.escaparHtmlDestaque(urlFotoAutor)}" class="avatar" style="object-fit:cover;" onerror="this.remove()">`
+                : `<div class="avatar">${this.escaparHtmlDestaque(inicial)}</div>`;
 
             let nomeComunidade = this.comunidadesMap[idComunidade];
             let dataPostagem = post.dataPostagem
@@ -3405,7 +3559,7 @@ ${ApiService.getIdUsuarioLogado() ? `
             try {
                 post = await ApiService.buscarPostPorId(idPost);
             } catch (erro) {
-                return alert('Não foi possível abrir a publicação.');
+                return this.mostrarFeedbackGlobal('Não foi possível abrir a publicação.');
             }
         }
 
@@ -3427,8 +3581,8 @@ ${ApiService.getIdUsuarioLogado() ? `
         const inicialAutor = (nomeAutor || 'U').charAt(0).toUpperCase();
 
         const avatarHeaderHtml = urlFotoAutor
-            ? `<img src="${urlFotoAutor}" class="avatar" style="object-fit:cover;" onerror="this.outerHTML='<div class=\\'avatar\\'>${inicialAutor}</div>'">`
-            : `<div class="avatar">${inicialAutor}</div>`;
+            ? `<img src="${this.escaparHtmlDestaque(urlFotoAutor)}" class="avatar" style="object-fit:cover;" onerror="this.remove()">`
+            : `<div class="avatar">${this.escaparHtmlDestaque(inicialAutor)}</div>`;
 
         const idComunidade = post.idComunidade || post.id_comunidade;
         const nomeComunidade = this.comunidadesMap[idComunidade];
@@ -3548,8 +3702,8 @@ ${ApiService.getIdUsuarioLogado() ? `
                 const urlFotoC = ApiService.formatarUrlFotoPerfil(fotoC);
                 const iniC = (nomeC || 'U').charAt(0).toUpperCase();
                 const avC = urlFotoC
-                    ? `<img src="${urlFotoC}" class="avatar detail-comment-avatar" style="object-fit:cover;" onerror="this.outerHTML='<div class=\\'avatar detail-comment-avatar\\'>${iniC}</div>'">`
-                    : `<div class="avatar detail-comment-avatar">${iniC}</div>`;
+                    ? `<img src="${this.escaparHtmlDestaque(urlFotoC)}" class="avatar detail-comment-avatar" style="object-fit:cover;" onerror="this.remove()">`
+                    : `<div class="avatar detail-comment-avatar">${this.escaparHtmlDestaque(iniC)}</div>`;
                 return `<div class="detail-comment">${avC}<div><strong>${this.escaparHtmlDestaque(nomeC)}</strong><p>${this.escaparHtmlDestaque(c.conteudo)}</p></div></div>`;
             }).join('') : '<p class="comments-empty">Ainda não há comentários. Seja o primeiro a participar.</p>'}</div>
                 </section>
@@ -3577,6 +3731,7 @@ ${ApiService.getIdUsuarioLogado() ? `
             } catch (_) {}
             return alert(msg);
         }
+        if (!resposta.ok) return this.mostrarFeedbackGlobal('Não foi possível enviar o comentário.');
         await this.carregarDadosGlobais();
         await this.abrirDetalhesPost(idPost);
     }
@@ -3725,7 +3880,82 @@ ${ApiService.getIdUsuarioLogado() ? `
         }
 
 
+        const usuarioLogado = ApiService.getUsuarioLogado();
+        const interessesUsuario = Array.isArray(usuarioLogado?.interesses)
+            ? usuarioLogado.interesses
+            : this.interessesSelecionados;
+
+        pessoas = pessoas
+            .map(usuario => ({
+                usuario,
+                relevancia: this.calcularRelevanciaPessoa(
+                    usuario,
+                    interessesUsuario,
+                    termo
+                )
+            }))
+            .sort((a, b) =>
+                b.relevancia - a.relevancia ||
+                String(a.usuario.nome || '').localeCompare(
+                    String(b.usuario.nome || ''),
+                    'pt-BR',
+                    { sensitivity: 'base' }
+                )
+            )
+            .map(item => item.usuario);
+
+        this.paginaPessoas = 0;
+        this.pessoasFiltradas = pessoas;
         this.renderizarUsuarios(pessoas);
+    }
+
+    calcularRelevanciaPessoa(usuario, interessesUsuario, termoBusca) {
+        const id = usuario.idUsuario || usuario.id;
+        const comunidades = this.obterComunidadesDoUsuario(id);
+        const comunidadesEmComum = this.obterComunidadesEmComum(id);
+        const nome = String(usuario.nome || '').toLowerCase();
+        const username = String(usuario.username || '').toLowerCase();
+        const interessesDaPessoa = new Set(
+            (Array.isArray(usuario.interesses) ? usuario.interesses : [])
+                .map(interesse => String(interesse).trim().toLowerCase())
+                .filter(Boolean)
+        );
+        const textoPerfil = [
+            usuario.nome,
+            usuario.username,
+            usuario.bio,
+            ...comunidades.flatMap(comunidade => [
+                comunidade.nome,
+                comunidade.categoria
+            ])
+        ]
+            .filter(Boolean)
+            .join(' ')
+            .toLowerCase();
+
+        let relevancia = comunidadesEmComum.length * 10;
+        if (termoBusca) {
+            if (nome === termoBusca || username === termoBusca) {
+                relevancia += 2000;
+            } else if (nome.startsWith(termoBusca) || username.startsWith(termoBusca)) {
+                relevancia += 1000;
+            } else {
+                relevancia += 100;
+            }
+        }
+
+        interessesUsuario.forEach(interesse => {
+            const termo = String(interesse || '').trim().toLowerCase();
+            if (!termo) return;
+
+            if (interessesDaPessoa.has(termo)) {
+                relevancia += 8;
+            } else if (textoPerfil.includes(termo)) {
+                relevancia += 2;
+            }
+        });
+
+        return relevancia;
     }
 
     renderizarUsuarios(lista) {
@@ -3739,6 +3969,29 @@ ${ApiService.getIdUsuarioLogado() ? `
 
         container.innerHTML = '';
 
+        const totalPaginas = Math.ceil(
+            lista.length / this.tamanhoPaginaPessoas
+        );
+        this.paginaPessoas = Math.min(
+            this.paginaPessoas,
+            Math.max(totalPaginas - 1, 0)
+        );
+
+        const paginacao = document.getElementById('pessoas-paginacao');
+        const informacaoPagina = document.getElementById('pessoas-pagina-info');
+        const botaoAnterior = document.getElementById('btn-pessoas-anterior');
+        const botaoProxima = document.getElementById('btn-pessoas-proxima');
+
+        if (paginacao) paginacao.hidden = totalPaginas <= 1;
+        if (informacaoPagina) {
+            informacaoPagina.innerText =
+                `Página ${totalPaginas ? this.paginaPessoas + 1 : 0} de ${totalPaginas}`;
+        }
+        if (botaoAnterior) botaoAnterior.disabled = this.paginaPessoas <= 0;
+        if (botaoProxima) {
+            botaoProxima.disabled =
+                this.paginaPessoas >= totalPaginas - 1;
+        }
 
         if (!lista.length) {
 
@@ -3766,8 +4019,13 @@ ${ApiService.getIdUsuarioLogado() ? `
             return;
         }
 
+        const inicio = this.paginaPessoas * this.tamanhoPaginaPessoas;
+        const pessoasDaPagina = lista.slice(
+            inicio,
+            inicio + this.tamanhoPaginaPessoas
+        );
 
-        lista.forEach(usuario => {
+        pessoasDaPagina.forEach(usuario => {
 
             const id =
                 usuario.idUsuario ||
@@ -3812,13 +4070,10 @@ ${ApiService.getIdUsuarioLogado() ? `
                 urlFoto
                     ? `
                     <img
-                        src="${urlFoto}"
+                        src="${this.escaparHtmlDestaque(urlFoto)}"
                         class="avatar pessoa-avatar"
                         alt=""
-                        onerror="
-                            this.outerHTML =
-                            '<div class=\\'avatar pessoa-avatar\\'>${inicial}</div>'
-                        "
+                        onerror="this.remove()"
                     >
                 `
                     : `
@@ -4060,6 +4315,23 @@ ${ApiService.getIdUsuarioLogado() ? `
         });
     }
 
+    paginaAnteriorPessoas() {
+        if (this.paginaPessoas <= 0) return;
+
+        this.paginaPessoas--;
+        this.renderizarUsuarios(this.pessoasFiltradas);
+    }
+
+    proximaPaginaPessoas() {
+        const totalPaginas = Math.ceil(
+            this.pessoasFiltradas.length / this.tamanhoPaginaPessoas
+        );
+        if (this.paginaPessoas >= totalPaginas - 1) return;
+
+        this.paginaPessoas++;
+        this.renderizarUsuarios(this.pessoasFiltradas);
+    }
+
     // Busca somente a página atual com os filtros ativos; a API mantém a ordenação global entre páginas.
     async carregarEventos() {
 
@@ -4076,16 +4348,6 @@ ${ApiService.getIdUsuarioLogado() ? `
             });
 
             let eventos = resultado.content || [];
-
-            const categoria = document.getElementById('filtro-evento-categoria')?.value;
-            const formato = document.getElementById('filtro-evento-formato')?.value;
-
-            if (formato) {
-                eventos = eventos.filter(evento => {
-                    const online = /^(https?:\/\/|www\.)/i.test(evento.localEvento || '');
-                    return formato === 'online' ? online : !online;
-                });
-            }
 
             eventos = this.ordenarPorInteresses(eventos);
             this.listaEventos = eventos;
@@ -4335,6 +4597,321 @@ ${ApiService.getIdUsuarioLogado() ? `
         }
     }
 
+    async carregarAgendaEventos() {
+        const container = document.getElementById('agenda-eventos-container');
+        if (!container) return;
+        const idUsuario = ApiService.getIdUsuarioLogado();
+        if (!idUsuario) {
+            container.innerHTML = `
+                <div class="agenda-empty-state">
+                    <span class="agenda-empty-icon"><i class="material-icons">bookmark_border</i></span>
+                    <h2>Sua agenda começa aqui</h2>
+                    <p>Entre na sua conta para guardar eventos e encontrá-los facilmente depois.</p>
+                    <button class="btn-primary" onclick="app.abrirModal('auth-modal')">Entrar na conta</button>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = `
+            <div class="agenda-loading-state">
+                <span class="agenda-loading-spinner" aria-hidden="true"></span>
+                <span>Carregando seus eventos...</span>
+            </div>
+        `;
+        try {
+            const eventos = await ApiService.listarAgendaEventos(idUsuario);
+            const futuros = eventos
+                .filter(evento => {
+                    if (!evento.dataEvento || !evento.horarioFim) return false;
+                    return new Date(`${evento.dataEvento}T${evento.horarioFim}`) > new Date()
+                        && evento.status !== 'CANCELADO';
+                })
+                .sort((a, b) => new Date(`${a.dataEvento}T${a.horarioInicio || '00:00'}`)
+                    - new Date(`${b.dataEvento}T${b.horarioInicio || '00:00'}`));
+
+            if (!futuros.length) {
+                container.innerHTML = `
+                    <div class="agenda-empty-state">
+                        <span class="agenda-empty-icon"><i class="material-icons">event_available</i></span>
+                        <h2>Agenda livre por enquanto</h2>
+                        <p>Explore os próximos encontros e salve os que despertarem seu interesse.</p>
+                        <button class="btn-primary" onclick="app.mudarAba('eventos')">Descobrir eventos</button>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = futuros.map(evento => `
+                <article class="agenda-evento-card">
+                    <div class="agenda-evento-data" aria-label="${this.escaparHtmlDestaque(this.formatarDataEvento(evento.dataEvento))}">
+                        <span>${new Date(`${evento.dataEvento}T00:00:00`).toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')}</span>
+                        <strong>${new Date(`${evento.dataEvento}T00:00:00`).getDate()}</strong>
+                    </div>
+                    <div class="agenda-evento-conteudo">
+                        <div class="agenda-evento-etiquetas">
+                            <span class="agenda-evento-categoria">${this.escaparHtmlDestaque(evento.categoria || 'Evento')}</span>
+                            <span class="agenda-evento-salvo"><i class="material-icons" aria-hidden="true">bookmark</i> Na agenda</span>
+                        </div>
+                        <h2>${this.escaparHtmlDestaque(evento.titulo || 'Evento')}</h2>
+                        <div class="agenda-evento-detalhes">
+                            <span><i class="material-icons" aria-hidden="true">event</i>${this.escaparHtmlDestaque(this.formatarDataEvento(evento.dataEvento))}</span>
+                            <span><i class="material-icons" aria-hidden="true">schedule</i>${this.escaparHtmlDestaque(evento.horarioInicio?.substring(0, 5) || '--:--')}</span>
+                            <span><i class="material-icons" aria-hidden="true">place</i>${this.escaparHtmlDestaque(evento.localEvento || 'Local a confirmar')}</span>
+                        </div>
+                    </div>
+                    <div class="agenda-evento-acoes">
+                        <button class="agenda-action agenda-action-details" onclick="app.abrirDetalhesEvento(${Number(evento.id)})">
+                            <i class="material-icons" aria-hidden="true">open_in_new</i><span>Detalhes</span>
+                        </button>
+                        <button class="agenda-action agenda-action-remove" aria-label="Remover ${this.escaparHtmlDestaque(evento.titulo || 'evento')} da agenda"
+                            onclick="app.removerEventoDaAgenda(${Number(evento.id)})">
+                            <i class="material-icons" aria-hidden="true">bookmark_remove</i><span>Remover</span>
+                        </button>
+                    </div>
+                </article>
+            `).join('');
+        } catch (erro) {
+            console.error('Erro ao carregar agenda de eventos:', erro);
+            container.innerHTML = `
+                <div class="agenda-empty-state agenda-error-state">
+                    <span class="agenda-empty-icon"><i class="material-icons">error_outline</i></span>
+                    <h2>Não foi possível carregar sua agenda</h2>
+                    <p>Verifique sua conexão e tente novamente.</p>
+                    <button class="btn-secondary" onclick="app.carregarAgendaEventos()">Tentar novamente</button>
+                </div>
+            `;
+        }
+    }
+
+    async alternarEventoNaAgenda(idEvento, salvo) {
+        const idUsuario = ApiService.getIdUsuarioLogado();
+        if (!idUsuario) return this.mostrarFeedbackGlobal('Entre para salvar eventos na sua agenda.');
+
+        try {
+            const resposta = salvo
+                ? await ApiService.removerEventoAgenda(idEvento, idUsuario)
+                : await ApiService.salvarEventoAgenda(idEvento, idUsuario);
+            if (!resposta.ok) {
+                throw new Error(await this.mensagemErroApi(
+                    resposta,
+                    'Não foi possível alterar sua agenda.'
+                ));
+            }
+            await this.abrirDetalhesEvento(idEvento);
+            await this.carregarAgendaEventos();
+            this.mostrarFeedbackGlobal(salvo
+                ? 'Evento removido da agenda.'
+                : 'Evento salvo na sua agenda.');
+        } catch (erro) {
+            console.error('Erro ao atualizar agenda de eventos:', erro);
+            this.mostrarFeedbackGlobal(erro.message || 'Não foi possível atualizar sua agenda.');
+        }
+    }
+
+    async removerEventoDaAgenda(idEvento) {
+        const idUsuario = ApiService.getIdUsuarioLogado();
+        if (!idUsuario) return;
+        try {
+            const resposta = await ApiService.removerEventoAgenda(idEvento, idUsuario);
+            if (!resposta.ok) {
+                throw new Error(await this.mensagemErroApi(
+                    resposta,
+                    'Não foi possível remover o evento da agenda.'
+                ));
+            }
+            await this.carregarAgendaEventos();
+        } catch (erro) {
+            console.error('Erro ao remover evento da agenda:', erro);
+            this.mostrarFeedbackGlobal(erro.message || 'Não foi possível remover o evento da agenda.');
+        }
+    }
+
+    async exportarAgendaIcs() {
+        const idUsuario = ApiService.getIdUsuarioLogado();
+        if (!idUsuario) return this.mostrarFeedbackGlobal('Entre para exportar sua agenda.');
+        try {
+            const eventos = await ApiService.listarAgendaEventos(idUsuario);
+            const icsEscape = valor => String(valor || '')
+                .replace(/\\/g, '\\\\')
+                .replace(/\n/g, '\\n')
+                .replace(/,/g, '\\,')
+                .replace(/;/g, '\\;');
+            const linhas = [
+                'BEGIN:VCALENDAR',
+                'VERSION:2.0',
+                'PRODID:-//SocialJoin//Agenda de eventos//PT-BR'
+            ];
+            eventos.filter(evento => evento.status !== 'CANCELADO'
+                && evento.dataEvento && evento.horarioInicio)
+                .forEach(evento => {
+                    const dia = evento.dataEvento.replace(/-/g, '');
+                    const inicio = (evento.horarioInicio || '00:00:00')
+                        .replace(/:/g, '').slice(0, 6).padEnd(6, '0');
+                    const fim = (evento.horarioFim || evento.horarioInicio || '00:00:00')
+                        .replace(/:/g, '').slice(0, 6).padEnd(6, '0');
+                    linhas.push(
+                        'BEGIN:VEVENT',
+                        `UID:socialjoin-event-${Number(evento.id)}@socialjoin`,
+                        `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')}`,
+                        `DTSTART;TZID=America/Sao_Paulo:${dia}T${inicio}`,
+                        `DTEND;TZID=America/Sao_Paulo:${dia}T${fim}`,
+                        `SUMMARY:${icsEscape(evento.titulo)}`,
+                        `DESCRIPTION:${icsEscape(evento.descricao)}`,
+                        `LOCATION:${icsEscape(evento.localEvento)}`,
+                        'END:VEVENT'
+                    );
+                });
+            linhas.push('END:VCALENDAR');
+            const arquivo = new Blob([linhas.join('\r\n')], { type: 'text/calendar;charset=utf-8' });
+            const url = URL.createObjectURL(arquivo);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'minha-agenda-socialjoin.ics';
+            link.click();
+            URL.revokeObjectURL(url);
+        } catch (erro) {
+            console.error('Erro ao exportar agenda:', erro);
+            this.mostrarFeedbackGlobal('Não foi possível exportar sua agenda.');
+        }
+    }
+
+    async carregarNotificacoesEventos() {
+        const container = document.getElementById('notificacoes-container');
+        const contador = document.getElementById('notificacoes-nao-lidas');
+        const notificacoesAbertas = document
+            .getElementById('view-notificacoes')
+            ?.classList.contains('active');
+        if (!container) return;
+        const idUsuario = ApiService.getIdUsuarioLogado();
+        if (!idUsuario) {
+            container.innerHTML = '<div class="evento-destaque-vazio">Entre para receber atualizações e lembretes dos eventos.</div>';
+            if (contador) contador.hidden = true;
+            return;
+        }
+
+        try {
+            let notificacoes = await ApiService.listarNotificacoesEventos(idUsuario);
+            if (notificacoesAbertas) {
+                const exclusoesNaoLidas = notificacoes.filter(
+                    notificacao => notificacao.tipo === 'EVENTO_EXCLUIDO' && !notificacao.lida
+                );
+                if (exclusoesNaoLidas.length > 0) {
+                    try {
+                        const respostas = await Promise.all(exclusoesNaoLidas.map(
+                            notificacao => ApiService.marcarNotificacaoLida(notificacao.id, idUsuario)
+                        ));
+                        if (respostas.some(resposta => !resposta.ok)) {
+                            throw new Error('Uma ou mais notificações não puderam ser marcadas como lidas.');
+                        }
+                        const idsMarcados = new Set(exclusoesNaoLidas.map(notificacao => notificacao.id));
+                        notificacoes = notificacoes.map(notificacao => idsMarcados.has(notificacao.id)
+                            ? { ...notificacao, lida: true }
+                            : notificacao);
+                        notificacoes = await ApiService.listarNotificacoesEventos(idUsuario);
+                    } catch (erro) {
+                        console.error('Erro ao marcar notificações de eventos excluídos como lidas:', erro);
+                        this.mostrarFeedbackGlobal(
+                            'Não foi possível marcar as notificações de eventos excluídos como visualizadas.'
+                        );
+                    }
+                }
+            }
+            const naoLidas = notificacoes.filter(notificacao => !notificacao.lida).length;
+            if (contador) {
+                contador.textContent = naoLidas > 99 ? '99+' : String(naoLidas);
+                contador.hidden = naoLidas === 0;
+            }
+            if (!notificacoes.length) {
+                container.innerHTML = '<div class="evento-destaque-vazio">Você não tem notificações por enquanto.</div>';
+                return;
+            }
+            container.innerHTML = notificacoes.map(notificacao => `
+                <article class="notificacao-item ${notificacao.lida ? '' : 'nao-lida'}">
+                    <div>
+                        <strong>${this.escaparHtmlDestaque(notificacao.tipo.replaceAll('_', ' '))}</strong>
+                        <p>${this.escaparHtmlDestaque(notificacao.mensagem)}</p>
+                        <small>${this.escaparHtmlDestaque(new Date(notificacao.criadoEm).toLocaleString('pt-BR'))}</small>
+                    </div>
+                    ${notificacao.eventoId
+                        ? `<button class="btn-ghost" onclick="app.abrirNotificacaoEvento(${Number(notificacao.id)}, ${Number(notificacao.eventoId)})">Ver evento</button>`
+                        : ''}
+                </article>
+            `).join('');
+        } catch (erro) {
+            console.error('Erro ao carregar notificações:', erro);
+            container.innerHTML = '<div class="evento-destaque-vazio">Não foi possível carregar suas notificações.</div>';
+        }
+    }
+
+    async abrirNotificacaoEvento(idNotificacao, idEvento) {
+        const idUsuario = ApiService.getIdUsuarioLogado();
+        if (idUsuario) {
+            const resposta = await ApiService.marcarNotificacaoLida(idNotificacao, idUsuario);
+            if (!resposta.ok) {
+                this.mostrarFeedbackGlobal('Não foi possível atualizar a notificação.');
+                return;
+            }
+        }
+        await this.carregarNotificacoesEventos();
+        await this.abrirDetalhesEvento(idEvento);
+    }
+
+    async entrarNaListaEsperaEvento(idEvento, sair = false) {
+        const idUsuario = ApiService.getIdUsuarioLogado();
+        if (!idUsuario) return this.mostrarFeedbackGlobal('Entre para entrar na lista de espera.');
+        try {
+            const resposta = sair
+                ? await ApiService.sairDaListaEspera(idEvento, idUsuario)
+                : await ApiService.entrarNaListaEspera(idEvento, idUsuario);
+            if (!resposta.ok) {
+                const mensagem = await resposta.text();
+                throw new Error(mensagem || 'Não foi possível alterar a lista de espera.');
+            }
+            await this.abrirDetalhesEvento(idEvento);
+            this.mostrarFeedbackGlobal(sair
+                ? 'Você saiu da lista de espera.'
+                : 'Você entrou na lista de espera. Se uma vaga abrir, sua inscrição será confirmada automaticamente.');
+        } catch (erro) {
+            console.error('Erro na lista de espera:', erro);
+            this.mostrarFeedbackGlobal(erro.message || 'Não foi possível atualizar a lista de espera.');
+        }
+    }
+
+    async carregarResumoOrganizador(idEvento) {
+        const campo = document.getElementById('evento-organizador-indicadores');
+        if (!campo) return;
+        const idUsuario = ApiService.getIdUsuarioLogado();
+        if (!idUsuario) return;
+        campo.textContent = 'Carregando inscrições...';
+        try {
+            const resumo = await ApiService.obterResumoOrganizador(idEvento, idUsuario);
+            const limite = resumo.limiteVagas == null ? 'sem limite' : resumo.limiteVagas;
+            campo.textContent = `${resumo.inscritos}/${limite} inscritos · ${resumo.presentes} presentes · ${resumo.listaEspera} na lista de espera`;
+        } catch (erro) {
+            console.error('Erro ao carregar resumo do evento:', erro);
+            campo.textContent = 'Não foi possível carregar os indicadores.';
+        }
+    }
+
+    async exportarParticipantesEvento() {
+        if (!this.eventoEditando) return;
+        const idEvento = this.eventoEditando.idEvento || this.eventoEditando.id;
+        const idUsuario = ApiService.getIdUsuarioLogado();
+        try {
+            const arquivo = await ApiService.exportarParticipantesEvento(idEvento, idUsuario);
+            const url = URL.createObjectURL(arquivo);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `participantes-evento-${idEvento}.csv`;
+            link.click();
+            URL.revokeObjectURL(url);
+        } catch (erro) {
+            console.error('Erro ao exportar participantes:', erro);
+            this.mostrarFeedbackGlobal('Não foi possível exportar os participantes.');
+        }
+    }
+
     async criarEvento() {
         const idUsuario = ApiService.getIdUsuarioLogado();
 
@@ -4375,6 +4952,8 @@ ${ApiService.getIdUsuarioLogado() ? `
             precoValor
                 ? parseFloat(precoValor)
                 : 0;
+        const taxaRepassadaComprador =
+            document.getElementById('evento-taxa-repassada').value === 'true';
         const exigeCheckin =
             document.getElementById('evento-checkin').checked;
 
@@ -4484,6 +5063,7 @@ ${ApiService.getIdUsuarioLogado() ? `
                 : null,
 
             precoIngresso,
+            taxaRepassadaComprador,
 
             exigeCheckin
         };
@@ -4510,7 +5090,7 @@ ${ApiService.getIdUsuarioLogado() ? `
                 this.fecharModal('evento-modal');
                 this.limparFormularioEvento();
                 await this.carregarEventos();
-                alert(capa && !bannerEnviado
+                this.mostrarFeedbackGlobal(capa && !bannerEnviado
                     ? "Evento publicado, mas o banner não foi enviado. Você pode tentar novamente editando o evento."
                     : "🎉 Evento publicado com sucesso!");
             } else {
@@ -4588,7 +5168,7 @@ ${ApiService.getIdUsuarioLogado() ? `
             }
 
         } else {
-            alert("Você não tem permissão para editar esta comunidade.");
+            this.mostrarFeedbackGlobal("Você não tem permissão para editar esta comunidade.");
         }
     }
 
@@ -4728,7 +5308,7 @@ ${ApiService.getIdUsuarioLogado() ? `
 
             await navigator.clipboard.writeText(link);
 
-            alert('Link da publicação copiado!');
+            this.mostrarFeedbackGlobal('Link da publicação copiado!');
 
         } catch (erro) {
 
@@ -4737,10 +5317,48 @@ ${ApiService.getIdUsuarioLogado() ? `
                 erro
             );
 
-            prompt(
-                'Copie o link da publicação:',
-                link
-            );
+            this.abrirModalCompartilharLink(link);
+        }
+    }
+
+    abrirModalCompartilharLink(link) {
+        const campoLink = document.getElementById('post-link-compartilhado');
+        if (!campoLink) {
+            this.mostrarFeedbackGlobal('Não foi possível exibir o link da publicação.', 'error');
+            return;
+        }
+
+        campoLink.value = link;
+        this.abrirModal('compartilhar-link-modal');
+        setTimeout(() => {
+            campoLink.focus();
+            campoLink.select();
+        }, 0);
+    }
+
+    async copiarLinkCompartilhado() {
+        const campoLink = document.getElementById('post-link-compartilhado');
+        if (!campoLink) return;
+
+        try {
+            await navigator.clipboard.writeText(campoLink.value);
+            this.fecharModal('compartilhar-link-modal');
+            this.mostrarFeedbackGlobal('Link da publicação copiado!', 'success');
+        } catch (erro) {
+            campoLink.focus();
+            campoLink.select();
+
+            try {
+                if (document.execCommand('copy')) {
+                    this.fecharModal('compartilhar-link-modal');
+                    this.mostrarFeedbackGlobal('Link da publicação copiado!', 'success');
+                } else {
+                    this.mostrarFeedbackGlobal('O link está selecionado. Copie usando Ctrl+C.', 'info');
+                }
+            } catch (erroCopia) {
+                console.error('Não foi possível copiar o link:', erroCopia || erro);
+                this.mostrarFeedbackGlobal('O link está selecionado. Copie usando Ctrl+C.', 'info');
+            }
         }
     }
 
@@ -4770,13 +5388,23 @@ ${ApiService.getIdUsuarioLogado() ? `
         }
     }
 
-    gerenciarEvento(idEvento) {
+    async gerenciarEvento(idEvento) {
 
-        const evento = this.listaEventos.find(
+        let evento = this.listaEventos.find(
             e => (e.idEvento || e.id) == idEvento
         );
 
-        if (!evento) return;
+        if (!evento) {
+            try {
+                evento = await ApiService.buscarEventoPorId(idEvento);
+            } catch (erro) {
+                console.error('Erro ao carregar evento para edição:', erro);
+                this.mostrarFeedbackGlobal(
+                    erro.message || 'Não foi possível carregar o evento para edição.'
+                );
+                return;
+            }
+        }
 
         this.eventoEditando = evento;
 
@@ -4817,6 +5445,12 @@ ${ApiService.getIdUsuarioLogado() ? `
         document.getElementById('editar-evento-limite').value =
             evento.limiteParticipantes || '';
 
+        document.getElementById('editar-evento-preco').value =
+            evento.precoIngresso || '';
+
+        document.getElementById('editar-evento-taxa-repassada').value =
+            String(evento.taxaRepassadaComprador === true);
+
         document.getElementById('editar-evento-checkin').checked =
             evento.exigeCheckin === true;
 
@@ -4837,6 +5471,7 @@ ${ApiService.getIdUsuarioLogado() ? `
         }
 
         this.abrirModal('gerenciar-evento-modal');
+        this.carregarResumoOrganizador(idEvento);
     }
 
     async salvarEdicaoEvento() {
@@ -4882,6 +5517,12 @@ ${ApiService.getIdUsuarioLogado() ? `
         const limiteValor =
             document.getElementById('editar-evento-limite').value;
 
+        const precoValor =
+            document.getElementById('editar-evento-preco').value;
+        const precoIngresso = precoValor ? Number(precoValor) : 0;
+        const taxaRepassadaComprador =
+            document.getElementById('editar-evento-taxa-repassada').value === 'true';
+
         const exigeCheckin =
             document.getElementById('editar-evento-checkin').checked;
 
@@ -4892,7 +5533,7 @@ ${ApiService.getIdUsuarioLogado() ? `
             !horarioFim ||
             !localEvento
         ) {
-            return alert(
+            return this.mostrarFeedbackGlobal(
                 "Preencha título, data, horário de início, horário de fim e local."
             );
         }
@@ -4906,9 +5547,13 @@ ${ApiService.getIdUsuarioLogado() ? `
         );
 
         if (fimEvento <= inicioEvento) {
-            return alert(
+            return this.mostrarFeedbackGlobal(
                 "O horário de fim deve ser depois do horário de início."
             );
+        }
+
+        if (!Number.isFinite(precoIngresso) || precoIngresso < 0) {
+            return this.mostrarFeedbackGlobal("O valor do ingresso não pode ser negativo.");
         }
 
         if (encerramentoInscricoes) {
@@ -4917,7 +5562,7 @@ ${ApiService.getIdUsuarioLogado() ? `
                 new Date(encerramentoInscricoes);
 
             if (fimInscricoes > inicioEvento) {
-                return alert(
+                return this.mostrarFeedbackGlobal(
                     "O encerramento das inscrições não pode acontecer depois do início do evento."
                 );
             }
@@ -4973,25 +5618,34 @@ ${ApiService.getIdUsuarioLogado() ? `
                     ? parseInt(limiteValor)
                     : null,
 
+            precoIngresso,
+            taxaRepassadaComprador,
             exigeCheckin
         };
 
-        const resposta = await ApiService.atualizarEvento(
-            idEvento,
-            idUsuario,
-            eventoAtualizado
-        );
+        try {
+            const resposta = await ApiService.atualizarEvento(
+                idEvento,
+                idUsuario,
+                eventoAtualizado
+            );
 
-        if (resposta.ok) {
+            if (!resposta.ok) {
+                const mensagem = await this.mensagemErroApi(
+                    resposta,
+                    'Não foi possível atualizar o evento. Verifique os dados e tente novamente.'
+                );
+                this.mostrarFeedbackGlobal(mensagem);
+                return;
+            }
+
             this.fecharModal('gerenciar-evento-modal');
-
             this.eventoEditando = null;
-
             await this.carregarEventos();
-
-            alert("Evento atualizado com sucesso!");
-        } else {
-            alert("Não foi possível atualizar o evento.");
+            this.mostrarFeedbackGlobal('Evento atualizado com sucesso!');
+        } catch (erro) {
+            console.error('Erro ao atualizar evento:', erro);
+            this.mostrarFeedbackGlobal(erro.message || 'Não foi possível atualizar o evento.');
         }
     }
 
@@ -5058,22 +5712,27 @@ ${ApiService.getIdUsuarioLogado() ? `
         const idUsuario = ApiService.getIdUsuarioLogado();
 
         if (!idUsuario) {
-            return alert("Faça login para participar do evento.");
+            return this.mostrarFeedbackGlobal("Faça login para participar do evento.");
         }
 
-        const resposta = await ApiService.participarEvento(
-            idEvento,
-            idUsuario
-        );
-
-        if (resposta.ok) {
-
+        try {
+            const resposta = await ApiService.participarEvento(
+                idEvento,
+                idUsuario
+            );
+            if (!resposta.ok) {
+                const mensagem = await this.mensagemErroApi(
+                    resposta,
+                    'Não foi possível participar do evento.'
+                );
+                this.mostrarFeedbackGlobal(mensagem);
+                return;
+            }
             await this.carregarEventos();
-
             await this.abrirDetalhesEvento(idEvento);
-
-        } else {
-            alert("Não foi possível participar do evento.");
+        } catch (erro) {
+            console.error('Erro ao participar do evento:', erro);
+            this.mostrarFeedbackGlobal(erro.message || 'Não foi possível participar do evento.');
         }
     }
 
@@ -5092,13 +5751,23 @@ ${ApiService.getIdUsuarioLogado() ? `
             return;
         }
 
-        const resposta = await ApiService.sairEvento(idEvento, idUsuario);
+        try {
+            const resposta = await ApiService.sairEvento(idEvento, idUsuario);
 
-        if (resposta.ok) {
+            if (!resposta.ok) {
+                const mensagem = await this.mensagemErroApi(
+                    resposta,
+                    'Não foi possível cancelar sua participação.'
+                );
+                this.mostrarFeedbackGlobal(mensagem);
+                return;
+            }
+
             await this.carregarEventos();
             await this.abrirDetalhesEvento(idEvento);
-        } else {
-            this.mostrarFeedbackGlobal("Não foi possível cancelar sua participação.");
+        } catch (erro) {
+            console.error("Erro ao sair do evento:", erro);
+            this.mostrarFeedbackGlobal(erro.message || 'Não foi possível cancelar sua participação.');
         }
     }
 
@@ -5260,16 +5929,16 @@ ${ApiService.getIdUsuarioLogado() ? `
             document.getElementById('filtro-evento-texto')
                 .value.trim();
 
-        const comunidadeId =
-            document.getElementById('filtro-evento-comunidade')
-                .value;
-
-        const status =
-            document.getElementById('filtro-evento-status')
+        const preco =
+            document.getElementById('filtro-evento-preco')
                 .value;
 
         const categoria =
             document.getElementById('filtro-evento-categoria')
+                .value;
+
+        const formato =
+            document.getElementById('filtro-evento-formato')
                 .value;
 
         const periodo =
@@ -5365,16 +6034,12 @@ ${ApiService.getIdUsuarioLogado() ? `
         this.filtrosEventos = {
             texto: texto || null,
 
-            comunidadeId:
-                comunidadeId
-                    ? parseInt(comunidadeId)
-                    : null,
-
-            status:
-                status || null,
+            pago: preco ? preco === 'pago' : null,
 
             categoria:
                 categoria || null,
+
+            formato: formato || null,
 
             dataInicio,
             dataFim,
@@ -5387,36 +6052,6 @@ ${ApiService.getIdUsuarioLogado() ? `
 
         if (this.visaoEventos === 'meus') await this.carregarMeusEventos();
         else await this.carregarEventos();
-    }
-
-    carregarFiltroComunidadesEventos() {
-
-        const select =
-            document.getElementById(
-                'filtro-evento-comunidade'
-            );
-
-        if (!select) {
-            return;
-        }
-
-        select.innerHTML =
-            '<option value="">Todas as comunidades</option>';
-
-        Object.entries(this.comunidadesMap)
-            .sort((a, b) =>
-                a[1].localeCompare(b[1])
-            )
-            .forEach(([id, nome]) => {
-
-                const option =
-                    document.createElement('option');
-
-                option.value = id;
-                option.textContent = nome;
-
-                select.appendChild(option);
-            });
     }
 
     buscarEventosComDebounce() {
@@ -5447,23 +6082,40 @@ ${ApiService.getIdUsuarioLogado() ? `
                     await ApiService.buscarEventoPorId(idEvento);
             } catch (erro) {
                 console.error(erro);
-                return alert("Não foi possível abrir este evento.");
+                return this.mostrarFeedbackGlobal("Não foi possível abrir este evento.");
             }
         }
 
-        const participantes =
-            await ApiService.listarParticipantesEvento(idEvento);
+        const idUsuarioLogado = ApiService.getIdUsuarioLogado();
+        let quantidadeParticipantes = 0;
+        let usuarioParticipa = false;
+        let eventoSalvo = false;
+        let usuarioNaListaEspera = false;
+        try {
+            const requisicoes = [
+                ApiService.contarParticipantesEvento(idEvento)
+            ];
+            if (idUsuarioLogado) {
+                requisicoes.push(
+                    ApiService.listarEventosParticipando(idUsuarioLogado),
+                    ApiService.estaEventoSalvo(idEvento, idUsuarioLogado),
+                    ApiService.estaNaListaEspera(idEvento, idUsuarioLogado)
+                );
+            }
 
-        const quantidadeParticipantes = participantes.length;
-
-        const idUsuarioLogado =
-            ApiService.getIdUsuarioLogado();
-
-        const usuarioParticipa =
-            idUsuarioLogado &&
-            participantes.some(
-                p => p.usuarioId == idUsuarioLogado
+            const [totalParticipantes, eventosParticipando = [], salvo = false, naListaEspera = false] =
+                await Promise.all(requisicoes);
+            quantidadeParticipantes = Number(totalParticipantes) || 0;
+            eventoSalvo = salvo;
+            usuarioNaListaEspera = naListaEspera;
+            usuarioParticipa = eventosParticipando.some(
+                eventoParticipando => (eventoParticipando.idEvento || eventoParticipando.id) == idEvento
             );
+        } catch (erro) {
+            console.error('Erro ao carregar inscrições do evento:', erro);
+            this.mostrarFeedbackGlobal(erro.message || 'Não foi possível carregar as informações do evento.');
+            return;
+        }
 
         const ehCriador =
             idUsuarioLogado &&
@@ -5685,7 +6337,7 @@ ${ApiService.getIdUsuarioLogado() ? `
                 </div>
 
 
-                <div class="evento-info-card">
+                <div class="evento-info-card evento-info-local">
                     <div class="evento-info-icon">
                         <i class="material-icons">
                             place
@@ -5701,16 +6353,16 @@ ${ApiService.getIdUsuarioLogado() ? `
             )}
                         </strong>
                         ${urlTransmissao
-                    ? `<a href="${urlTransmissao}" target="_blank" rel="noopener noreferrer" class="evento-rota-btn">
+                    ? `<a href="${urlTransmissao}" target="_blank" rel="noopener noreferrer" class="evento-rota-btn" aria-label="Acessar transmissão do evento">
                     <i class="material-icons">launch</i> Acessar transmissão
                 </a>`
                 : (evento.latitude != null && evento.longitude != null
-                    ? `<a href="https://www.google.com/maps/search/?api=1&query=${evento.latitude},${evento.longitude}" target="_blank" rel="noopener noreferrer" class="evento-rota-btn">
-                        <i class="material-icons">directions</i> Ver rota no Google Maps
+                    ? `<a href="https://www.google.com/maps/search/?api=1&query=${evento.latitude},${evento.longitude}" target="_blank" rel="noopener noreferrer" class="evento-rota-btn" aria-label="Abrir rota no Google Maps" title="Abrir rota no Google Maps">
+                        <i class="material-icons">directions</i> Abrir mapa
                     </a>`
                     : (evento.localEvento
-                        ? `<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(evento.localEvento)}" target="_blank" rel="noopener noreferrer" class="evento-rota-btn">
-                            <i class="material-icons">directions</i> Ver no Google Maps
+                        ? `<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(evento.localEvento)}" target="_blank" rel="noopener noreferrer" class="evento-rota-btn" aria-label="Abrir local no Google Maps" title="Abrir local no Google Maps">
+                            <i class="material-icons">directions</i> Abrir mapa
                         </a>`
                         : ''))}
                     </div>
@@ -5853,6 +6505,8 @@ ${ApiService.getIdUsuarioLogado() ? `
                     ? 'Este evento já foi encerrado'
                     : usuarioParticipa
                         ? 'Você está participando deste evento'
+                        : usuarioNaListaEspera
+                            ? 'Você está na lista de espera'
                         : 'Garanta sua participação'
             }
                     </strong>
@@ -5861,10 +6515,9 @@ ${ApiService.getIdUsuarioLogado() ? `
 
                 <div class="evento-detalhes-actions">
 
-                    ${!eventoCancelado &&
-                !eventoEncerrado &&
-                idUsuarioLogado &&
-                !ehCriador
+                    ${idUsuarioLogado &&
+                !ehCriador &&
+                (usuarioParticipa || usuarioNaListaEspera || (!eventoCancelado && !eventoEncerrado))
                 ? usuarioParticipa
                     ? `
                                 <button
@@ -5879,8 +6532,16 @@ ${ApiService.getIdUsuarioLogado() ? `
                                     Sair do evento
                                 </button>
                             `
-                    : inscricoesEncerradas
+                    : usuarioNaListaEspera
                         ? `
+                                <button type="button" class="evento-action-secondary"
+                                    onclick="app.entrarNaListaEsperaEvento(${idEvento}, true)">
+                                    <i class="material-icons">remove_circle_outline</i>
+                                    Sair da lista de espera
+                                </button>
+                            `
+                        : inscricoesEncerradas
+                            ? `
                                     <button
                                         type="button"
                                         class="evento-action-disabled"
@@ -5891,14 +6552,12 @@ ${ApiService.getIdUsuarioLogado() ? `
                                 `
                         : eventoLotado
                             ? `
-                                        <button
-                                            type="button"
-                                            class="evento-action-disabled"
-                                            disabled
-                                        >
-                                            Evento lotado
-                                        </button>
-                                    `
+                                    <button type="button" class="evento-action-primary"
+                                        onclick="app.entrarNaListaEsperaEvento(${idEvento})">
+                                        <i class="material-icons">hourglass_top</i>
+                                        Entrar na lista de espera
+                                    </button>
+                                `
                             : `
                                        <button
     type="button"
@@ -5910,6 +6569,17 @@ ${ApiService.getIdUsuarioLogado() ? `
                                 : 'Participar gratuitamente'}
 </button>
                                     `
+                : ''
+            }
+
+                    ${idUsuarioLogado
+                ? `
+                    <button type="button" class="evento-action-secondary"
+                        onclick="app.alternarEventoNaAgenda(${idEvento}, ${eventoSalvo})">
+                        <i class="material-icons">${eventoSalvo ? 'bookmark_remove' : 'bookmark_add'}</i>
+                        ${eventoSalvo ? 'Remover da agenda' : 'Salvar na agenda'}
+                    </button>
+                `
                 : ''
             }
 
@@ -5970,6 +6640,8 @@ ${ApiService.getIdUsuarioLogado() ? `
 
             let usuario = null;
             let postsUsuario = [];
+            let totalPostsUsuario = null;
+            let eventosUsuario = null;
 
 
             // =========================
@@ -6016,25 +6688,28 @@ ${ApiService.getIdUsuarioLogado() ? `
             // POSTS
             // =========================
 
-            try {
+            const [postsResultado, eventosResultado] = await Promise.allSettled([
+                ApiService.listarPostsPorUsuario(idUsuario),
+                ApiService.listarEventosPorUsuario(idUsuario)
+            ]);
 
-                postsUsuario =
-                    await ApiService.listarPostsPorUsuario(
-                        idUsuario
-                    );
-
-            } catch (erro) {
-
+            if (
+                postsResultado.status === 'fulfilled' &&
+                Array.isArray(postsResultado.value)
+            ) {
+                postsUsuario = postsResultado.value;
+                totalPostsUsuario = postsUsuario.length;
+            } else {
                 console.warn(
                     'Falha ao buscar posts do perfil:',
-                    erro
+                    postsResultado.status === 'rejected'
+                        ? postsResultado.reason
+                        : new Error('A resposta de posts não é uma lista.')
                 );
 
-                // Fallback usando os posts já carregados
                 postsUsuario =
                     (this.posts || [])
                         .filter(post => {
-
                             const idAutor =
                                 post.idUsuario ||
                                 post.id_usuario;
@@ -6044,188 +6719,200 @@ ${ApiService.getIdUsuarioLogado() ? `
                         });
             }
 
+            if (
+                eventosResultado.status === 'fulfilled' &&
+                Array.isArray(eventosResultado.value)
+            ) {
+                eventosUsuario = eventosResultado.value;
+            } else {
+                console.warn(
+                    'Falha ao buscar eventos do perfil:',
+                    eventosResultado.status === 'rejected'
+                        ? eventosResultado.reason
+                        : new Error('A resposta de eventos não é uma lista.')
+                );
+            }
+
             const idLogado =
                 ApiService.getIdUsuarioLogado();
 
             const ehProprioPerfil =
                 idLogado && idLogado == idUsuario;
 
-            const inicial =
-                usuario.nome
-                    ? usuario.nome.charAt(0).toUpperCase()
-                    : '?';
+            const nomeUsuario = usuario.nome || 'Usuário';
+            const inicial = nomeUsuario.charAt(0).toUpperCase();
+            const fotoUrl = ApiService.formatarUrlFotoPerfil(usuario.fotoPerfil);
+            const fotoUrlComCache = fotoUrl
+                ? `${fotoUrl}${fotoUrl.includes('?') ? '&' : '?'}v=${Date.now()}`
+                : '';
 
             const container =
                 document.getElementById('perfil-conteudo');
             const comunidadesUsuario =
-                (this.listaComunidades || [])
-                    .filter(comunidade =>
-                        (comunidade.membros || [])
-                            .some(membro =>
-                                (
-                                    membro.idUsuario ||
-                                    membro.id
-                                ) == idUsuario
-                            )
-                    );
-
-            const eventosUsuario =
-                (this.listaEventos || [])
-                    .filter(evento =>
-                        evento.criadorId == idUsuario
-                    );
+                this.obterComunidadesDoUsuario(idUsuario);
             if (!container) {
                 throw new Error(
                     'Container do perfil não encontrado'
                 );
             }
 
+            this.usuariosMap[idUsuario] = nomeUsuario;
+            this.usuariosFotosMap[idUsuario] = usuario.fotoPerfil;
+
+            const interessesPerfil = Array.isArray(usuario.interesses)
+                ? usuario.interesses.filter(interesse =>
+                    typeof interesse === 'string' && interesse.trim()
+                )
+                : [];
+            const interessesLogado = ApiService.getUsuarioLogado()?.interesses;
+            const interessesUsuario = Array.isArray(interessesLogado)
+                ? interessesLogado
+                : this.interessesSelecionados;
+            const interessesUsuarioNormalizados = new Set(
+                interessesUsuario.map(interesse =>
+                    String(interesse).trim().toLowerCase()
+                )
+            );
+            const interessesVisiveis = ehProprioPerfil
+                ? interessesPerfil
+                : idLogado
+                    ? interessesPerfil.filter(interesse =>
+                        interessesUsuarioNormalizados.has(
+                            interesse.trim().toLowerCase()
+                        )
+                    )
+                    : [];
+            const comunidadesContexto = ehProprioPerfil
+                ? comunidadesUsuario
+                : idLogado
+                    ? this.obterComunidadesEmComum(idUsuario)
+                    : [];
+            const interessesHtml = interessesVisiveis.length
+                ? `
+                    <div class="perfil-contexto-bloco">
+                        <span class="perfil-contexto-titulo">
+                            <i class="material-icons" aria-hidden="true">interests</i>
+                            ${ehProprioPerfil ? 'Seus interesses' : 'Interesses em comum'}
+                        </span>
+                        <div class="perfil-tags">
+                            ${interessesVisiveis.slice(0, 5).map(interesse => `
+                                <span class="perfil-tag">${this.escaparHtmlDestaque(interesse)}</span>
+                            `).join('')}
+                            ${interessesVisiveis.length > 5
+                        ? `<span class="perfil-tag perfil-tag-extra">+${interessesVisiveis.length - 5}</span>`
+                        : ''}
+                        </div>
+                    </div>
+                `
+                : '';
+            const comunidadesHtml = comunidadesContexto.length
+                ? `
+                    <div class="perfil-contexto-bloco">
+                        <span class="perfil-contexto-titulo">
+                            <i class="material-icons" aria-hidden="true">groups</i>
+                            ${ehProprioPerfil ? 'Suas comunidades' : 'Comunidades em comum'}
+                        </span>
+                        <div class="perfil-tags">
+                            ${comunidadesContexto.slice(0, 4).map(comunidade => `
+                                <span class="perfil-tag">${this.escaparHtmlDestaque(comunidade.nome || 'Comunidade')}</span>
+                            `).join('')}
+                            ${comunidadesContexto.length > 4
+                        ? `<span class="perfil-tag perfil-tag-extra">+${comunidadesContexto.length - 4}</span>`
+                        : ''}
+                        </div>
+                    </div>
+                `
+                : '';
+            const contextoSocialHtml = interessesHtml || comunidadesHtml
+                ? `<div class="perfil-contexto-social">${interessesHtml}${comunidadesHtml}</div>`
+                : idLogado && !ehProprioPerfil
+                    ? `
+                        <div class="perfil-contexto-vazio">
+                            <i class="material-icons" aria-hidden="true">diversity_3</i>
+                            Ainda não identificamos interesses ou comunidades em comum.
+                        </div>
+                    `
+                    : '';
+
             container.innerHTML = `
-    <div class="card perfil-hero">
-
-      <div class="perfil-header">
-
-    <div class="perfil-identidade">
-
-           ${(() => {
-                    const fotoUrl = ApiService.formatarUrlFotoPerfil(usuario.fotoPerfil);
-                    return fotoUrl
-                        ? `
-        <img
-            src="${fotoUrl}?v=${Date.now()}"
-            alt="Foto de perfil"
-            style="
-                width:72px;
-                height:72px;
-                border-radius:50%;
-                object-fit:cover;
-                flex-shrink:0;
-            "
-            onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
-        >
-        <div class="avatar"
-             style="
-                display:none;
-                width:72px;
-                height:72px;
-                font-size:28px;
-             ">
-            ${inicial}
-        </div>
-      `
-                        : `
-        <div class="avatar"
-             style="
-                width:72px;
-                height:72px;
-                font-size:28px;
-             ">
-            ${inicial}
-        </div>
-      `;
-                })()
+                <section class="card perfil-hero">
+                    <div class="perfil-capa" aria-hidden="true"></div>
+                    <div class="perfil-hero-conteudo">
+                        <div class="perfil-header">
+                            <div class="perfil-identidade">
+                                <div class="perfil-avatar">
+                                    ${fotoUrlComCache
+                    ? `
+                                        <img src="${this.escaparHtmlDestaque(fotoUrlComCache)}"
+                                            alt="" onerror="this.hidden=true; this.nextElementSibling.hidden=false">
+                                        <span class="perfil-avatar-inicial" hidden>${this.escaparHtmlDestaque(inicial)}</span>
+                                    `
+                    : `<span class="perfil-avatar-inicial">${this.escaparHtmlDestaque(inicial)}</span>`
                 }
+                                </div>
+                                <div class="perfil-identidade-texto">
+                                    <h1>${this.escaparHtmlDestaque(nomeUsuario)}</h1>
+                                    <span class="perfil-username">@${this.escaparHtmlDestaque(usuario.username || 'usuario')}</span>
+                                </div>
+                            </div>
 
-          <div>
-    <h2 style="margin:0;">
-        ${usuario.nome}
-    </h2>
+                            <div class="perfil-header-acao">
+                                ${ehProprioPerfil ? `
+                                    <button type="button" class="btn-perfil-acao btn-perfil-editar"
+                                        onclick="app.abrirEdicaoPerfil()">
+                                        <i class="material-icons" aria-hidden="true">edit</i>
+                                        Editar perfil
+                                    </button>
+                                ` : idLogado ? `
+                                    <button type="button"
+                                        class="btn-perfil-acao btn-perfil-seguir ${this.usuariosSeguidos.has(Number(idUsuario)) ? 'seguindo' : ''}"
+                                        data-follow-user-id="${Number(idUsuario)}"
+                                        aria-pressed="${this.usuariosSeguidos.has(Number(idUsuario))}"
+                                        onclick="app.alternarSeguirUsuario(${Number(idUsuario)})">
+                                        <i class="material-icons" aria-hidden="true">${this.usuariosSeguidos.has(Number(idUsuario)) ? 'check' : 'person_add'}</i>
+                                        ${this.usuariosSeguidos.has(Number(idUsuario)) ? 'Seguindo' : 'Seguir'}
+                                    </button>
+                                    <button type="button" class="btn-perfil-acao btn-perfil-mensagem"
+                                        onclick="app.iniciarConversa(${Number(idUsuario)})">
+                                        <i class="material-icons" aria-hidden="true">chat_bubble_outline</i>
+                                        Mensagem
+                                    </button>
+                                ` : ''}
+                            </div>
+                        </div>
 
-    <p class="perfil-username"
-       style="
-           margin:4px 0 0 0;
-           color:var(--text-muted);
-       ">
-        @${usuario.username}
-    </p>
-</div>
+                        <section class="perfil-sobre" aria-label="Sobre">
+                            <h2>Sobre</h2>
+                            <p>${this.escaparHtmlDestaque(
+                    usuario.bio || 'Este usuário ainda não adicionou uma bio.'
+                )}</p>
+                        </section>
 
-</div> <!-- fecha perfil-identidade -->
+                        ${contextoSocialHtml}
 
-<div class="perfil-header-acao">
+                    </div>
+                </section>
 
-    ${ehProprioPerfil ? `
-        <button
-            type="button"
-            class="btn-perfil-acao btn-perfil-editar"
-            onclick="app.abrirEdicaoPerfil()"
-        >
-            <i class="material-icons">edit</i>
-            Editar perfil
-        </button>
-    ` : idLogado ? `
-        <button
-            type="button"
-            class="btn-perfil-acao btn-perfil-mensagem"
-            onclick="app.iniciarConversa(${idUsuario})"
-        >
-            <i class="material-icons">chat_bubble_outline</i>
-            Mensagem
-        </button>
-    ` : ''}
+                <div class="perfil-tabs">
+                    <div class="perfil-tab active" id="perfil-tab-publicacoes"
+                        onclick="app.mostrarAbaPerfil('publicacoes', ${idUsuario})">
+                        <span>Publicações</span>
+                        <strong>${totalPostsUsuario === null ? '—' : totalPostsUsuario}</strong>
+                    </div>
+                    <div class="perfil-tab" id="perfil-tab-comunidades"
+                        onclick="app.mostrarAbaPerfil('comunidades', ${idUsuario})">
+                        <span>Comunidades</span>
+                        <strong>${comunidadesUsuario.length}</strong>
+                    </div>
+                    <div class="perfil-tab" id="perfil-tab-eventos"
+                        onclick="app.mostrarAbaPerfil('eventos', ${idUsuario})">
+                        <span>Eventos</span>
+                        <strong>${eventosUsuario === null ? '—' : eventosUsuario.length}</strong>
+                    </div>
+                </div>
 
-</div>
-
-</div> <!-- fecha perfil-header -->
-
-</div>
-
-        <div style="
-            border-top:1px solid var(--border-color);
-            padding-top:20px;
-        ">
-
-            <h3 style="margin-top:0;">
-                Sobre
-            </h3>
-
-            <p style="
-                color:var(--text-muted);
-                line-height:1.6;
-                margin-bottom:0;
-            ">
-                ${usuario.bio ||
-                'Este usuário ainda não adicionou uma bio.'
-                }
-            </p>
-
-        </div>
-
-   
-    </div>
-<div class="perfil-tabs">
-
-    <div
-        class="perfil-tab active"
-        id="perfil-tab-publicacoes"
-        onclick="app.mostrarAbaPerfil('publicacoes', ${idUsuario})"
-    >
-        <span>Publicações</span>
-        <strong>${postsUsuario.length}</strong>
-    </div>
-
-    <div
-        class="perfil-tab"
-        id="perfil-tab-comunidades"
-        onclick="app.mostrarAbaPerfil('comunidades', ${idUsuario})"
-    >
-        <span>Comunidades</span>
-        <strong>${comunidadesUsuario.length}</strong>
-    </div>
-
-    <div
-        class="perfil-tab"
-        id="perfil-tab-eventos"
-        onclick="app.mostrarAbaPerfil('eventos', ${idUsuario})"
-    >
-        <span>Eventos</span>
-        <strong>${eventosUsuario.length}</strong>
-    </div>
-
-</div>
-
-    <div id="perfil-conteudo-abas"></div>
-`;
+                <div id="perfil-conteudo-abas"></div>
+            `;
 
             document.querySelectorAll('.view-section')
                 .forEach(el => el.classList.remove('active'));
@@ -6238,7 +6925,7 @@ ${ApiService.getIdUsuarioLogado() ? `
         } catch (erro) {
 
             console.error(erro);
-            alert("Não foi possível carregar o perfil.");
+            this.mostrarFeedbackGlobal("Não foi possível carregar o perfil.");
         }
 
     }
@@ -6249,7 +6936,7 @@ ${ApiService.getIdUsuarioLogado() ? `
             ApiService.getIdUsuarioLogado();
 
         if (!idUsuario) {
-            return alert("Faça login primeiro.");
+            return this.mostrarFeedbackGlobal("Faça login primeiro.");
         }
 
         await this.abrirPerfil(idUsuario);
@@ -6320,7 +7007,7 @@ ${ApiService.getIdUsuarioLogado() ? `
         } catch (erro) {
 
             console.error(erro);
-            alert("Não foi possível carregar os dados do perfil.");
+            this.mostrarFeedbackGlobal("Não foi possível carregar os dados do perfil.");
         }
     }
 
@@ -6349,15 +7036,15 @@ ${ApiService.getIdUsuarioLogado() ? `
             ).value.trim();
 
         if (!nome) {
-            return alert("O nome não pode ficar vazio.");
+            return this.mostrarFeedbackGlobal("O nome não pode ficar vazio.");
         }
 
         if (!username) {
-            return alert("O username não pode ficar vazio.");
+            return this.mostrarFeedbackGlobal("O username não pode ficar vazio.");
         }
 
         if (bio.length > 300) {
-            return alert(
+            return this.mostrarFeedbackGlobal(
                 "A bio pode ter no máximo 300 caracteres."
             );
         }
@@ -6373,7 +7060,7 @@ ${ApiService.getIdUsuarioLogado() ? `
                 );
 
             if (!resposta.ok) {
-                return alert(
+                return this.mostrarFeedbackGlobal(
                     "Não foi possível atualizar o perfil."
                 );
             }
@@ -6392,13 +7079,13 @@ ${ApiService.getIdUsuarioLogado() ? `
             // Renderiza novamente o perfil já atualizado
             await this.abrirPerfil(idUsuario);
 
-            alert("Perfil atualizado com sucesso!");
+            this.mostrarFeedbackGlobal("Perfil atualizado com sucesso!");
 
         } catch (erro) {
 
             console.error(erro);
 
-            alert(
+            this.mostrarFeedbackGlobal(
                 "Erro de conexão ao atualizar o perfil."
             );
         }
@@ -6430,42 +7117,11 @@ ${ApiService.getIdUsuarioLogado() ? `
             return;
         }
 
-        container.innerHTML = '';
-
-        posts.forEach(post => {
-
-            const div = document.createElement('div');
-            div.className = 'card';
-
-            const nomeComunidade =
-                post.idComunidade
-                    ? this.comunidadesMap[post.idComunidade]
-                    : null;
-
-            div.innerHTML = `
-            <h3 style="margin-top:0;">
-                ${post.titulo}
-            </h3>
-
-            ${nomeComunidade
-                    ? `
-                        <small style="color:var(--text-muted);">
-                            Publicado em ${nomeComunidade}
-                        </small>
-                    `
-                    : ''
-                }
-
-            <p style="
-                margin-top:12px;
-                color:var(--text-muted);
-            ">
-                ${post.conteudo}
-            </p>
-        `;
-
-            container.appendChild(div);
-        });
+        this.montarCardsPosts(
+            posts,
+            'perfil-conteudo-abas',
+            false
+        );
     }
 
     renderizarComunidadesPerfil(comunidades, idUsuario) {
@@ -6574,7 +7230,7 @@ ${ApiService.getIdUsuarioLogado() ? `
         if (!evento) {
             container.innerHTML = `
             <div class="evento-destaque-vazio">
-                Nenhum evento encontrado com esses filtros.
+                Nenhum evento futuro disponível no momento.
             </div>
         `;
             return;
@@ -6720,13 +7376,29 @@ ${ApiService.getIdUsuarioLogado() ? `
                     ? resultado
                     : (resultado.content || []);
 
-            if (!eventos.length) {
+            const agora = new Date();
+            const eventosAtivos = eventos.filter(evento => {
+                const situacaoTemporal = evento.situacaoTemporal;
+                if (situacaoTemporal === 'ENCERRADO' || situacaoTemporal === 'CANCELADO'
+                    || evento.status === 'CANCELADO'
+                    || !evento.dataEvento || !evento.horarioFim) {
+                    return false;
+                }
+
+                const fimEvento = new Date(
+                    `${evento.dataEvento}T${evento.horarioFim}`
+                );
+
+                return !Number.isNaN(fimEvento.getTime()) && fimEvento > agora;
+            });
+
+            if (!eventosAtivos.length) {
                 this.renderizarEventoDestaque(null);
                 return;
             }
 
             const eventoMaisPopular =
-                [...eventos].sort((a, b) => {
+                [...eventosAtivos].sort((a, b) => {
                     const participantesA =
                         Number(a.quantidadeParticipantes || 0);
 
@@ -6876,13 +7548,29 @@ ${ApiService.getIdUsuarioLogado() ? `
 
         if (aba === 'comunidades') {
 
-            const comunidades =
+            const comunidadesMembro =
                 await ApiService.listarComunidadesPorUsuario(
                     idUsuario
                 );
+            const comunidadesCriadas =
+                (this.listaComunidades || [])
+                    .filter(comunidade =>
+                        String(
+                            comunidade.criador?.idUsuario ||
+                            comunidade.criador?.id
+                        ) === String(idUsuario)
+                    );
+            const comunidadesPorId = new Map();
+            [...comunidadesMembro, ...comunidadesCriadas]
+                .forEach(comunidade =>
+                    comunidadesPorId.set(
+                        String(comunidade.idComunidade || comunidade.id),
+                        comunidade
+                    )
+                );
 
             this.renderizarComunidadesPerfil(
-                comunidades,
+                [...comunidadesPorId.values()],
                 idUsuario
             );
 
@@ -6912,7 +7600,7 @@ ${ApiService.getIdUsuarioLogado() ? `
             );
 
         if (!comunidade) {
-            return alert("Comunidade não encontrada.");
+            return this.mostrarFeedbackGlobal("Comunidade não encontrada.");
         }
 
         this.entrarSubreddit(
@@ -6933,15 +7621,15 @@ ${ApiService.getIdUsuarioLogado() ? `
         const foto = input?.files?.[0];
 
         if (!foto) {
-            return alert("Selecione uma imagem.");
+            return this.mostrarFeedbackGlobal("Selecione uma imagem.");
         }
 
         if (!['image/jpeg', 'image/png', 'image/webp'].includes(foto.type)) {
-            return alert("Use uma foto JPG, PNG ou WEBP.");
+            return this.mostrarFeedbackGlobal("Use uma foto JPG, PNG ou WEBP.");
         }
 
         if (foto.size > 5 * 1024 * 1024) {
-            return alert("A imagem deve ter no máximo 5 MB.");
+            return this.mostrarFeedbackGlobal("A imagem deve ter no máximo 5 MB.");
         }
         try {
             const resposta =
@@ -6956,7 +7644,7 @@ ${ApiService.getIdUsuarioLogado() ? `
 
                 console.error("Resposta do backend:", erro);
 
-                return alert(
+                return this.mostrarFeedbackGlobal(
                     "Não foi possível alterar a foto."
                 );
             }
@@ -6991,7 +7679,7 @@ ${ApiService.getIdUsuarioLogado() ? `
             this.atualizarMenuLateral();
             this.renderizarFeedGeral();
 
-            alert("Foto alterada com sucesso!");
+            this.mostrarFeedbackGlobal("Foto alterada com sucesso!");
         } catch (erro) {
 
             console.error(
@@ -6999,7 +7687,7 @@ ${ApiService.getIdUsuarioLogado() ? `
                 erro
             );
 
-            alert("Erro ao enviar a foto.");
+            this.mostrarFeedbackGlobal("Erro ao enviar a foto.");
         }
     }
 
@@ -7307,7 +7995,7 @@ ${ApiService.getIdUsuarioLogado() ? `
                 erro
             );
 
-            alert(
+            this.mostrarFeedbackGlobal(
                 erro.message ||
                 'Não foi possível enviar a mensagem.'
             );
@@ -7325,7 +8013,7 @@ ${ApiService.getIdUsuarioLogado() ? `
             ApiService.getIdUsuarioLogado();
 
         if (!idUsuario) {
-            alert('Você precisa estar logado para enviar mensagens.');
+            this.mostrarFeedbackGlobal('Você precisa estar logado para enviar mensagens.');
             return;
         }
 
@@ -7352,7 +8040,7 @@ ${ApiService.getIdUsuarioLogado() ? `
                 erro
             );
 
-            alert(
+            this.mostrarFeedbackGlobal(
                 erro.message ||
                 'Não foi possível iniciar a conversa.'
             );
@@ -7382,6 +8070,7 @@ ${ApiService.getIdUsuarioLogado() ? `
         const url = new URL('/ws/chat', ApiService.API_URL);
         url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
         url.searchParams.set('usuarioId', idUsuario);
+        url.searchParams.set('token', ApiService.getAuthToken());
 
         const socket = new WebSocket(url);
         this.chatSocket = socket;
@@ -7530,7 +8219,7 @@ ${ApiService.getIdUsuarioLogado() ? `
 
         select.innerHTML = `
         <option value="">
-            Nenhuma (Evento aberto / Global)
+            Selecione uma comunidade (opcional)
         </option>
     `;
 
@@ -8107,6 +8796,18 @@ ${ApiService.getIdUsuarioLogado() ? `
         this.renderizarItensSalvos();
     }
 
+    abrirMinhaAgenda() {
+        if (!ApiService.getUsuarioLogado()) {
+            this.mostrarFeedbackGlobal('Entre na sua conta para acessar sua agenda.');
+            return;
+        }
+
+        const menuConta = document.querySelector('.account-menu');
+        menuConta?.classList.remove('open');
+        menuConta?.querySelector('.account-trigger')?.setAttribute('aria-expanded', 'false');
+        this.ativarAba('agenda');
+    }
+
     renderizarItensSalvos() {
 
         const container =
@@ -8198,9 +8899,134 @@ ${ApiService.getIdUsuarioLogado() ? `
             .querySelector('.account-menu')
             ?.classList.remove('open');
 
+        this.atualizarControleTema();
         this.abrirModal(
             'configuracoes-modal'
         );
+    }
+
+    inicializarTema() {
+        let temaEscuro = false;
+        try {
+            temaEscuro = window.localStorage.getItem('socialjoin-theme') === 'dark';
+        } catch (erro) {
+            console.warn('Não foi possível carregar a preferência de tema:', erro);
+        }
+        this.aplicarTemaEscuro(temaEscuro);
+    }
+
+    definirTemaEscuro(ativado) {
+        this.aplicarTemaEscuro(ativado);
+        try {
+            window.localStorage.setItem('socialjoin-theme', ativado ? 'dark' : 'light');
+        } catch (erro) {
+            console.error('Não foi possível salvar a preferência de tema:', erro);
+            this.mostrarFeedbackGlobal('A aparência foi alterada, mas a preferência não pôde ser salva neste navegador.');
+        }
+    }
+
+    aplicarTemaEscuro(ativado) {
+        document.documentElement.dataset.theme = ativado ? 'dark' : 'light';
+        this.atualizarControleTema();
+    }
+
+    atualizarControleTema() {
+        const controle = document.getElementById('tema-escuro-toggle');
+        if (controle) {
+            controle.checked = document.documentElement.dataset.theme === 'dark';
+        }
+    }
+
+    abrirAlteracaoSenhaPelasConfiguracoes() {
+        this.fecharModal('configuracoes-modal');
+        this.limparFormularioAlteracaoSenha();
+        this.abrirModal('alterar-senha-modal');
+        setTimeout(() => document.getElementById('senha-atual')?.focus(), 0);
+    }
+
+    limparFormularioAlteracaoSenha() {
+        [
+            ['senha-atual', 'Mostrar senha atual'],
+            ['senha-nova', 'Mostrar nova senha'],
+            ['senha-confirmacao', 'Mostrar confirmação da senha']
+        ].forEach(([id, ariaLabel]) => {
+            const input = document.getElementById(id);
+            if (!input) return;
+            input.value = '';
+            input.type = 'password';
+            const botao = input.closest('.auth-input-wrap')?.querySelector('.password-toggle');
+            if (botao) {
+                botao.setAttribute('aria-label', ariaLabel);
+                botao.querySelector('.material-icons').innerText = 'visibility';
+            }
+        });
+        this.mostrarSenhaFeedback('');
+    }
+
+    mostrarSenhaFeedback(mensagem) {
+        const feedback = document.getElementById('senha-feedback');
+        if (!feedback) return;
+        feedback.textContent = mensagem;
+        feedback.classList.toggle('visible', Boolean(mensagem));
+    }
+
+    async alterarSenha() {
+        const senhaAtual = document.getElementById('senha-atual')?.value || '';
+        const senhaNova = document.getElementById('senha-nova')?.value || '';
+        const confirmacao = document.getElementById('senha-confirmacao')?.value || '';
+        const botao = document.getElementById('alterar-senha-submit');
+
+        this.mostrarSenhaFeedback('');
+        if (!senhaAtual || !senhaNova || !confirmacao) {
+            this.mostrarSenhaFeedback('Preencha os três campos para continuar.');
+            return;
+        }
+        if (senhaNova.length < 8) {
+            this.mostrarSenhaFeedback('A nova senha precisa ter pelo menos 8 caracteres.');
+            return;
+        }
+        if (new TextEncoder().encode(senhaNova).length > 72) {
+            this.mostrarSenhaFeedback('A nova senha pode ter no máximo 72 bytes.');
+            return;
+        }
+        if (senhaNova !== confirmacao) {
+            this.mostrarSenhaFeedback('A confirmação não corresponde à nova senha.');
+            return;
+        }
+
+        if (botao) {
+            botao.disabled = true;
+            botao.textContent = 'Salvando...';
+        }
+
+        try {
+            const resposta = await ApiService.alterarSenha(senhaAtual, senhaNova);
+            if (!resposta.ok) {
+                throw new Error(await this.mensagemErroApi(
+                    resposta,
+                    'Não foi possível alterar a senha.'
+                ));
+            }
+
+            const usuarioAtualizado = await resposta.json();
+            if (!usuarioAtualizado?.authToken) {
+                this.fecharModal('alterar-senha-modal');
+                this.fazerLogout();
+                this.mostrarFeedbackGlobal('Senha alterada. Entre novamente para continuar.');
+                return;
+            }
+            ApiService.salvarSessao(usuarioAtualizado);
+            this.fecharModal('alterar-senha-modal');
+            this.mostrarFeedbackGlobal('Senha alterada. As outras sessões foram encerradas.');
+        } catch (erro) {
+            console.error('Erro ao alterar senha:', erro);
+            this.mostrarSenhaFeedback(erro.message || 'Não foi possível alterar a senha.');
+        } finally {
+            if (botao) {
+                botao.disabled = false;
+                botao.textContent = 'Salvar nova senha';
+            }
+        }
     }
 
     abrirEdicaoPerfilPelasConfiguracoes() {
@@ -8232,7 +9058,7 @@ ${ApiService.getIdUsuarioLogado() ? `
                 evento = await ApiService.buscarEventoPorId(idEvento);
             } catch (erro) {
                 console.error(erro);
-                return alert(
+                return this.mostrarFeedbackGlobal(
                     "Não foi possível carregar os dados do evento."
                 );
             }
@@ -8247,21 +9073,32 @@ ${ApiService.getIdUsuarioLogado() ? `
 
         this.eventoCompraId = idEvento;
 
-        const precoFormatado =
-            preco.toLocaleString('pt-BR', {
-                style: 'currency',
-                currency: 'BRL'
-            });
-
         document.getElementById(
             'compra-ingresso-evento-nome'
         ).textContent = evento.titulo || 'Evento';
 
-        document.getElementById(
-            'compra-ingresso-preco'
-        ).textContent = precoFormatado;
+        try {
+            const calculo = await ApiService.calcularPagamento(idEvento);
+            const formatarMoeda = valor => Number(valor).toLocaleString('pt-BR', {
+                style: 'currency',
+                currency: 'BRL'
+            });
 
-        this.abrirModal('compra-ingresso-modal');
+            document.getElementById('compra-ingresso-subtotal').textContent =
+                formatarMoeda(calculo.subtotal);
+            document.getElementById('compra-ingresso-taxa').textContent =
+                evento.taxaRepassadaComprador === true
+                    ? formatarMoeda(calculo.taxaPlataforma)
+                    : 'Absorvida pelo organizador';
+            document.getElementById('compra-ingresso-total').textContent =
+                formatarMoeda(calculo.totalComprador);
+
+            this.abrirModal('compra-ingresso-modal');
+        } catch (erro) {
+            console.error('Erro ao calcular total da compra:', erro);
+            this.eventoCompraId = null;
+            this.mostrarFeedbackGlobal('Não foi possível calcular o valor total do ingresso.');
+        }
     }
 
     async confirmarCompraIngresso() {
@@ -8280,7 +9117,7 @@ ${ApiService.getIdUsuarioLogado() ? `
 
             this.eventoCompraId = null;
 
-            alert(
+            this.mostrarFeedbackGlobal(
                 "Compra simulada concluída! Seu ingresso foi registrado."
             );
 
@@ -8291,7 +9128,7 @@ ${ApiService.getIdUsuarioLogado() ? `
                 erro
             );
 
-            alert(
+            this.mostrarFeedbackGlobal(
                 "Não foi possível concluir a compra do ingresso."
             );
         }
@@ -8351,16 +9188,60 @@ ${ApiService.getIdUsuarioLogado() ? `
         this.abrirModal('modal-confirmacao');
     }
 
-    mostrarFeedbackGlobal(mensagem) {
-        // Exibe alertas amigáveis sem bloquear a execução da UI
-        const feedbackEl = document.getElementById('global-feedback');
-        if (feedbackEl) {
-            feedbackEl.innerText = mensagem;
-            feedbackEl.classList.add('visible');
-            setTimeout(() => feedbackEl.classList.remove('visible'), 4000);
-        } else {
-            alert(mensagem);
-        }
+    mostrarFeedbackGlobal(mensagem, tipo = null) {
+        const container = document.getElementById('toast-container');
+        const texto = String(mensagem || '').trim();
+        if (!container || !texto) return;
+
+        const textoNormalizado = texto
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase();
+        const categoria = tipo || (
+            /sucesso|salv[oa]|copiad[oa]|publicad[oa]|atualizad[oa]|excluid[oa]|removid[oa]|cancelad[oa]/.test(textoNormalizado)
+                ? 'success'
+                : /nao foi possivel|erro|falha|sem permissao|nao tem permissao/.test(textoNormalizado)
+                    ? 'error'
+                    : /login|entre para|selecione|escolha|digite|nao pode|maximo|verifique|obrigatorio|nao participa/.test(textoNormalizado)
+                        ? 'warning'
+                        : 'info'
+        );
+        const icones = {
+            success: 'check_circle',
+            error: 'error',
+            warning: 'warning',
+            info: 'info'
+        };
+
+        const aviso = document.createElement('div');
+        aviso.className = `app-toast app-toast-${categoria}`;
+        aviso.setAttribute('role', categoria === 'error' ? 'alert' : 'status');
+
+        const icone = document.createElement('i');
+        icone.className = 'material-icons app-toast-icon';
+        icone.setAttribute('aria-hidden', 'true');
+        icone.textContent = icones[categoria] || icones.info;
+
+        const conteudo = document.createElement('p');
+        conteudo.className = 'app-toast-message';
+        conteudo.textContent = texto;
+
+        const fechar = document.createElement('button');
+        fechar.type = 'button';
+        fechar.className = 'app-toast-close';
+        fechar.setAttribute('aria-label', 'Fechar aviso');
+        fechar.innerHTML = '<i class="material-icons" aria-hidden="true">close</i>';
+
+        let temporizador;
+        const remover = () => {
+            clearTimeout(temporizador);
+            aviso.classList.add('app-toast-saindo');
+            setTimeout(() => aviso.remove(), 220);
+        };
+        fechar.addEventListener('click', remover);
+        aviso.append(icone, conteudo, fechar);
+        container.appendChild(aviso);
+        temporizador = setTimeout(remover, 5000);
     }
 }
 

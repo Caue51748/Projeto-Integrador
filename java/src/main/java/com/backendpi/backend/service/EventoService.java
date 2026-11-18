@@ -3,22 +3,29 @@ package com.backendpi.backend.service;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.backendpi.backend.dto.EventoResumoDTO;
 import com.backendpi.backend.model.Evento;
 import com.backendpi.backend.repository.EventoRepository;
+import com.backendpi.backend.repository.EventoListaEsperaRepository;
 import com.backendpi.backend.repository.ParticipacaoEventoRepository;
 import com.backendpi.backend.security.SecuritySanitizerService;
+import com.backendpi.backend.security.AuthenticatedUserContext;
 
 @Service
 public class EventoService {
@@ -26,6 +33,9 @@ public class EventoService {
     private final EventoRepository eventoRepository;
     private final ParticipacaoEventoRepository participacaoEventoRepository;
     private final SecuritySanitizerService sanitizerService;
+    private final EventoListaEsperaRepository listaEsperaRepository;
+    private final NotificacaoEventoService notificacaoService;
+    private final ParticipacaoEventoService participacaoService;
 
     public EventoService(
             EventoRepository eventoRepository,
@@ -35,6 +45,15 @@ public class EventoService {
         this.eventoRepository = eventoRepository;
         this.participacaoEventoRepository = participacaoEventoRepository;
         this.sanitizerService = sanitizerService;
+            EventoListaEsperaRepository listaEsperaRepository,
+            NotificacaoEventoService notificacaoService,
+            ParticipacaoEventoService participacaoService) {
+
+        this.eventoRepository = eventoRepository;
+        this.participacaoEventoRepository = participacaoEventoRepository;
+        this.listaEsperaRepository = listaEsperaRepository;
+        this.notificacaoService = notificacaoService;
+        this.participacaoService = participacaoService;
     }
 
     public List<Evento> listarTodos() {
@@ -49,6 +68,7 @@ public class EventoService {
     }
 
     public List<Evento> listarPorParticipante(Long idUsuario) {
+        AuthenticatedUserContext.requireMatches(idUsuario);
         return participacaoEventoRepository.findByUsuarioId(idUsuario)
                 .stream()
                 .map(participacao -> eventoRepository.findById(participacao.getEventoId()))
@@ -71,6 +91,7 @@ public class EventoService {
         if (evento.getCriadorId() == null) {
             throw new RuntimeException("O evento precisa ter um criador");
         }
+        AuthenticatedUserContext.requireMatches(evento.getCriadorId());
 
         if (evento.getPrecoIngresso() != null
                 && evento.getPrecoIngresso().signum() < 0) {
@@ -106,41 +127,66 @@ public class EventoService {
             evento.setExigeCheckin(false);
         }
 
+        if (evento.getTaxaRepassadaComprador() == null) {
+            evento.setTaxaRepassadaComprador(false);
+        }
+
         validarDadosEvento(evento, true);
 
         return eventoRepository.save(evento);
     }
 
+    @Transactional
     public void deletar(Long idEvento, Long idUsuario) {
+        AuthenticatedUserContext.requireMatches(idUsuario);
 
         Evento evento = eventoRepository.findById(idEvento)
                 .orElseThrow(() -> new RuntimeException("Evento não encontrado"));
 
         if (!evento.getCriadorId().equals(idUsuario)) {
-            throw new RuntimeException(
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
                     "Usuário sem permissão para excluir este evento"
             );
         }
 
+        Set<Long> usuariosNotificados = new LinkedHashSet<>();
+        participacaoEventoRepository.findByEventoId(idEvento)
+                .forEach(participacao -> usuariosNotificados.add(participacao.getUsuarioId()));
+        listaEsperaRepository.findByEventoIdOrderByAdicionadoEmAscIdAsc(idEvento)
+                .forEach(entrada -> usuariosNotificados.add(entrada.getUsuarioId()));
+
+        String mensagem = "O evento \"" + evento.getTitulo()
+                + "\" foi excluído pelo organizador.";
+        usuariosNotificados.forEach(usuarioId -> notificacaoService.notificarUsuario(
+                usuarioId,
+                null,
+                "EVENTO_EXCLUIDO",
+                mensagem
+        ));
+
         eventoRepository.delete(evento);
     }
 
+    @Transactional
     public Evento atualizar(
             Long idEvento,
             Long idUsuario,
             Evento novo) {
+        AuthenticatedUserContext.requireMatches(idUsuario);
 
-        Evento evento = eventoRepository.findById(idEvento)
+        Evento evento = eventoRepository.findByIdForUpdate(idEvento)
                 .orElseThrow(() -> new RuntimeException("Evento não encontrado"));
 
         if (!evento.getCriadorId().equals(idUsuario)) {
-            throw new RuntimeException(
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
                     "Usuário sem permissão para editar este evento"
             );
         }
 
-        if (evento.getPrecoIngresso() != null
-                && evento.getPrecoIngresso().signum() < 0) {
+        if (novo.getPrecoIngresso() != null
+                && novo.getPrecoIngresso().signum() < 0) {
             throw new RuntimeException(
                     "O preço do ingresso não pode ser negativo"
             );
@@ -167,6 +213,22 @@ public class EventoService {
             evento.setLocalEvento(sanitizerService.validarEModerar(novo.getLocalEvento(), "Local do evento"));
         }
 
+        boolean detalhesAlterados =
+                !java.util.Objects.equals(evento.getTitulo(), novo.getTitulo())
+                || !java.util.Objects.equals(evento.getDataEvento(), novo.getDataEvento())
+                || !java.util.Objects.equals(evento.getHorarioInicio(), novo.getHorarioInicio())
+                || !java.util.Objects.equals(evento.getHorarioFim(), novo.getHorarioFim())
+                || !java.util.Objects.equals(evento.getLocalEvento(), novo.getLocalEvento())
+                || !java.util.Objects.equals(evento.getDescricao(), novo.getDescricao())
+                || !java.util.Objects.equals(evento.getCategoria(), novo.getCategoria())
+                || !java.util.Objects.equals(evento.getEncerramentoInscricoes(), novo.getEncerramentoInscricoes())
+                || !java.util.Objects.equals(evento.getLimiteParticipantes(), novo.getLimiteParticipantes())
+                || !java.util.Objects.equals(evento.getPrecoIngresso(), novo.getPrecoIngresso())
+                || !java.util.Objects.equals(evento.getExigeCheckin(), novo.getExigeCheckin());
+
+        evento.setTitulo(novo.getTitulo());
+        evento.setDescricao(novo.getDescricao());
+        evento.setCategoria(novo.getCategoria());
         evento.setDataEvento(novo.getDataEvento());
         evento.setHorarioInicio(novo.getHorarioInicio());
         evento.setHorarioFim(novo.getHorarioFim());
@@ -176,35 +238,71 @@ public class EventoService {
         evento.setComunidadeId(novo.getComunidadeId());
         evento.setLimiteParticipantes(novo.getLimiteParticipantes());
         evento.setExigeCheckin(novo.getExigeCheckin());
+        if (novo.getTaxaRepassadaComprador() != null) {
+            evento.setTaxaRepassadaComprador(novo.getTaxaRepassadaComprador());
+        }
         validarDadosEvento(evento, false);
-        evento.setPrecoIngresso(novo.getPrecoIngresso());
+        if (novo.getPrecoIngresso() != null) {
+            evento.setPrecoIngresso(novo.getPrecoIngresso());
+        }
 
-        return eventoRepository.save(evento);
+        Evento salvo = eventoRepository.save(evento);
+        if (detalhesAlterados) {
+            notificacaoService.notificarParticipantes(
+                    idEvento,
+                    "EVENTO_ATUALIZADO",
+                    "O organizador atualizou as informações deste evento."
+            );
+        }
+        participacaoService.promoverVagasDisponiveis(idEvento);
+        return salvo;
     }
 
+    @Transactional
     public Evento cancelar(Long idEvento, Long idUsuario) {
+        AuthenticatedUserContext.requireMatches(idUsuario);
 
-        Evento evento = eventoRepository.findById(idEvento)
+        Evento evento = eventoRepository.findByIdForUpdate(idEvento)
                 .orElseThrow(() -> new RuntimeException("Evento não encontrado"));
 
         if (!evento.getCriadorId().equals(idUsuario)) {
-            throw new RuntimeException(
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
                     "Usuário sem permissão para cancelar este evento"
             );
         }
 
+        if ("CANCELADO".equals(evento.getStatus())) {
+            return evento;
+        }
+
         evento.setStatus("CANCELADO");
 
-        return eventoRepository.save(evento);
+        Evento salvo = eventoRepository.save(evento);
+        notificacaoService.notificarParticipantes(
+                idEvento,
+                "EVENTO_CANCELADO",
+                "O evento foi cancelado pelo organizador."
+        );
+        listaEsperaRepository.findByEventoIdOrderByAdicionadoEmAscIdAsc(idEvento)
+                .forEach(entrada -> notificacaoService.notificarUsuario(
+                        entrada.getUsuarioId(),
+                        idEvento,
+                        "EVENTO_CANCELADO",
+                        "O evento em cuja lista de espera você estava foi cancelado."
+                ));
+        listaEsperaRepository.deleteByEventoId(idEvento);
+        return salvo;
     }
 
     public Page<EventoResumoDTO> buscarComFiltros(
             String texto,
-            String status,
             String categoria,
             Long comunidadeId,
+            Boolean pago,
             LocalDate dataInicio,
             LocalDate dataFim,
+            String formato,
             Double lat,
             Double lng,
             Double raioKm,
@@ -215,12 +313,11 @@ public class EventoService {
             texto = null;
         }
 
-        if (status != null && status.trim().isEmpty()) {
-            status = null;
-        }
-
         if (categoria != null && categoria.trim().isEmpty()) {
             categoria = null;
+        }
+        if (formato != null && formato.trim().isEmpty()) {
+            formato = null;
         }
 
         Pageable pageable = PageRequest.of(pagina, tamanho);
@@ -228,11 +325,12 @@ public class EventoService {
         Page<Evento> paginaEventos
                 = eventoRepository.buscarComFiltros(
                         texto,
-                        status,
                         categoria,
                         comunidadeId,
+                        pago,
                         dataInicio,
                         dataFim,
+                        formato,
                         lat,
                         lng,
                         raioKm,
@@ -297,6 +395,7 @@ public class EventoService {
                                         evento.getId(),
                                         0L
                                 ),
+                                evento.getTaxaRepassadaComprador(),
                                 evento.getLatitude() != null ? evento.getLatitude().doubleValue() : null,
                                 evento.getLongitude() != null ? evento.getLongitude().doubleValue() : null
                         )

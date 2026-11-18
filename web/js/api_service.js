@@ -1,10 +1,24 @@
 // api_service.js
 // Camada de comunicação do frontend: concentra URLs, sessão e conversões HTTP para separar rede da lógica de tela.
 export class ApiService {
-    // Em desenvolvimento, a interface roda em outra porta e consome a API Spring Boot nesta origem.
-    static API_URL = 'http://localhost:8080';
-    //static API_URL = 'https://projeto-integrador-m4jn.onrender.com';
-    //static API_URL = 'http://143.106.241.xx:8080';
+    static API_URL = (() => {
+        const configurada = document
+            .querySelector('meta[name="api-base-url"]')
+            ?.content.trim();
+        const hostsLocais = ['localhost', '127.0.0.1'];
+        const hostDaPagina = window.location.hostname.toLowerCase();
+        const apiPadrao = hostsLocais.includes(hostDaPagina)
+            ? 'http://localhost:8080'
+            : 'https://projeto-integrador-m4jn.onrender.com';
+        const api = new URL(configurada || apiPadrao, window.location.href);
+        const destinoLocal = hostsLocais.includes(api.hostname.toLowerCase());
+
+        if (api.protocol !== 'https:' && !(api.protocol === 'http:' && destinoLocal)) {
+            throw new Error('A API deve usar HTTPS, exceto em desenvolvimento local.');
+        }
+
+        return api.origin;
+    })();
     static STORAGE_KEY = 'usuarioLogado';
 
     static getStorage(tipo = 'session') {
@@ -19,7 +33,12 @@ export class ApiService {
 
         if (raw) {
             try {
-                return JSON.parse(raw);
+                const usuario = JSON.parse(raw);
+                if (!usuario.authToken) {
+                    storage.removeItem(this.STORAGE_KEY);
+                    return null;
+                }
+                return usuario;
             } catch (error) {
                 this.fazerLogout();
                 return null;
@@ -30,6 +49,10 @@ export class ApiService {
         if (legado) {
             try {
                 const usuario = JSON.parse(legado);
+                if (!usuario.authToken) {
+                    this.getStorage('local')?.removeItem(this.STORAGE_KEY);
+                    return null;
+                }
                 this.salvarSessao(usuario);
                 this.getStorage('local')?.removeItem(this.STORAGE_KEY);
                 return usuario;
@@ -44,13 +67,60 @@ export class ApiService {
 
     static salvarSessao(usuario) {
         const storage = this.getStorage('session');
-        if (storage) storage.setItem(this.STORAGE_KEY, JSON.stringify(usuario));
+        if (storage) {
+            const rawSessaoAtual = storage.getItem(this.STORAGE_KEY);
+            let sessaoAtual = null;
+            if (rawSessaoAtual) {
+                try {
+                    sessaoAtual = JSON.parse(rawSessaoAtual);
+                } catch (erro) {
+                    console.error('Não foi possível preservar o token da sessão atual:', erro);
+                }
+            }
+            const usuarioComToken = {
+                ...usuario,
+                authToken: usuario.authToken || sessaoAtual?.authToken
+            };
+            storage.setItem(this.STORAGE_KEY, JSON.stringify(usuarioComToken));
+        }
         this.getStorage('local')?.removeItem(this.STORAGE_KEY);
     }
 
     static fazerLogout() {
-        this.getStorage('session')?.removeItem(this.STORAGE_KEY);
+        const storage = this.getStorage('session');
+        const raw = storage ? storage.getItem(this.STORAGE_KEY) : null;
+        if (raw) {
+            try {
+                const token = JSON.parse(raw).authToken;
+                if (token) {
+                    void this.request(`${this.API_URL}/auth/logout`, { method: 'POST' })
+                        .catch(erro => console.error('Não foi possível encerrar a sessão no servidor:', erro));
+                }
+            } catch (erro) {
+                console.error('Não foi possível ler a sessão antes de sair:', erro);
+            }
+        }
+        storage?.removeItem(this.STORAGE_KEY);
         this.getStorage('local')?.removeItem(this.STORAGE_KEY);
+    }
+
+    static getAuthToken() {
+        return this.getUsuarioLogado()?.authToken || null;
+    }
+
+    static request(input, init = {}) {
+        const token = this.getAuthToken();
+        if (!token) return window.fetch(input, init);
+
+        const requestUrl = typeof input === 'string' ? input : input.url;
+        const requestOrigin = new URL(requestUrl, window.location.href).origin;
+        if (requestOrigin !== new URL(this.API_URL).origin) {
+            return window.fetch(input, init);
+        }
+
+        const headers = new Headers(init.headers || {});
+        headers.set('Authorization', `Bearer ${token}`);
+        return window.fetch(input, { ...init, headers });
     }
 
     static getIdUsuarioLogado() {
@@ -78,21 +148,76 @@ export class ApiService {
         if (typeof fotoPerfil !== 'string') return null;
         const foto = fotoPerfil.trim();
         if (!foto) return null;
-        if (foto.startsWith('http://') || foto.startsWith('https://') || foto.startsWith('data:')) {
-            return foto;
+
+        if (/^https:\/\//i.test(foto)) {
+            try {
+                const url = new URL(foto);
+                return url.protocol === 'https:' ? url.href : null;
+            } catch {
+                return null;
+            }
         }
+
+        if (/^http:\/\//i.test(foto)) {
+            try {
+                const url = new URL(foto);
+                return ['localhost', '127.0.0.1'].includes(url.hostname.toLowerCase())
+                    ? url.href
+                    : null;
+            } catch {
+                return null;
+            }
+        }
+
         if (foto.startsWith('uploads/')) {
-            return `${this.API_URL}/${foto}`;
+            if (!/^uploads\/(perfis|eventos)\/[A-Za-z0-9_-]+\.(jpg|jpeg|png|webp)$/i.test(foto)) {
+                return null;
+            }
+            const url = new URL(foto, `${this.API_URL}/`);
+            return url.origin === new URL(this.API_URL).origin
+                && url.pathname.startsWith('/uploads/')
+                ? url.href
+                : null;
         }
-        if (foto.startsWith('/google/drive/image/') || foto.startsWith('google/drive/image/')) {
-            return `${this.API_URL}/${foto.replace(/^\//, '')}`;
+
+        const caminhoGoogle = foto.match(/^\/?google\/drive\/image\/([A-Za-z0-9_-]+)$/);
+        const idArquivo = caminhoGoogle
+            ? caminhoGoogle[1]
+            : /^[A-Za-z0-9_-]+$/.test(foto)
+                ? foto
+                : null;
+        if (idArquivo) {
+            return `${this.API_URL}/google/drive/image/${encodeURIComponent(idArquivo)}`;
         }
-        // Identificador de arquivo do Google Drive
-        return `${this.API_URL}/google/drive/image/${foto}`;
+
+        return null;
     }
 
     // --- USUÁRIOS ---
     static async listarUsuarios() { return await (await fetch(`${this.API_URL}/usuarios`)).json(); }
+    static async listarUsuariosSeguidos() {
+        const resposta = await fetch(`${this.API_URL}/usuarios/me/seguindo`);
+        if (!resposta.ok) {
+            throw new Error(await this.mensagemErroResposta(
+                resposta,
+                'Não foi possível carregar as pessoas que você segue.'
+            ));
+        }
+        return resposta.json();
+    }
+    static async seguirUsuario(idUsuario) {
+        return fetch(`${this.API_URL}/usuarios/me/seguindo/${idUsuario}`, { method: 'PUT' });
+    }
+    static async deixarDeSeguirUsuario(idUsuario) {
+        return fetch(`${this.API_URL}/usuarios/me/seguindo/${idUsuario}`, { method: 'DELETE' });
+    }
+    static async alterarSenha(senhaAtual, novaSenha) {
+        return fetch(`${this.API_URL}/usuarios/me/senha`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ senhaAtual, novaSenha })
+        });
+    }
     static async criarUsuario(
         nomeCompleto,
         nome,
@@ -246,6 +371,18 @@ export class ApiService {
         });
     }
 
+    static async calcularPagamento(idEvento) {
+        const response = await fetch(
+            `${this.API_URL}/api/pagamentos/eventos/${idEvento}/calcular`
+        );
+
+        if (!response.ok) {
+            throw new Error('Erro ao calcular o valor do pagamento');
+        }
+
+        return await response.json();
+    }
+
     static async atualizarComunidade(idComunidade, idUsuario, nome, descricao, categoria, cor) {
         return await fetch(`${this.API_URL}/comunidades/${idComunidade}/usuario/${idUsuario}`, {
             method: "PUT",
@@ -332,12 +469,121 @@ export class ApiService {
         );
     }
 
+    static async mensagemErroResposta(resposta, mensagemPadrao) {
+        const corpo = await resposta.text();
+        if (/unknown column|doesn't exist|does not exist|no such table/i.test(corpo)) {
+            return 'O banco ainda não tem todas as alterações necessárias. Aplique as migrações pendentes em java/database/migrations e reinicie o backend.';
+        }
+
+        try {
+            const erro = JSON.parse(corpo);
+            if (typeof erro.message === 'string' && erro.message.trim()) {
+                return erro.message;
+            }
+            if (typeof erro.detail === 'string' && erro.detail.trim()) {
+                return erro.detail;
+            }
+        } catch {
+            if (corpo.trim()) return corpo.trim();
+        }
+
+        return mensagemPadrao;
+    }
+
+    static async entrarNaListaEspera(idEvento, idUsuario) {
+        return await fetch(
+            `${this.API_URL}/api/eventos/${idEvento}/lista-espera/${idUsuario}`,
+            { method: 'POST' }
+        );
+    }
+
+    static async sairDaListaEspera(idEvento, idUsuario) {
+        return await fetch(
+            `${this.API_URL}/api/eventos/${idEvento}/lista-espera/${idUsuario}`,
+            { method: 'DELETE' }
+        );
+    }
+
+    static async estaNaListaEspera(idEvento, idUsuario) {
+        const response = await fetch(
+            `${this.API_URL}/api/eventos/${idEvento}/lista-espera/usuario/${idUsuario}`
+        );
+        if (!response.ok) {
+            throw new Error(await this.mensagemErroResposta(response, 'Erro ao consultar lista de espera'));
+        }
+        return await response.json();
+    }
+
+    static async salvarEventoAgenda(idEvento, idUsuario) {
+        return await fetch(
+            `${this.API_URL}/api/eventos/${idEvento}/salvo/usuario/${idUsuario}`,
+            { method: 'POST' }
+        );
+    }
+
+    static async removerEventoAgenda(idEvento, idUsuario) {
+        return await fetch(
+            `${this.API_URL}/api/eventos/${idEvento}/salvo/usuario/${idUsuario}`,
+            { method: 'DELETE' }
+        );
+    }
+
+    static async estaEventoSalvo(idEvento, idUsuario) {
+        const response = await fetch(
+            `${this.API_URL}/api/eventos/${idEvento}/salvo/usuario/${idUsuario}`
+        );
+        if (!response.ok) {
+            throw new Error(await this.mensagemErroResposta(response, 'Erro ao consultar agenda'));
+        }
+        return await response.json();
+    }
+
+    static async listarAgendaEventos(idUsuario) {
+        const response = await fetch(`${this.API_URL}/api/eventos/agenda/${idUsuario}`);
+        if (!response.ok) throw new Error('Erro ao carregar agenda');
+        return await response.json();
+    }
+
+    static async listarNotificacoesEventos(idUsuario) {
+        const response = await fetch(`${this.API_URL}/api/notificacoes/usuario/${idUsuario}`);
+        if (!response.ok) throw new Error('Erro ao carregar notificações');
+        return await response.json();
+    }
+
+    static async marcarNotificacaoLida(idNotificacao, idUsuario) {
+        return await fetch(
+            `${this.API_URL}/api/notificacoes/${idNotificacao}/lida/usuario/${idUsuario}`,
+            { method: 'PUT' }
+        );
+    }
+
+    static async obterResumoOrganizador(idEvento, idUsuario) {
+        const response = await fetch(
+            `${this.API_URL}/api/eventos/${idEvento}/organizador/${idUsuario}/resumo`
+        );
+        if (!response.ok) throw new Error('Erro ao carregar indicadores do evento');
+        return await response.json();
+    }
+
+    static async exportarParticipantesEvento(idEvento, idUsuario) {
+        const response = await fetch(
+            `${this.API_URL}/api/eventos/${idEvento}/organizador/${idUsuario}/participantes.csv`
+        );
+        if (!response.ok) throw new Error('Erro ao exportar participantes');
+        return await response.blob();
+    }
+
     static async listarParticipantesEvento(idEvento) {
-        return await (
-            await fetch(
-                `${this.API_URL}/api/eventos/${idEvento}/participantes`
-            )
-        ).json();
+        const response = await fetch(
+            `${this.API_URL}/api/eventos/${idEvento}/participantes`
+        );
+        if (!response.ok) {
+            throw new Error(await this.mensagemErroResposta(
+                response,
+                'Não foi possível carregar as inscrições do evento.'
+            ));
+        }
+        return response.json();
     }
 
     static async contarParticipantesEvento(idEvento) {
@@ -376,11 +622,12 @@ export class ApiService {
 
     static async buscarEventos({
         texto = null,
-        status = null,
         categoria = null,
         comunidadeId = null,
+        pago = null,
         dataInicio = null,
         dataFim = null,
+        formato = null,
         lat = null,       // <--- Novo: Latitude do usuário
         lng = null,       // <--- Novo: Longitude do usuário
         raioKm = 50,      // <--- Novo: Raio de busca em km (padrão 50km)
@@ -391,11 +638,12 @@ export class ApiService {
         const params = new URLSearchParams();
 
         if (texto) params.append("texto", texto);
-        if (status) params.append("status", status);
         if (categoria) params.append("categoria", categoria);
         if (comunidadeId) params.append("comunidadeId", comunidadeId);
+        if (pago !== null) params.append("pago", String(pago));
         if (dataInicio) params.append("dataInicio", dataInicio);
         if (dataFim) params.append("dataFim", dataFim);
+        if (formato) params.append("formato", formato);
 
         // Envia a geolocalização se estiver disponível
         if (lat !== null && lng !== null) {
@@ -755,3 +1003,4 @@ if (typeof window !== 'undefined' && window.fetch) {
         return originalFetch(resource, init);
     };
 }
+const fetch = (input, init) => ApiService.request(input, init);

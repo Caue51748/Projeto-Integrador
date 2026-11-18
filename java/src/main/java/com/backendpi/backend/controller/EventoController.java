@@ -11,7 +11,6 @@ import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -25,11 +24,11 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.backendpi.backend.dto.EventoResumoDTO;
 import com.backendpi.backend.model.Evento;
+import com.backendpi.backend.security.AuthenticatedUserContext;
 import com.backendpi.backend.service.EventoService;
 
 @RestController
 @RequestMapping("/api/eventos")
-@CrossOrigin(origins = {"http://127.0.0.1:5500", "http://localhost:5500"})
 public class EventoController {
 
     private final EventoService eventoService;
@@ -89,6 +88,7 @@ public class EventoController {
 
             Evento evento = eventoService.buscarPorId(idEvento)
                     .orElseThrow(() -> new IllegalArgumentException("Evento não encontrado"));
+            AuthenticatedUserContext.requireMatches(evento.getCriadorId());
             Path pasta = Paths.get("uploads", "eventos");
             Files.createDirectories(pasta);
             String extensao = switch (capa.getContentType()) {
@@ -140,13 +140,14 @@ public class EventoController {
     @GetMapping("/buscar")
     public Page<EventoResumoDTO> buscarComFiltros(
             @RequestParam(required = false) String texto,
-            @RequestParam(required = false) String status,
             @RequestParam(required = false) String categoria,
             @RequestParam(required = false) Long comunidadeId,
+            @RequestParam(required = false) Boolean pago,
             @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataInicio,
             @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataFim,
+            @RequestParam(required = false) String formato,
             @RequestParam(required = false) Double lat,
         @RequestParam(required = false) Double lng,
         @RequestParam(required = false, defaultValue = "50") Double raioKm, // Raio padrão: 50km
@@ -155,11 +156,12 @@ public class EventoController {
 
         return eventoService.buscarComFiltros(
                 texto,
-                status,
                 categoria,
                 comunidadeId,
+                pago,
                 dataInicio,
                 dataFim,
+                formato,
                 lat,
                 lng,
                 raioKm,

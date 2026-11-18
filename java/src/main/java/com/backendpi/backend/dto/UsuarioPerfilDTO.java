@@ -12,6 +12,7 @@ public class UsuarioPerfilDTO {
     private String fotoPerfil;
     private List<String> interesses;
     private String token;
+    private String authToken;
 
     // Construtor completo com token
     public UsuarioPerfilDTO(
@@ -105,5 +106,13 @@ public class UsuarioPerfilDTO {
 
     public void setToken(String token) {
         this.token = token;
+    }
+}
+    public String getAuthToken() {
+        return authToken;
+    }
+
+    public void setAuthToken(String authToken) {
+        this.authToken = authToken;
     }
 }

@@ -4,6 +4,8 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.stereotype.Service;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.backendpi.backend.model.Comunidade;
 import com.backendpi.backend.model.Post;
@@ -13,6 +15,7 @@ import com.backendpi.backend.repository.ComunidadeRepository;
 import com.backendpi.backend.repository.PostRepository;
 import com.backendpi.backend.repository.UsuarioRepository;
 import com.backendpi.backend.security.SecuritySanitizerService;
+import com.backendpi.backend.security.AuthenticatedUserContext;
 
 @Service
 public class ComunidadeService {
@@ -56,7 +59,15 @@ public class ComunidadeService {
         if (comunidade.getCategoria() != null) {
             comunidade.setCategoria(sanitizerService.validarEModerar(comunidade.getCategoria(), "Categoria da comunidade"));
         }
+        validarPermissaoGestao(comunidade);
         return repository.save(comunidade);
+    }
+
+    public void validarPermissaoGestao(Comunidade comunidade) {
+        if (comunidade.getCriador() == null) {
+            throw new RuntimeException("Comunidade sem administrador.");
+        }
+        AuthenticatedUserContext.requireMatches(comunidade.getCriador().getIdUsuario());
     }
 
     public List<Comunidade> listarPorUsuario(Long idUsuario) {
@@ -66,6 +77,7 @@ public class ComunidadeService {
     public Comunidade criar(Map<String, Object> dados) {
 
         Long criadorId = Long.valueOf(dados.get("criadorId").toString());
+        AuthenticatedUserContext.requireMatches(criadorId);
 
         Usuario criador = usuarioRepository.findById(criadorId)
                 .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
@@ -92,6 +104,7 @@ public class ComunidadeService {
     }
 
     public Comunidade atualizar(Long idComunidade, Long idUsuario, Comunidade nova) {
+        AuthenticatedUserContext.requireMatches(idUsuario);
 
         Comunidade comunidade = repository.findById(idComunidade)
                 .orElseThrow(() -> new RuntimeException("Comunidade não encontrada"));
@@ -99,7 +112,7 @@ public class ComunidadeService {
         if (comunidade.getCriador() == null
                 || !comunidade.getCriador().getIdUsuario().equals(idUsuario)) {
 
-            throw new RuntimeException("Usuário sem permissão para editar esta comunidade");
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Usuário sem permissão para editar esta comunidade");
         }
 
         if (nova.getNome() != null) {
@@ -119,6 +132,7 @@ public class ComunidadeService {
     }
 
     public void deletar(Long idComunidade, Long idUsuario) {
+        AuthenticatedUserContext.requireMatches(idUsuario);
 
         Comunidade comunidade = repository.findById(idComunidade)
                 .orElseThrow(() -> new RuntimeException("Comunidade não encontrada"));
@@ -126,7 +140,8 @@ public class ComunidadeService {
         if (comunidade.getCriador() == null
                 || !comunidade.getCriador().getIdUsuario().equals(idUsuario)) {
 
-            throw new RuntimeException(
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
                     "Usuário sem permissão para excluir esta comunidade"
             );
         }
@@ -147,6 +162,7 @@ public class ComunidadeService {
     }
 
     public void adicionarMembro(Long idComunidade, Long idUsuario) {
+        AuthenticatedUserContext.requireMatches(idUsuario);
         Comunidade comunidade = repository.findById(idComunidade)
                 .orElseThrow(() -> new RuntimeException("Comunidade não encontrada"));
 
@@ -163,6 +179,7 @@ public class ComunidadeService {
             Long idComunidade,
             Long idMembro,
             Long idSolicitante) {
+        AuthenticatedUserContext.requireMatches(idSolicitante);
 
         Comunidade comunidade = repository.findById(idComunidade)
                 .orElseThrow(() -> new RuntimeException("Comunidade não encontrada"));
@@ -188,7 +205,8 @@ public class ComunidadeService {
 
         // Só o próprio membro ou o administrador podem fazer a remoção
         if (!removendoASiMesmo && !solicitanteEhAdministrador) {
-            throw new RuntimeException(
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
                     "Usuário sem permissão para remover este membro"
             );
         }

@@ -1,3 +1,10 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
+
+import 'api_service.dart';
+
 class AuthService {
   static bool logado = false;
   static int? idUsuario;
@@ -7,6 +14,7 @@ class AuthService {
   static String? bio;
   static String? fotoPerfil;
   static String? token;
+  static String? authToken;
 
   static void fazerLogin({
     required int idUsuario,
@@ -15,7 +23,7 @@ class AuthService {
     String? username,
     String? bio,
     String? fotoPerfil,
-    String? token,
+    required String? authToken,
   }) {
     AuthService.logado = true;
     AuthService.idUsuario = idUsuario;
@@ -24,10 +32,19 @@ class AuthService {
     AuthService.username = username;
     AuthService.bio = bio;
     AuthService.fotoPerfil = fotoPerfil;
-    AuthService.token = token;
+    AuthService.authToken = authToken;
   }
 
   static void fazerLogout() {
+    final token = authToken;
+    if (token != null) {
+      unawaited(http.post(
+        Uri.parse('${ApiService.baseUrl}/auth/logout'),
+        headers: {'Authorization': 'Bearer $token'},
+      ).then<void>((_) {}).catchError((Object erro) {
+        if (kDebugMode) debugPrint('Não foi possível encerrar a sessão no servidor: $erro');
+      }));
+    }
     logado = false;
     idUsuario = null;
     nomeUsuario = null;
@@ -35,6 +52,6 @@ class AuthService {
     username = null;
     bio = null;
     fotoPerfil = null;
-    token = null;
+    authToken = null;
   }
 }

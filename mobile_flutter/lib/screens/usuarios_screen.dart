@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../models/usuario.dart';
 import '../services/usuario_service.dart';
+import '../widgets/social_avatar.dart';
+import 'public_profile_page.dart';
 
 /// Lista pública de pessoas: nunca oferece exclusão/edição de outras contas.
 /// Permissões verdadeiras devem ser verificadas também pelo backend.
@@ -61,14 +63,16 @@ class _UsuarioScreenState extends State<UsuarioScreen> {
           ...exibidos.map((u) => Card(
             margin: const EdgeInsets.only(bottom: 10),
             child: ListTile(
-              leading: CircleAvatar(
-                backgroundColor: const Color(0xFFFFE3EC),
-                child: Text(u.nome.isEmpty ? '?' : u.nome[0].toUpperCase(),
-                    style: const TextStyle(color: Color(0xFFEA3F74), fontWeight: FontWeight.w800)),
-              ),
+              leading: SocialAvatar(nome: u.nome, foto: u.fotoPerfil),
               title: Text(u.nome, style: const TextStyle(fontWeight: FontWeight.w700)),
               subtitle: Text(u.username == null || u.username!.isEmpty ? 'Membro SocialJoin' : '@${u.username}'),
-              // Intencional: sem botão de editar/excluir usuários de terceiros.
+              onTap: () {
+                if (u.idUsuario != null) {
+                  Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => PublicProfilePage(usuarioId: u.idUsuario!)));
+                }
+              },
+              trailing: const Icon(Icons.chevron_right_rounded, color: Color(0xFFEA3F74)),
             ),
           )),
         ]),
