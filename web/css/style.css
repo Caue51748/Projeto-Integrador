@@ -644,8 +644,17 @@ aside {
     font-weight: 700;
     color: var(--primary-blue);
     background-color: transparent;
+    border: 0;
+    font-family: inherit;
     text-align: left;
     white-space: nowrap;
+    cursor: pointer;
+}
+
+.brand:focus-visible {
+    outline: 2px solid var(--primary-blue);
+    outline-offset: -5px;
+    border-radius: 8px;
 }
 
 .nav-menu {
@@ -890,6 +899,57 @@ main {
     color: #fff;
     margin-right: 12px;
     flex-shrink: 0;
+}
+
+.profile-avatar-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin: 0 12px 0 0;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    cursor: pointer;
+}
+
+.profile-avatar-link .avatar {
+    margin: 0;
+}
+
+.post-detail-header .profile-avatar-link {
+    margin: 0;
+}
+
+.detail-comment-profile-link {
+    margin: 0;
+}
+
+.profile-name-link {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--text-main);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.profile-name-link:hover,
+.chat-profile-name-link:hover,
+.chat-message-author-link:hover {
+    color: var(--primary-blue);
+    text-decoration: underline;
+}
+
+.profile-avatar-link:focus-visible,
+.profile-name-link:focus-visible,
+.chat-conversation-avatar:focus-visible,
+.chat-profile-name-link:focus-visible,
+.chat-message-author-link:focus-visible {
+    outline: 2px solid var(--primary-blue);
+    outline-offset: 3px;
 }
 
 .post-author {
@@ -1506,7 +1566,8 @@ main {
     border-left: 3px solid var(--primary-blue);
 }
 
-.comment-preview span {
+.comment-preview span,
+.comment-preview .profile-name-link {
     font-weight: 600;
     color: var(--text-main);
     margin-right: 6px;
@@ -4526,11 +4587,14 @@ button:disabled {
     justify-content: center;
 
     background: linear-gradient(135deg, var(--secondary-pink), #ffbfd0);
+    border: 0;
+    padding: 0;
     color: var(--text-main);
 
     font-weight: 800;
     font-size: 15px;
     box-shadow: 0 8px 20px rgba(239, 101, 166, 0.16);
+    cursor: pointer;
 }
 
 .chat-conversation-avatar img,
@@ -4551,13 +4615,23 @@ button:disabled {
     flex: 1;
 }
 
-.chat-conversation-info strong {
+.chat-conversation-info strong,
+.chat-conversation-info .chat-profile-name-link {
     color: var(--text-main);
     font-size: 14px;
     font-weight: 700;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+.chat-profile-name-link {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
 }
 
 .chat-conversation-info span {
@@ -4632,13 +4706,23 @@ button:disabled {
     min-width: 0;
 }
 
-.chat-user-line strong {
+.chat-user-line strong,
+.chat-user-line .chat-profile-name-link {
     color: var(--text-main);
     font-size: 15px;
     line-height: 1.2;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+.chat-user-line .chat-profile-name-link {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
 }
 
 .chat-user-username {
@@ -4750,6 +4834,16 @@ button:disabled {
     font-weight: 700;
 
     opacity: 0.75;
+}
+
+.chat-message-author-link {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
 }
 
 .chat-message-content {
@@ -8461,6 +8555,7 @@ button:disabled {
 .perfil-avatar img {
     display: block;
     object-fit: cover;
+    object-position: center;
 }
 
 .perfil-avatar img[hidden],

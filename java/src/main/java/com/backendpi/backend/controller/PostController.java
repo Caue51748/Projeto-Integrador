@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -46,6 +47,18 @@ public class PostController {
         }
 
         return service.listar();
+    }
+
+    @GetMapping("/seguindo")
+    public Page<Post> listarPostsSeguidos(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        PageRequest pageable = PageRequest.of(
+                Math.max(0, page),
+                Math.max(1, size),
+                Sort.by(Sort.Direction.DESC, "idPost")
+        );
+        return service.listarPostsSeguidos(pageable);
     }
 
     @PostMapping

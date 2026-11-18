@@ -13,6 +13,7 @@ import com.backendpi.backend.model.Post;
 import com.backendpi.backend.repository.ComentarioRepository;
 import com.backendpi.backend.repository.ComunidadeRepository;
 import com.backendpi.backend.repository.PostRepository;
+import com.backendpi.backend.repository.UsuarioSeguidoRepository;
 import com.backendpi.backend.security.SecuritySanitizerService;
 import com.backendpi.backend.security.AuthenticatedUserContext;
 
@@ -24,19 +25,22 @@ public class PostService {
     private final ComunidadeRepository comunidadeRepository;
     private final SecuritySanitizerService sanitizerService;
     private final ImagensPostService imagensPostService;
+    private final UsuarioSeguidoRepository usuarioSeguidoRepository;
 
     public PostService(
             PostRepository repository,
             ComentarioRepository comentarioRepository,
             ComunidadeRepository comunidadeRepository,
             SecuritySanitizerService sanitizerService,
-            ImagensPostService imagensPostService) {
+            ImagensPostService imagensPostService,
+            UsuarioSeguidoRepository usuarioSeguidoRepository) {
 
         this.repository = repository;
         this.comentarioRepository = comentarioRepository;
         this.comunidadeRepository = comunidadeRepository;
         this.sanitizerService = sanitizerService;
         this.imagensPostService = imagensPostService;
+        this.usuarioSeguidoRepository = usuarioSeguidoRepository;
     }
 
     public List<Post> listar() {
@@ -45,6 +49,21 @@ public class PostService {
 
     public Page<Post> listarPaginado(Pageable pageable) {
         return repository.findAllByOrderByIdPostDesc(pageable);
+    }
+
+    public Page<Post> listarPostsSeguidos(Pageable pageable) {
+        Long idUsuario = AuthenticatedUserContext.requireUserId();
+        List<Long> idsSeguidos = usuarioSeguidoRepository
+                .findBySeguidorIdOrderBySeguidoEmDesc(idUsuario)
+                .stream()
+                .map(seguido -> seguido.getSeguidoId())
+                .toList();
+
+        if (idsSeguidos.isEmpty()) {
+            return Page.empty(pageable);
+        }
+
+        return repository.findByIdUsuarioInOrderByIdPostDesc(idsSeguidos, pageable);
     }
 
     public Page<Post> listarPorComunidade(Long idComunidade, Pageable pageable) {
@@ -140,12 +159,11 @@ public class PostService {
             String tituloLimpo = sanitizerService.validarEModerar(novo.getTitulo(), "Título da publicação");
             String conteudoLimpo = sanitizerService.validarEModerar(novo.getConteudo(), "Conteúdo da publicação");
 
+            // Aplica os valores já sanitizados e moderados
             post.setTitulo(tituloLimpo);
             post.setConteudo(conteudoLimpo);
             post.setIdUsuario(novo.getIdUsuario());
             post.setIdComunidade(novo.getIdComunidade());
-            post.setTitulo(novo.getTitulo());
-            post.setConteudo(novo.getConteudo());
 
             return repository.save(post);
 
