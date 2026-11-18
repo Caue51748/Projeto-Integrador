@@ -31,13 +31,9 @@ public class PostService {
             PostRepository repository,
             ComentarioRepository comentarioRepository,
             ComunidadeRepository comunidadeRepository,
-<<<<<<< HEAD
+            SecuritySanitizerService sanitizerService,
             ImagensPostService imagensPostService,
             UsuarioSeguidoRepository usuarioSeguidoRepository) {
-=======
-            SecuritySanitizerService sanitizerService,
-            ImagensPostService imagensPostService) {
->>>>>>> bf83d0133700af4b2577e5604d580e53e5ae5b47
 
         this.repository = repository;
         this.comentarioRepository = comentarioRepository;
@@ -163,12 +159,11 @@ public class PostService {
             String tituloLimpo = sanitizerService.validarEModerar(novo.getTitulo(), "Título da publicação");
             String conteudoLimpo = sanitizerService.validarEModerar(novo.getConteudo(), "Conteúdo da publicação");
 
+            // Aplica os valores já sanitizados e moderados
             post.setTitulo(tituloLimpo);
             post.setConteudo(conteudoLimpo);
             post.setIdUsuario(novo.getIdUsuario());
             post.setIdComunidade(novo.getIdComunidade());
-            post.setTitulo(novo.getTitulo());
-            post.setConteudo(novo.getConteudo());
 
             return repository.save(post);
 
