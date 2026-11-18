@@ -11,7 +11,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap"
         rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css?v=dark-mode-6">
+    <link rel="stylesheet" href="css/style.css?v=profile-avatar-fit-2">
 </head>
 
 <body>
@@ -631,15 +631,15 @@
 
                 <div class="chat-window-header">
                     <div class="chat-user-info">
-                        <div id="chat-user-avatar" class="chat-user-avatar">
+                        <button type="button" id="chat-user-avatar" class="chat-user-avatar" aria-label="Abrir perfil da pessoa nesta conversa">
                             ?
-                        </div>
+                        </button>
 
                         <div class="chat-user-meta">
                             <div class="chat-user-line">
-                                <strong id="chat-user-name">
+                                <button type="button" id="chat-user-name" class="chat-profile-name-link">
                                     Conversa
-                                </strong>
+                                </button>
                                 <span id="chat-user-status" class="chat-user-status">online</span>
                             </div>
 
@@ -2119,7 +2119,7 @@
 </div>
 
     <!-- type="module" permite importar ApiService; servir esta página por HTTP evita bloqueios de módulos em file://. -->
-    <script type="module" src="js/app.js?v=feed-following-1"></script>
+    <script type="module" src="js/app.js?v=event-ended-order-1"></script>
     <div id="toast-container" class="toast-container" aria-label="Avisos" aria-live="polite"
         aria-relevant="additions text"></div>
 </body>

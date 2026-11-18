@@ -1249,6 +1249,14 @@ class AppController {
         return [...lista].sort((a, b) => this.getInteresseScore(b, interessesUsuario) - this.getInteresseScore(a, interessesUsuario));
     }
 
+    ordenarEventosPorInteresses(eventos) {
+        return [...this.ordenarPorInteresses(eventos)].sort((a, b) => {
+            const encerradoA = (a.situacaoTemporal || a.status) === 'ENCERRADO';
+            const encerradoB = (b.situacaoTemporal || b.status) === 'ENCERRADO';
+            return Number(encerradoA) - Number(encerradoB);
+        });
+    }
+
     async processarAuth() {
         const nomeCompleto =
             document.getElementById('auth-nome-completo').value.trim();
@@ -3477,6 +3485,13 @@ class AppController {
         }
     }
 
+    renderizarLinkPerfil(idUsuario, nomeUsuario, conteudo, classe) {
+        const id = Number(idUsuario);
+        if (!Number.isSafeInteger(id) || id <= 0) return conteudo;
+
+        return `<button type="button" class="${classe}" aria-label="Abrir perfil de ${this.escaparHtmlDestaque(nomeUsuario)}" onclick="event.stopPropagation(); app.abrirPerfil(${id})">${conteudo}</button>`;
+    }
+
     montarCardsPosts(listaPosts, idContainer, mostrarTagComunidade) {
         const container = document.getElementById(idContainer);
         container.innerHTML = '';
@@ -3493,8 +3508,20 @@ class AppController {
             let inicial = (nomeAutor || 'U').charAt(0).toUpperCase();
 
             let avatarHtml = urlFotoAutor
-                ? `<img src="${this.escaparHtmlDestaque(urlFotoAutor)}" class="avatar" style="object-fit:cover;" onerror="this.remove()">`
-                : `<div class="avatar">${this.escaparHtmlDestaque(inicial)}</div>`;
+                ? `<img src="${this.escaparHtmlDestaque(urlFotoAutor)}" class="avatar" style="object-fit:cover;" alt="" onerror="this.remove()">`
+                : `<span class="avatar">${this.escaparHtmlDestaque(inicial)}</span>`;
+            avatarHtml = this.renderizarLinkPerfil(
+                idAutor,
+                nomeAutor,
+                avatarHtml,
+                'profile-avatar-link'
+            );
+            const nomeAutorHtml = this.renderizarLinkPerfil(
+                idAutor,
+                nomeAutor,
+                this.escaparHtmlDestaque(nomeAutor),
+                'profile-name-link post-author'
+            );
 
             let nomeComunidade = this.comunidadesMap[idComunidade];
             let dataPostagem = post.dataPostagem
@@ -3502,9 +3529,17 @@ class AppController {
                 : 'Agora';
 
             const comentarios = this.comentariosPorPost[idPost] || [];
-            let htmlComentarios = comentarios.slice(0, 2).map(c =>
-                `<div class="comment-preview"><span>${this.escaparHtmlDestaque(this.usuariosMap[c.idUsuario || c.id_usuario] || 'User')}:</span>${this.escaparHtmlDestaque(c.conteudo)}</div>`
-            ).join('');
+            let htmlComentarios = comentarios.slice(0, 2).map(c => {
+                const idAutorComentario = c.idUsuario || c.id_usuario;
+                const nomeAutorComentario = this.usuariosMap[idAutorComentario] || 'User';
+                const nomeAutorComentarioHtml = this.renderizarLinkPerfil(
+                    idAutorComentario,
+                    nomeAutorComentario,
+                    this.escaparHtmlDestaque(nomeAutorComentario),
+                    'profile-name-link'
+                );
+                return `<div class="comment-preview">${nomeAutorComentarioHtml}: ${this.escaparHtmlDestaque(c.conteudo)}</div>`;
+            }).join('');
             if (comentarios.length > 2) {
                 htmlComentarios += `<button class="comments-more" onclick="app.abrirDetalhesPost(${idPost})">Ver todos os ${comentarios.length} comentários</button>`;
             }
@@ -3563,7 +3598,7 @@ class AppController {
                 <div class="post-header-area">
                     ${avatarHtml}
                     <div>
-                        <span class="post-author">${this.escaparHtmlDestaque(nomeAutor)}</span>
+                        ${nomeAutorHtml}
                         <div class="post-meta">
     ${origemPostHtml}
     · ${dataPostagem}
@@ -3674,9 +3709,21 @@ ${ApiService.getIdUsuarioLogado() ? `
         const urlFotoAutor = ApiService.formatarUrlFotoPerfil(fotoAutor);
         const inicialAutor = (nomeAutor || 'U').charAt(0).toUpperCase();
 
-        const avatarHeaderHtml = urlFotoAutor
-            ? `<img src="${this.escaparHtmlDestaque(urlFotoAutor)}" class="avatar" style="object-fit:cover;" onerror="this.remove()">`
-            : `<div class="avatar">${this.escaparHtmlDestaque(inicialAutor)}</div>`;
+        let avatarHeaderHtml = urlFotoAutor
+            ? `<img src="${this.escaparHtmlDestaque(urlFotoAutor)}" class="avatar" style="object-fit:cover;" alt="" onerror="this.remove()">`
+            : `<span class="avatar">${this.escaparHtmlDestaque(inicialAutor)}</span>`;
+        avatarHeaderHtml = this.renderizarLinkPerfil(
+            idAutor,
+            nomeAutor,
+            avatarHeaderHtml,
+            'profile-avatar-link'
+        );
+        const nomeAutorDetalheHtml = this.renderizarLinkPerfil(
+            idAutor,
+            nomeAutor,
+            `<strong>${this.escaparHtmlDestaque(nomeAutor)}</strong>`,
+            'profile-name-link post-detail-author-link'
+        );
 
         const idComunidade = post.idComunidade || post.id_comunidade;
         const nomeComunidade = this.comunidadesMap[idComunidade];
@@ -3714,9 +3761,7 @@ ${ApiService.getIdUsuarioLogado() ? `
     ${avatarHeaderHtml}
 
     <div class="post-detail-author-info">
-        <strong>
-            ${this.escaparHtmlDestaque(nomeAutor)}
-        </strong>
+        ${nomeAutorDetalheHtml}
 
         <span>
             ${nomeComunidade
@@ -3796,9 +3841,21 @@ ${ApiService.getIdUsuarioLogado() ? `
                 const urlFotoC = ApiService.formatarUrlFotoPerfil(fotoC);
                 const iniC = (nomeC || 'U').charAt(0).toUpperCase();
                 const avC = urlFotoC
-                    ? `<img src="${this.escaparHtmlDestaque(urlFotoC)}" class="avatar detail-comment-avatar" style="object-fit:cover;" onerror="this.remove()">`
-                    : `<div class="avatar detail-comment-avatar">${this.escaparHtmlDestaque(iniC)}</div>`;
-                return `<div class="detail-comment">${avC}<div><strong>${this.escaparHtmlDestaque(nomeC)}</strong><p>${this.escaparHtmlDestaque(c.conteudo)}</p></div></div>`;
+                    ? `<img src="${this.escaparHtmlDestaque(urlFotoC)}" class="avatar detail-comment-avatar" style="object-fit:cover;" alt="" onerror="this.remove()">`
+                    : `<span class="avatar detail-comment-avatar">${this.escaparHtmlDestaque(iniC)}</span>`;
+                const avatarComentarioHtml = this.renderizarLinkPerfil(
+                    idC,
+                    nomeC,
+                    avC,
+                    'profile-avatar-link detail-comment-profile-link'
+                );
+                const nomeComentarioHtml = this.renderizarLinkPerfil(
+                    idC,
+                    nomeC,
+                    `<strong>${this.escaparHtmlDestaque(nomeC)}</strong>`,
+                    'profile-name-link'
+                );
+                return `<div class="detail-comment">${avatarComentarioHtml}<div>${nomeComentarioHtml}<p>${this.escaparHtmlDestaque(c.conteudo)}</p></div></div>`;
             }).join('') : '<p class="comments-empty">Ainda não há comentários. Seja o primeiro a participar.</p>'}</div>
                 </section>
             </article>
@@ -4435,7 +4492,7 @@ ${ApiService.getIdUsuarioLogado() ? `
 
             let eventos = resultado.content || [];
 
-            eventos = this.ordenarPorInteresses(eventos);
+            eventos = this.ordenarEventosPorInteresses(eventos);
             this.listaEventos = eventos;
             this.totalPaginasEventos = resultado.totalPages;
             this.renderizarRecomendacoes();
@@ -7840,18 +7897,37 @@ ${ApiService.getIdUsuarioLogado() ? `
                     ? `@${conversa.usernameOutroUsuario}`
                     : '';
 
-            const avatar = document.createElement('div');
+            const avatar = document.createElement('button');
+            avatar.type = 'button';
             avatar.className = 'chat-conversation-avatar';
+            avatar.setAttribute('aria-label', `Abrir perfil de ${nome}`);
             this.atualizarAvatarChat(
                 avatar,
                 nome,
                 conversa.fotoPerfilOutroUsuario
             );
+            avatar.addEventListener('click', evento => {
+                evento.stopPropagation();
+                const idOutroUsuario = Number(conversa.idOutroUsuario);
+                if (Number.isSafeInteger(idOutroUsuario) && idOutroUsuario > 0) {
+                    this.abrirPerfil(idOutroUsuario);
+                }
+            });
 
             const info = document.createElement('div');
             info.className = 'chat-conversation-info';
-            const nomeElemento = document.createElement('strong');
+            const nomeElemento = document.createElement('button');
+            nomeElemento.type = 'button';
+            nomeElemento.className = 'chat-profile-name-link';
             nomeElemento.textContent = nome;
+            nomeElemento.setAttribute('aria-label', `Abrir perfil de ${nome}`);
+            nomeElemento.addEventListener('click', evento => {
+                evento.stopPropagation();
+                const idOutroUsuario = Number(conversa.idOutroUsuario);
+                if (Number.isSafeInteger(idOutroUsuario) && idOutroUsuario > 0) {
+                    this.abrirPerfil(idOutroUsuario);
+                }
+            });
             const usernameElemento = document.createElement('span');
             usernameElemento.textContent = username;
             info.append(nomeElemento, usernameElemento);
@@ -7891,6 +7967,17 @@ ${ApiService.getIdUsuarioLogado() ? `
             conversa.nomeOutroUsuario || 'Usuário';
 
         nome.textContent = nomeExibicao;
+        const idOutroUsuario = Number(conversa.idOutroUsuario);
+        const abrirPerfilOutroUsuario = evento => {
+            evento.stopPropagation();
+            if (Number.isSafeInteger(idOutroUsuario) && idOutroUsuario > 0) {
+                this.abrirPerfil(idOutroUsuario);
+            }
+        };
+        avatar.setAttribute('aria-label', `Abrir perfil de ${nomeExibicao}`);
+        nome.setAttribute('aria-label', `Abrir perfil de ${nomeExibicao}`);
+        avatar.onclick = abrirPerfilOutroUsuario;
+        nome.onclick = abrirPerfilOutroUsuario;
 
         username.textContent =
             conversa.usernameOutroUsuario
@@ -7997,11 +8084,29 @@ ${ApiService.getIdUsuarioLogado() ? `
                 'chat-message-bubble';
 
 
+            const idRemetente = Number(mensagem.idRemetente);
+            const podeAbrirPerfilAutor =
+                !enviadaPorMim &&
+                Number.isSafeInteger(idRemetente) &&
+                idRemetente > 0;
             const autor =
-                document.createElement('span');
+                document.createElement(podeAbrirPerfilAutor ? 'button' : 'span');
 
             autor.className =
-                'chat-message-author';
+                podeAbrirPerfilAutor
+                    ? 'chat-message-author chat-message-author-link'
+                    : 'chat-message-author';
+            if (podeAbrirPerfilAutor) {
+                autor.type = 'button';
+                autor.setAttribute(
+                    'aria-label',
+                    `Abrir perfil de ${mensagem.nomeRemetente || 'Usuário'}`
+                );
+                autor.addEventListener('click', evento => {
+                    evento.stopPropagation();
+                    this.abrirPerfil(idRemetente);
+                });
+            }
 
             autor.textContent =
                 enviadaPorMim
