@@ -64,6 +64,9 @@ public class Usuario {
     @Column(name = "interesse")
     private List<String> interesses = new ArrayList<>();
 
+    @Column(name = "role")
+    private String role;
+
     @Transient
     private String token;
 
@@ -169,5 +172,40 @@ public class Usuario {
 
     public void setToken(String token) {
         this.token = token;
+    }
+
+    public String getRole() {
+        return role;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
+    }
+
+    public boolean isPremium() {
+        return role != null && role.toLowerCase().contains("premium");
+    }
+
+    public void adicionarRole(String novaRole) {
+        if (novaRole == null || novaRole.isBlank()) return;
+        if (this.role == null || this.role.isBlank()) {
+            this.role = novaRole.trim();
+        } else if (!isPremium() && novaRole.equalsIgnoreCase("premium")) {
+            this.role = this.role.trim() + "," + novaRole.trim();
+        }
+    }
+
+    public void removerRole(String roleARemover) {
+        if (this.role == null || roleARemover == null) return;
+        String[] partes = this.role.split(",");
+        StringBuilder sb = new StringBuilder();
+        for (String p : partes) {
+            String limpo = p.trim();
+            if (!limpo.equalsIgnoreCase(roleARemover.trim()) && !limpo.isEmpty()) {
+                if (sb.length() > 0) sb.append(",");
+                sb.append(limpo);
+            }
+        }
+        this.role = sb.length() > 0 ? sb.toString() : "";
     }
 }

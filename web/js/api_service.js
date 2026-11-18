@@ -129,6 +129,58 @@ export class ApiService {
         return user ? (user.idUsuario || user.id_usuario || user.id) : null;
     }
 
+    static isUsuarioPremium() {
+        const user = this.getUsuarioLogado();
+        if (!user) return false;
+        if (user.premium === true) return true;
+        if (typeof user.role === 'string' && user.role.toLowerCase().includes('premium')) return true;
+        return false;
+    }
+
+    static async assinarPremium() {
+        const res = await this.request(`${this.API_URL}/usuarios/me/upgrade-premium`, {
+            method: 'POST'
+        });
+        if (!res.ok) {
+            let msg = 'Erro ao processar assinatura Premium.';
+            try {
+                const erro = await res.json();
+                if (erro.message) msg = erro.message;
+            } catch (_) {}
+            throw new Error(msg);
+        }
+        const userAtualizado = await res.json();
+        this.salvarSessao(userAtualizado);
+        return userAtualizado;
+    }
+
+    static async cancelarPremium() {
+        const res = await this.request(`${this.API_URL}/usuarios/me/cancelar-premium`, {
+            method: 'POST'
+        });
+        if (!res.ok) {
+            let msg = 'Erro ao cancelar assinatura Premium.';
+            try {
+                const erro = await res.json();
+                if (erro.message) msg = erro.message;
+            } catch (_) {}
+            throw new Error(msg);
+        }
+        const userAtualizado = await res.json();
+        this.salvarSessao(userAtualizado);
+        return userAtualizado;
+    }
+
+    static async obterLimitesUsuario() {
+        try {
+            const res = await this.request(`${this.API_URL}/usuarios/me/limites`);
+            if (!res.ok) return null;
+            return await res.json();
+        } catch (_) {
+            return null;
+        }
+    }
+
     static getToken() {
         const user = this.getUsuarioLogado();
         return user ? (user.token || user.jwt || user.authToken || null) : null;

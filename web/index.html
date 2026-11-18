@@ -805,6 +805,7 @@
                 </span>
                 <h2 id="comunidade-modal-title">Criar comunidade</h2>
                 <p>Crie um espaço para reunir pessoas com interesses em comum.</p>
+                <div id="comunidade-limite-aviso" class="form-limite-aviso"></div>
             </div>
 
             <div class="comunidade-criar-fields">
@@ -891,6 +892,7 @@
                 <span class="modal-kicker"><i class="material-icons">event</i> Agenda & Encontros</span>
                 <h2 id="evento-modal-title">Organizar Novo Evento</h2>
                 <p>Preencha as informações para divulgar seu evento na comunidade.</p>
+                <div id="evento-limite-aviso" class="form-limite-aviso"></div>
             </div>
 
             <div id="evento-feedback" class="form-feedback" role="alert" aria-live="polite"></div>
@@ -1856,6 +1858,125 @@
 
     </div>
 </div>
+
+    <!-- MODAL PLANO PREMIUM -->
+    <div class="modal-overlay" id="plano-premium-modal" role="dialog" aria-modal="true" aria-labelledby="premium-modal-title">
+        <div class="modal plano-premium-modal">
+            <button
+                type="button"
+                class="modal-close-btn"
+                onclick="app.fecharModal('plano-premium-modal')"
+                aria-label="Fechar"
+            >
+                <i class="material-icons">close</i>
+            </button>
+
+            <div class="premium-modal-header">
+                <div class="premium-modal-badge-icon">
+                    <i class="material-icons">workspace_premium</i>
+                </div>
+                <div>
+                    <span class="section-kicker" style="color: #F59E0B; font-weight: 800;">PLANO EXCLUSIVO</span>
+                    <h2 id="premium-modal-title">Plano Premium PI Social</h2>
+                    <p>Destaque seu conteúdo, remova limites e aproveite ao máximo!</p>
+                </div>
+            </div>
+
+            <div class="premium-pricing-card">
+                <div class="premium-pricing-badge">Mais Popular</div>
+                <div class="premium-price-row">
+                    <span class="premium-price-currency">R$</span>
+                    <span class="premium-price-value">19,90</span>
+                    <span class="premium-price-period">/mês</span>
+                </div>
+                <div class="premium-pricing-sub">Cancele quando quiser • Ativação imediata</div>
+            </div>
+
+            <div class="premium-benefits-list">
+                <div class="premium-benefit-item">
+                    <div class="benefit-icon"><i class="material-icons">trending_up</i></div>
+                    <div class="benefit-text">
+                        <strong>Prioridade nas pesquisas e recomendações</strong>
+                        <span>Seus eventos e comunidades aparecem no topo para milhares de pessoas.</span>
+                    </div>
+                </div>
+                <div class="premium-benefit-item">
+                    <div class="benefit-icon"><i class="material-icons">all_inclusive</i></div>
+                    <div class="benefit-text">
+                        <strong>Eventos e Comunidades Ilimitados</strong>
+                        <span>Usuários gratuitos têm limite de 3. Com o Premium, crie quantas quiser!</span>
+                    </div>
+                </div>
+                <div class="premium-benefit-item">
+                    <div class="benefit-icon"><i class="material-icons">verified</i></div>
+                    <div class="benefit-text">
+                        <strong>Selo exclusivo Premium</strong>
+                        <span>Destaque oficial no seu perfil, nos seus posts e nos seus eventos.</span>
+                    </div>
+                </div>
+                <div class="premium-benefit-item">
+                    <div class="benefit-icon"><i class="material-icons">block</i></div>
+                    <div class="benefit-text">
+                        <strong>Zero anúncios nos cards de eventos</strong>
+                        <span>Navegação limpa sem nenhum anúncio ou banner promocional.</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SIMULAÇÃO DE FORMA DE PAGAMENTO -->
+            <div id="premium-metodos-pagamento" class="premium-metodos-pagamento">
+                <label class="premium-metodo-opcao">
+                    <input type="radio" name="premium-metodo" value="cartao" checked>
+                    <span class="metodo-radio-custom"></span>
+                    <i class="material-icons">credit_card</i>
+                    <span>Cartão de Crédito</span>
+                </label>
+                <label class="premium-metodo-opcao">
+                    <input type="radio" name="premium-metodo" value="pix">
+                    <span class="metodo-radio-custom"></span>
+                    <i class="material-icons">qr_code_2</i>
+                    <span>PIX Instantâneo</span>
+                </label>
+            </div>
+
+            <div class="compra-ingresso-aviso">
+                <i class="material-icons">info_outline</i>
+                <div>
+                    <strong>Simulação de Pagamento</strong>
+                    <span>Ambiente acadêmico do PI. A assinatura é ativada instantaneamente sem cobrança real.</span>
+                </div>
+            </div>
+
+            <div class="premium-modal-acoes">
+                <button
+                    type="button"
+                    class="btn-secondary"
+                    onclick="app.fecharModal('plano-premium-modal')"
+                >
+                    Voltar
+                </button>
+                <button
+                    type="button"
+                    id="btn-confirmar-premium"
+                    class="btn-primary btn-premium-action"
+                    onclick="app.confirmarAssinaturaPremium()"
+                >
+                    <i class="material-icons">star</i>
+                    Assinar Premium Agora
+                </button>
+                <button
+                    type="button"
+                    id="btn-cancelar-premium"
+                    class="btn-danger btn-premium-cancelar"
+                    style="display: none;"
+                    onclick="app.confirmarCancelamentoPremium()"
+                >
+                    <i class="material-icons">cancel</i>
+                    Cancelar Assinatura
+                </button>
+            </div>
+        </div>
+    </div>
 
     <div class="modal-overlay" id="modal-confirmacao" role="dialog" aria-modal="true"
         aria-labelledby="modal-confirmacao-titulo">

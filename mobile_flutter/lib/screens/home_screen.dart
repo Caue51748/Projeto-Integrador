@@ -17,6 +17,7 @@ import 'login_screen.dart';
 import 'register_screen.dart';
 import 'mobile_event_search_page.dart';
 import 'create_post_page.dart';
+import 'plano_premium_page.dart';
 
 /// Layout principal: Início, Buscar, Eventos, Chats e Perfil.
 /// A funcionalidade do mapa permanece acessível no topo e nos eventos.
@@ -200,6 +201,23 @@ class _HomeScreenState extends State<HomeScreen> {
                 Navigator.of(context).push(MaterialPageRoute<void>(
                   builder: (_) => const CommunitiesPage()));
               }),
+            ListTile(
+              leading: const Icon(Icons.workspace_premium_rounded, color: Color(0xFFF59E0B)),
+              title: Text(
+                AuthService.isPremium ? 'Meu Plano Premium ⭐' : 'Plano Premium ✨',
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+              subtitle: Text(
+                AuthService.isPremium ? 'Assinatura ativa • Ilimitado' : 'Criação ilimitada e sem anúncios',
+                style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280)),
+              ),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                Navigator.of(context).push(MaterialPageRoute<void>(
+                  builder: (_) => const PlanoPremiumPage(),
+                ));
+              },
+            ),
             if (!AuthService.logado) ...[
               const Divider(),
               ListTile(leading: const Icon(Icons.login_rounded),

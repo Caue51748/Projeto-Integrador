@@ -13,6 +13,8 @@ public class UsuarioPerfilDTO {
     private List<String> interesses;
     private String token;
     private String authToken;
+    private String role;
+    private boolean premium;
 
     // Construtor completo com token
     public UsuarioPerfilDTO(
@@ -120,5 +122,21 @@ public class UsuarioPerfilDTO {
         if (this.token == null) {
             this.token = authToken;
         }
+    }
+
+    public String getRole() {
+        return role;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
+    }
+
+    public boolean isPremium() {
+        return premium;
+    }
+
+    public void setPremium(boolean premium) {
+        this.premium = premium;
     }
 }

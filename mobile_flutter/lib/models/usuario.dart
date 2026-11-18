@@ -9,6 +9,8 @@ class Usuario {
   String? dataNascimento;
   String? fotoPerfil;
   String? token;
+  String? role;
+  bool? premium;
 
   Usuario({
     this.idUsuario,
@@ -21,7 +23,13 @@ class Usuario {
     this.dataNascimento,
     this.fotoPerfil,
     this.token,
+    this.role,
+    this.premium,
   });
+
+  bool get isPremium =>
+      premium == true ||
+      (role != null && role!.toLowerCase().contains('premium'));
 
   static int? _id(dynamic value) {
     if (value is num) return value.toInt();
@@ -46,6 +54,11 @@ class Usuario {
       dataNascimento: (dados['dataNascimento'] ?? dados['data_nascimento'])?.toString(),
       fotoPerfil: (dados['fotoPerfil'] ?? dados['foto_perfil'])?.toString(),
       token: (dados['token'] ?? json['token'])?.toString(),
+      role: (dados['role'] ?? json['role'])?.toString(),
+      premium: dados['premium'] == true ||
+          json['premium'] == true ||
+          (dados['role'] != null && dados['role'].toString().toLowerCase().contains('premium')) ||
+          (json['role'] != null && json['role'].toString().toLowerCase().contains('premium')),
     );
   }
 
@@ -60,5 +73,7 @@ class Usuario {
     if (dataNascimento != null) 'dataNascimento': dataNascimento,
     if (fotoPerfil != null) 'fotoPerfil': fotoPerfil,
     if (token != null) 'token': token,
+    if (role != null) 'role': role,
+    if (premium != null) 'premium': premium,
   };
 }

@@ -15,6 +15,12 @@ class AuthService {
   static String? fotoPerfil;
   static String? token;
   static String? authToken;
+  static String? role;
+  static bool premium = false;
+
+  static bool get isPremium =>
+      premium ||
+      (role != null && role!.toLowerCase().contains('premium'));
 
   static void fazerLogin({
     required int idUsuario,
@@ -24,6 +30,8 @@ class AuthService {
     String? bio,
     String? fotoPerfil,
     required String? authToken,
+    String? role,
+    bool? premium,
   }) {
     AuthService.logado = true;
     AuthService.idUsuario = idUsuario;
@@ -33,6 +41,9 @@ class AuthService {
     AuthService.bio = bio;
     AuthService.fotoPerfil = fotoPerfil;
     AuthService.authToken = authToken;
+    AuthService.role = role;
+    AuthService.premium = premium == true ||
+        (role != null && role.toLowerCase().contains('premium'));
   }
 
   static void fazerLogout() {
@@ -53,5 +64,7 @@ class AuthService {
     bio = null;
     fotoPerfil = null;
     authToken = null;
+    role = null;
+    premium = false;
   }
 }

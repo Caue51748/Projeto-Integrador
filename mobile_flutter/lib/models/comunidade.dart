@@ -2,18 +2,27 @@ class MembroComunidade {
   final int? idUsuario;
   final String nome;
   final String? username;
+  final String? role;
+  final bool isPremium;
 
   MembroComunidade({
     this.idUsuario,
     required this.nome,
     this.username,
+    this.role,
+    this.isPremium = false,
   });
 
   factory MembroComunidade.fromJson(Map<String, dynamic> json) {
+    final roleVal = json['role']?.toString();
+    final premiumVal = json['premium'] == true ||
+        (roleVal != null && roleVal.toLowerCase().contains('premium'));
     return MembroComunidade(
       idUsuario: json['idUsuario'] ?? json['id_usuario'],
       nome: json['nome'] ?? '',
       username: json['username'],
+      role: roleVal,
+      isPremium: premiumVal,
     );
   }
 }
@@ -34,6 +43,7 @@ class Comunidade {
   });
 
   int get totalMembros => membros.length;
+  bool get isPremium => criador?.isPremium ?? false;
 
   bool isMembro(int? idUsuario) {
     if (idUsuario == null) return false;

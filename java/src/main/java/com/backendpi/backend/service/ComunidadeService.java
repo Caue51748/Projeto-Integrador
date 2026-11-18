@@ -41,7 +41,7 @@ public class ComunidadeService {
     }
 
     public List<Comunidade> listar() {
-        return repository.findAll();
+        return repository.findAllOrderByPremium();
     }
 
     public Comunidade buscarPorId(Long idComunidade) {
@@ -81,6 +81,17 @@ public class ComunidadeService {
 
         Usuario criador = usuarioRepository.findById(criadorId)
                 .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+
+        // Limite de comunidades para plano gratuito (máximo 3). Usuários Premium são ilimitados!
+        if (!criador.isPremium()) {
+            long totalCriadas = repository.countByCriadorId(criadorId);
+            if (totalCriadas >= 3) {
+                throw new ResponseStatusException(
+                        HttpStatus.FORBIDDEN,
+                        "Usuários do plano gratuito podem criar no máximo 3 comunidades. Faça upgrade para o Premium para criar comunidades ilimitadas!"
+                );
+            }
+        }
 
         String nome = dados.get("nome") != null ? dados.get("nome").toString() : "";
         String descricao = dados.get("descricao") != null ? dados.get("descricao").toString() : "";

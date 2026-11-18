@@ -109,7 +109,47 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
           child: Column(children: [
             SocialAvatar(nome: u.nome, foto: u.fotoPerfil, radius: 45),
             const SizedBox(height: 12),
-            Text(u.nome, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(u.nome, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
+                if (u.isPremium) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
+                      ),
+                      borderRadius: BorderRadius.circular(6),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFFF59E0B).withOpacity(0.35),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.workspace_premium_rounded, color: Colors.white, size: 14),
+                        SizedBox(width: 4),
+                        Text(
+                          'PREMIUM',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
             if (u.username != null) Text('@${u.username}', style: const TextStyle(color: Color(0xFF898D9D))),
             if (u.bio != null && u.bio!.trim().isNotEmpty) ...[
               const SizedBox(height: 15), Text(u.bio!, textAlign: TextAlign.center),

@@ -9,6 +9,7 @@ import '../services/evento_service.dart';
 import '../services/auth_service.dart';
 import '../services/api_service.dart';
 import 'login_screen.dart';
+import 'plano_premium_page.dart';
 
 /// Redesign mobile: descoberta > mapa > eventos > ações.
 class EventosPage extends StatefulWidget {
@@ -36,13 +37,22 @@ class _EventosPageState extends State<EventosPage> {
   @override
   void dispose() { _busca.dispose(); super.dispose(); }
 
-  List<Evento> get _filtrados => _eventos.where((e) {
-    final q = _busca.text.trim().toLowerCase();
-    final bate = q.isEmpty || e.titulo.toLowerCase().contains(q) ||
-        e.localEvento.toLowerCase().contains(q) ||
-        (e.descricao ?? '').toLowerCase().contains(q);
-    return bate && (_categoria == 'Todos' || (e.categoria ?? 'Outros') == _categoria);
-  }).toList();
+  List<Evento> get _filtrados {
+    final list = _eventos.where((e) {
+      final q = _busca.text.trim().toLowerCase();
+      final bate = q.isEmpty || e.titulo.toLowerCase().contains(q) ||
+          e.localEvento.toLowerCase().contains(q) ||
+          (e.descricao ?? '').toLowerCase().contains(q);
+      return bate && (_categoria == 'Todos' || (e.categoria ?? 'Outros') == _categoria);
+    }).toList();
+    // Prioridade para eventos com criador Premium
+    list.sort((a, b) {
+      final aPrem = a.criadorPremium == true ? 0 : 1;
+      final bPrem = b.criadorPremium == true ? 0 : 1;
+      return aPrem.compareTo(bPrem);
+    });
+    return list;
+  }
 
   List<String> get _categorias {
     final set = _eventos.map((e) => e.categoria?.trim() ?? 'Outros')
@@ -225,6 +235,39 @@ class _EventosPageState extends State<EventosPage> {
     if (!AuthService.logado || AuthService.idUsuario == null) {
       await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const LoginScreen()));
       return;
+    }
+
+    if (!AuthService.isPremium) {
+      final criados = _eventos.where((e) => e.criadorId == AuthService.idUsuario && e.status != 'CANCELADO').length;
+      if (criados >= 3) {
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Row(children: [
+              Icon(Icons.workspace_premium_rounded, color: Color(0xFFF59E0B)),
+              SizedBox(width: 8),
+              Text('Limite Atingido'),
+            ]),
+            content: const Text('Usuários do plano gratuito podem criar no máximo 3 eventos.\n\nFaça o upgrade para o Plano Premium para criar eventos ilimitados e ter destaque nas buscas!'),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Voltar')),
+              FilledButton(
+                style: FilledButton.styleFrom(backgroundColor: const Color(0xFFF59E0B)),
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  final mudou = await Navigator.push(context, MaterialPageRoute(builder: (_) => const PlanoPremiumPage()));
+                  if (mudou == true) {
+                    setState(() {});
+                    _carregar();
+                  }
+                },
+                child: const Text('Ver Plano Premium ✨'),
+              ),
+            ],
+          ),
+        );
+        return;
+      }
     }
     final titulo = TextEditingController();
     final descricao = TextEditingController();
@@ -470,6 +513,25 @@ class _EventosPageState extends State<EventosPage> {
                 child: Text((evento.categoria ?? 'EVENTO').toUpperCase(),
                   style: const TextStyle(color: roxo, fontSize: 10, fontWeight: FontWeight.w800)),
               ),
+              if (evento.criadorPremium == true) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEF3C7),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: const Color(0xFFFDE68A)),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.workspace_premium_rounded, color: Color(0xFFD97706), size: 13),
+                      SizedBox(width: 3),
+                      Text('PREMIUM', style: TextStyle(color: Color(0xFFB45309), fontSize: 9, fontWeight: FontWeight.w800)),
+                    ],
+                  ),
+                ),
+              ],
               const Spacer(),
               if (inscrito) const Row(children: [
                 Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 16),
@@ -497,6 +559,44 @@ class _EventosPageState extends State<EventosPage> {
                 style: const TextStyle(fontSize: 13, color: cinza))),
             ]),
             const SizedBox(height: 15),
+            if (!AuthService.isPremium) ...[
+              Container(
+                margin: const EdgeInsets.only(bottom: 14),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF9FAFB),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFE5E7EB)),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF9CA3AF),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Text('Anúncio', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
+                    ),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text('Crie eventos ilimitados e remova anúncios!',
+                        style: TextStyle(fontSize: 11, color: Color(0xFF4B5563))),
+                    ),
+                    InkWell(
+                      onTap: () async {
+                        final mudou = await Navigator.push(context, MaterialPageRoute(builder: (_) => const PlanoPremiumPage()));
+                        if (mudou == true) {
+                          setState(() {});
+                          _carregar();
+                        }
+                      },
+                      child: const Text('Assinar ✨', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: roxo)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             Row(children: [
               Expanded(child: OutlinedButton(
                 onPressed: () => _abrirDetalhes(evento),

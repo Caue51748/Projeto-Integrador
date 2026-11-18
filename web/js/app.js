@@ -646,6 +646,9 @@ class AppController {
             <button class="account-menu-item" role="menuitem" onclick="app.abrirMeuPerfil()">
                 <i class="material-icons">person_outline</i> Meu perfil
             </button>
+            <button class="account-menu-item account-menu-premium" role="menuitem" onclick="app.abrirModalPlanoPremium()">
+                <i class="material-icons" style="color: #F59E0B;">workspace_premium</i> ${ApiService.isUsuarioPremium() ? 'Meu Plano Premium ⭐' : 'Seja Premium ✨'}
+            </button>
               <button
         class="account-menu-item"
         role="menuitem"
@@ -707,6 +710,16 @@ class AppController {
             this.prepararModalEvento();
         }
 
+        if (id === 'comunidade-modal') {
+            if (!ApiService.getUsuarioLogado()) {
+                this.definirModoAuth(false);
+                this.abrirModal('auth-modal');
+                this.mostrarAuthFeedback("Faça login para criar uma comunidade.");
+                return;
+            }
+            this.prepararModalComunidade();
+        }
+
         modal.style.display = 'flex';
         if (id === 'auth-modal') {
             setTimeout(() => {
@@ -718,6 +731,32 @@ class AppController {
         }
     }
 
+    prepararModalComunidade() {
+        const aviso = document.getElementById('comunidade-limite-aviso');
+        if (!aviso) return;
+        const idUsuario = ApiService.getIdUsuarioLogado();
+        const isPremium = ApiService.isUsuarioPremium();
+        if (isPremium) {
+            aviso.innerHTML = '<i class="material-icons">workspace_premium</i> <strong>Plano Premium:</strong> Criação ilimitada de comunidades!';
+            aviso.className = 'form-limite-aviso limite-ok';
+            aviso.style.display = 'flex';
+        } else {
+            const count = (this.listaComunidades || []).filter(c => {
+                const criadorId = c.criador?.idUsuario || c.criador?.id;
+                return String(criadorId) === String(idUsuario);
+            }).length;
+            if (count >= 3) {
+                aviso.innerHTML = `<i class="material-icons">warning</i> <span><strong>Limite atingido (${count}/3):</strong> Seja Premium para criar comunidades ilimitadas!</span> <button type="button" class="btn-ad-upgrade" onclick="app.abrirModalPlanoPremium(event)">Upgrade ✨</button>`;
+                aviso.className = 'form-limite-aviso limite-atingido';
+                aviso.style.display = 'flex';
+            } else {
+                aviso.innerHTML = `<i class="material-icons">info</i> <span>Plano Gratuito: ${count}/3 comunidades criadas.</span> <a href="#" onclick="app.abrirModalPlanoPremium(event)" style="color:#F59E0B; margin-left:6px; font-weight:700;">Seja Premium ⭐</a>`;
+                aviso.className = 'form-limite-aviso limite-ok';
+                aviso.style.display = 'flex';
+            }
+        }
+    }
+
     abrirModalEvento() {
         this.abrirModal('evento-modal');
     }
@@ -725,6 +764,28 @@ class AppController {
     prepararModalEvento() {
         this.popularComunidadesEvento(this.comunidadeAtivaId || null);
         this.mostrarEventoFeedback('');
+
+        const aviso = document.getElementById('evento-limite-aviso');
+        if (aviso) {
+            const idUsuario = ApiService.getIdUsuarioLogado();
+            const isPremium = ApiService.isUsuarioPremium();
+            if (isPremium) {
+                aviso.innerHTML = '<i class="material-icons">workspace_premium</i> <strong>Plano Premium:</strong> Criação ilimitada de eventos com prioridade nas pesquisas!';
+                aviso.className = 'form-limite-aviso limite-ok';
+                aviso.style.display = 'flex';
+            } else {
+                const count = (this.listaEventos || []).filter(e => String(e.criadorId) === String(idUsuario) && e.status !== 'CANCELADO').length;
+                if (count >= 3) {
+                    aviso.innerHTML = `<i class="material-icons">warning</i> <span><strong>Limite atingido (${count}/3):</strong> Seja Premium para criar eventos ilimitados!</span> <button type="button" class="btn-ad-upgrade" onclick="app.abrirModalPlanoPremium(event)">Upgrade ✨</button>`;
+                    aviso.className = 'form-limite-aviso limite-atingido';
+                    aviso.style.display = 'flex';
+                } else {
+                    aviso.innerHTML = `<i class="material-icons">info</i> <span>Plano Gratuito: ${count}/3 eventos criados.</span> <a href="#" onclick="app.abrirModalPlanoPremium(event)" style="color:#F59E0B; margin-left:6px; font-weight:700;">Seja Premium ⭐</a>`;
+                    aviso.className = 'form-limite-aviso limite-ok';
+                    aviso.style.display = 'flex';
+                }
+            }
+        }
 
         const hojeIso = new Date().toISOString().split('T')[0];
         const dataInput = document.getElementById('evento-data');
@@ -1611,13 +1672,18 @@ class AppController {
         const recomendados = [];
 
         this.listaComunidades.forEach(comunidade => {
-            const score = this.getInteresseScore(comunidade, interesses);
+            let score = this.getInteresseScore(comunidade, interesses);
+            const criadorPremium = comunidade.criador?.premium || (typeof comunidade.criador?.role === 'string' && comunidade.criador.role.toLowerCase().includes('premium'));
+            if (criadorPremium) {
+                score += 1000;
+            }
             if (score > 0) {
                 recomendados.push({
                     tipo: 'comunidade',
                     titulo: comunidade.nome,
                     subtitulo: comunidade.categoria || 'Comunidade',
                     score,
+                    isPremium: !!criadorPremium,
                     id: comunidade.idComunidade || comunidade.id,
                     descricao: comunidade.descricao || 'Comunidade com afinidade ao seu perfil.'
                 });
@@ -1625,13 +1691,18 @@ class AppController {
         });
 
         this.listaEventos.forEach(evento => {
-            const score = this.getInteresseScore(evento, interesses);
+            let score = this.getInteresseScore(evento, interesses);
+            const criadorPremium = evento.criadorPremium === true;
+            if (criadorPremium) {
+                score += 1000;
+            }
             if (score > 0) {
                 recomendados.push({
                     tipo: 'evento',
                     titulo: evento.titulo,
                     subtitulo: evento.categoria || 'Evento',
                     score,
+                    isPremium: !!criadorPremium,
                     id: evento.id,
                     descricao: evento.localEvento || 'Evento com perfil parecido com você.'
                 });
@@ -1649,7 +1720,7 @@ class AppController {
 
         container.innerHTML = itens.map(item => `
             <button class="feed-recomendado-item" onclick="${item.tipo === 'evento' ? `app.abrirDetalhesEvento(${item.id})` : `app.entrarSubreddit(${item.id})`}" type="button">
-                <span>${this.escaparHtmlDestaque(item.subtitulo)}</span>
+                <span>${this.escaparHtmlDestaque(item.subtitulo)} ${item.isPremium ? '<b class="tag-premium-rec">⭐ Premium</b>' : ''}</span>
                 <strong>${this.escaparHtmlDestaque(item.titulo)}</strong>
                 <small>${this.escaparHtmlDestaque(item.descricao)}</small>
             </button>
@@ -2064,6 +2135,10 @@ class AppController {
                     'Geral'
                 )}
                 </span>
+                ${(comunidade.criador?.premium || (typeof comunidade.criador?.role === 'string' && comunidade.criador.role.toLowerCase().includes('premium')))
+                    ? '<span class="badge-comunidade-premium" title="Criador Premium"><i class="material-icons">workspace_premium</i> Premium</span>'
+                    : ''
+                }
 
             </div>
 
@@ -2370,6 +2445,10 @@ class AppController {
                 if (err.message) msg = err.message;
             } catch (_) {}
             this.mostrarFeedbackGlobal(msg);
+            if (res.status === 403 || msg.toLowerCase().includes('premium')) {
+                this.fecharModal('comunidade-modal');
+                this.abrirModalPlanoPremium();
+            }
         }
     }
 
@@ -4676,11 +4755,13 @@ ${ApiService.getIdUsuarioLogado() ? `
                             : 'Gratuito';
                     const idUsuario = ApiService.getIdUsuarioLogado();
                     const ehCriador = idUsuario && idUsuario == evento.criadorId;
+                    const isUsuarioPremium = ApiService.isUsuarioPremium();
                     const acao = ehCriador ? 'Organizador' : eventoLotado ? 'Evento lotado' : idUsuario ? 'Ver detalhes' : 'Entrar para participar';
                     div.innerHTML = `
                     <div class="evento-card-capa ${evento.imagemCapa ? '' : 'evento-card-capa-vazia'}" ${imagemCapaUrl ? `style="background-image:url('${imagemCapaUrl}')"` : ''}>
                         ${!evento.imagemCapa ? '<i class="material-icons">event</i>' : ''}
                         <span>${categoriaExibida}</span>
+                        ${evento.criadorPremium ? '<span class="badge-card-premium" title="Organizador Premium"><i class="material-icons">workspace_premium</i> Organizador Premium</span>' : ''}
                     </div>
                     <div class="evento-card-body">
                         <div class="evento-card-meta"><span>${horarioInicioFormatado} - ${horarioFimFormatado}</span><b>${this.escaparHtmlDestaque(statusExibido)}</b></div>
@@ -4705,6 +4786,15 @@ ${ApiService.getIdUsuarioLogado() ? `
     ${badgeDistanciaHtml}
 
 </div>
+                        ${!isUsuarioPremium ? `
+                        <div class="evento-card-ad">
+                            <div class="ad-tag-badge">Anúncio</div>
+                            <div class="ad-body-text">
+                                <p><strong>Crie eventos ilimitados e remova anúncios!</strong></p>
+                                <button type="button" class="btn-ad-upgrade" onclick="event.stopPropagation(); app.abrirModalPlanoPremium()">Seja Premium ✨</button>
+                            </div>
+                        </div>
+                        ` : ''}
                         <button class="btn-primary evento-card-action" onclick="app.abrirDetalhesEvento(${evento.id})">${acao}</button>
                     </div>
                 `;
@@ -5281,6 +5371,11 @@ ${ApiService.getIdUsuarioLogado() ? `
                     if (err.message) msg = err.message;
                 } catch (_) {}
                 this.mostrarEventoFeedback(msg);
+                if (res.status === 403 || msg.toLowerCase().includes('premium')) {
+                    this.mostrarFeedbackGlobal(msg);
+                    this.fecharModal('evento-modal');
+                    this.abrirModalPlanoPremium();
+                }
             }
         } catch (error) {
             console.error(error);
@@ -7015,6 +7110,8 @@ ${ApiService.getIdUsuarioLogado() ? `
                     `
                     : '';
 
+            const isPerfilPremium = usuario.premium === true || (typeof usuario.role === 'string' && usuario.role.toLowerCase().includes('premium'));
+
             container.innerHTML = `
                 <section class="card perfil-hero">
                     <div class="perfil-capa" aria-hidden="true"></div>
@@ -7032,7 +7129,7 @@ ${ApiService.getIdUsuarioLogado() ? `
                 }
                                 </div>
                                 <div class="perfil-identidade-texto">
-                                    <h1>${this.escaparHtmlDestaque(nomeUsuario)}</h1>
+                                    <h1>${this.escaparHtmlDestaque(nomeUsuario)} ${isPerfilPremium ? '<span class="badge-premium" title="Membro Premium"><i class="material-icons">workspace_premium</i> PREMIUM</span>' : ''}</h1>
                                     <span class="perfil-username">@${this.escaparHtmlDestaque(usuario.username || 'usuario')}</span>
                                 </div>
                             </div>
@@ -7044,6 +7141,19 @@ ${ApiService.getIdUsuarioLogado() ? `
                                         <i class="material-icons" aria-hidden="true">edit</i>
                                         Editar perfil
                                     </button>
+                                    ${isPerfilPremium ? `
+                                        <button type="button" class="btn-perfil-acao btn-perfil-premium-ativo"
+                                            onclick="app.abrirModalPlanoPremium()">
+                                            <i class="material-icons" aria-hidden="true">verified</i>
+                                            Premium Ativo
+                                        </button>
+                                    ` : `
+                                        <button type="button" class="btn-perfil-acao btn-perfil-upgrade"
+                                            onclick="app.abrirModalPlanoPremium()">
+                                            <i class="material-icons" aria-hidden="true">workspace_premium</i>
+                                            Seja Premium
+                                        </button>
+                                    `}
                                 ` : idLogado ? `
                                     <button type="button"
                                         class="btn-perfil-acao btn-perfil-seguir ${this.usuariosSeguidos.has(Number(idUsuario)) ? 'seguindo' : ''}"
@@ -9362,6 +9472,94 @@ ${ApiService.getIdUsuarioLogado() ? `
             );
         }
 
+    }
+
+    abrirModalPlanoPremium(event) {
+        if (event && event.preventDefault) event.preventDefault();
+        if (!ApiService.getUsuarioLogado()) {
+            this.definirModoAuth(false);
+            this.abrirModal('auth-modal');
+            this.mostrarAuthFeedback("Faça login para assinar ou gerenciar o Plano Premium.");
+            return;
+        }
+
+        const isPremium = ApiService.isUsuarioPremium();
+        const btnAssinar = document.getElementById('btn-confirmar-premium');
+        const btnCancelar = document.getElementById('btn-cancelar-premium');
+        const metodos = document.getElementById('premium-metodos-pagamento');
+        const badgeHeader = document.querySelector('.premium-modal-header .section-kicker');
+
+        if (isPremium) {
+            if (badgeHeader) badgeHeader.textContent = 'ASSINATURA ATIVA';
+            if (btnAssinar) btnAssinar.style.display = 'none';
+            if (btnCancelar) btnCancelar.style.display = 'inline-flex';
+            if (metodos) metodos.style.display = 'none';
+        } else {
+            if (badgeHeader) badgeHeader.textContent = 'PLANO EXCLUSIVO';
+            if (btnAssinar) {
+                btnAssinar.style.display = 'inline-flex';
+                btnAssinar.innerHTML = '<i class="material-icons">star</i> Assinar Premium Agora';
+            }
+            if (btnCancelar) btnCancelar.style.display = 'none';
+            if (metodos) metodos.style.display = 'grid';
+        }
+
+        this.abrirModal('plano-premium-modal');
+    }
+
+    async confirmarAssinaturaPremium() {
+        if (!ApiService.getUsuarioLogado()) return;
+        const btn = document.getElementById('btn-confirmar-premium');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="material-icons">hourglass_top</i> Ativando...';
+        }
+
+        try {
+            await ApiService.assinarPremium();
+            this.fecharModal('plano-premium-modal');
+            this.mostrarFeedbackGlobal('🎉 Parabéns! Você agora é um membro Premium do PI Social!');
+            this.atualizarUsuarioLogado();
+            await this.carregarEventos();
+            await this.carregarComunidades();
+            const idUsuario = ApiService.getIdUsuarioLogado();
+            if (idUsuario) {
+                const viewPerfil = document.getElementById('view-perfil');
+                if (viewPerfil && viewPerfil.classList.contains('active')) {
+                    await this.abrirPerfil(idUsuario);
+                }
+            }
+        } catch (erro) {
+            console.error('Erro ao assinar premium:', erro);
+            this.mostrarFeedbackGlobal(erro.message || 'Não foi possível concluir a assinatura.');
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="material-icons">star</i> Assinar Premium Agora';
+            }
+        }
+    }
+
+    async confirmarCancelamentoPremium() {
+        if (!ApiService.getUsuarioLogado()) return;
+        try {
+            await ApiService.cancelarPremium();
+            this.fecharModal('plano-premium-modal');
+            this.mostrarFeedbackGlobal('Assinatura Premium cancelada com sucesso.');
+            this.atualizarUsuarioLogado();
+            await this.carregarEventos();
+            await this.carregarComunidades();
+            const idUsuario = ApiService.getIdUsuarioLogado();
+            if (idUsuario) {
+                const viewPerfil = document.getElementById('view-perfil');
+                if (viewPerfil && viewPerfil.classList.contains('active')) {
+                    await this.abrirPerfil(idUsuario);
+                }
+            }
+        } catch (erro) {
+            console.error('Erro ao cancelar premium:', erro);
+            this.mostrarFeedbackGlobal(erro.message || 'Não foi possível cancelar a assinatura.');
+        }
     }
 
     abrirModalConfirmacao({ titulo, mensagem, textoConfirmar = 'Confirmar', classeBotao = 'btn-primary', onSuccess }) {

@@ -149,12 +149,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
           : email;
 
   AuthService.fazerLogin(
-  idUsuario: id,
-  nome: nomeFinal,
-  email: emailFinal,
-  username: usernameFinal,
-  bio: novoUsuario.bio,
-  authToken: novoUsuario.token,
+    idUsuario: id,
+    nome: nomeFinal,
+    email: emailFinal,
+    username: usernameFinal,
+    bio: novoUsuario.bio,
+    authToken: novoUsuario.token,
+    role: novoUsuario.role,
+    premium: novoUsuario.isPremium,
   );
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

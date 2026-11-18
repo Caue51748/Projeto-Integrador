@@ -3,9 +3,11 @@ package com.backendpi.backend.service;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -21,9 +23,11 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.backendpi.backend.dto.EventoResumoDTO;
 import com.backendpi.backend.model.Evento;
+import com.backendpi.backend.model.Usuario;
 import com.backendpi.backend.repository.EventoRepository;
 import com.backendpi.backend.repository.EventoListaEsperaRepository;
 import com.backendpi.backend.repository.ParticipacaoEventoRepository;
+import com.backendpi.backend.repository.UsuarioRepository;
 import com.backendpi.backend.security.SecuritySanitizerService;
 import com.backendpi.backend.security.AuthenticatedUserContext;
 
@@ -36,6 +40,7 @@ public class EventoService {
     private final EventoListaEsperaRepository listaEsperaRepository;
     private final NotificacaoEventoService notificacaoService;
     private final ParticipacaoEventoService participacaoService;
+    private final UsuarioRepository usuarioRepository;
 
     public EventoService(
             EventoRepository eventoRepository,
@@ -43,7 +48,8 @@ public class EventoService {
             SecuritySanitizerService sanitizerService,
             EventoListaEsperaRepository listaEsperaRepository,
             NotificacaoEventoService notificacaoService,
-            ParticipacaoEventoService participacaoService) {
+            ParticipacaoEventoService participacaoService,
+            UsuarioRepository usuarioRepository) {
 
         this.eventoRepository = eventoRepository;
         this.participacaoEventoRepository = participacaoEventoRepository;
@@ -51,6 +57,7 @@ public class EventoService {
         this.listaEsperaRepository = listaEsperaRepository;
         this.notificacaoService = notificacaoService;
         this.participacaoService = participacaoService;
+        this.usuarioRepository = usuarioRepository;
     }
 
     public List<Evento> listarTodos() {
@@ -89,6 +96,20 @@ public class EventoService {
             throw new RuntimeException("O evento precisa ter um criador");
         }
         AuthenticatedUserContext.requireMatches(evento.getCriadorId());
+
+        Usuario criador = usuarioRepository.findById(evento.getCriadorId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Criador não encontrado"));
+
+        // Limite para plano gratuito (máx 3 eventos ativos criados). Premium é ilimitado!
+        if (!criador.isPremium()) {
+            long eventosAtivos = eventoRepository.countByCriadorIdAndStatusNot(evento.getCriadorId(), "CANCELADO");
+            if (eventosAtivos >= 3) {
+                throw new ResponseStatusException(
+                        HttpStatus.FORBIDDEN,
+                        "Usuários do plano gratuito podem criar no máximo 3 eventos. Faça upgrade para o Premium para criar eventos ilimitados!"
+                );
+            }
+        }
 
         if (evento.getPrecoIngresso() != null
                 && evento.getPrecoIngresso().signum() < 0) {
@@ -367,11 +388,26 @@ public class EventoService {
             }
         }
 
+        // 4.5. Carrega status de premium dos criadores dos eventos
+        List<Long> criadorIds = eventosFiltrados.stream()
+                .map(Evento::getCriadorId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+        Set<Long> criadoresPremium = new HashSet<>();
+        if (!criadorIds.isEmpty()) {
+            usuarioRepository.findAllById(criadorIds).forEach(u -> {
+                if (u.isPremium()) {
+                    criadoresPremium.add(u.getIdUsuario());
+                }
+            });
+        }
+
         // 5. Transforma cada Evento em EventoResumoDTO
         List<EventoResumoDTO> eventosDTO
                 = eventosFiltrados.stream()
-                        .map(evento
-                                -> new EventoResumoDTO(
+                        .map(evento -> {
+                            EventoResumoDTO dto = new EventoResumoDTO(
                                 evento.getId(),
                                 evento.getTitulo(),
                                 evento.getDescricao(),
@@ -395,8 +431,10 @@ public class EventoService {
                                 evento.getTaxaRepassadaComprador(),
                                 evento.getLatitude() != null ? evento.getLatitude().doubleValue() : null,
                                 evento.getLongitude() != null ? evento.getLongitude().doubleValue() : null
-                        )
-                        )
+                            );
+                            dto.setCriadorPremium(criadoresPremium.contains(evento.getCriadorId()));
+                            return dto;
+                        })
                         .collect(Collectors.toList());
 
         return new PageImpl<>(

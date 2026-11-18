@@ -4,6 +4,7 @@ import 'authenticated_http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import '../models/usuario.dart';
 import 'api_service.dart';
+import 'auth_service.dart';
 
 class UsuarioService {
   String get baseUrl => ApiService.baseUrl;
@@ -230,6 +231,69 @@ class UsuarioService {
         debugPrint('UPLOAD FOTO ERRO: $e');
       }
       return {'sucesso': false, 'erro': 'Erro ao enviar a foto: $e'};
+    }
+  }
+
+  Future<Usuario?> assinarPremium() async {
+    try {
+      final res = await http.post(
+        Uri.parse('$baseUrl/usuarios/me/upgrade-premium'),
+        headers: {'Content-Type': 'application/json; charset=UTF-8'},
+      ).timeout(const Duration(seconds: 15));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(utf8.decode(res.bodyBytes));
+        if (data is Map) {
+          final usuario = Usuario.fromJson(Map<String, dynamic>.from(data));
+          AuthService.role = usuario.role;
+          AuthService.premium = usuario.isPremium;
+          return usuario;
+        }
+      }
+      return null;
+    } catch (e) {
+      if (kDebugMode) debugPrint('Erro ao assinar premium: $e');
+      return null;
+    }
+  }
+
+  Future<Usuario?> cancelarPremium() async {
+    try {
+      final res = await http.post(
+        Uri.parse('$baseUrl/usuarios/me/cancelar-premium'),
+        headers: {'Content-Type': 'application/json; charset=UTF-8'},
+      ).timeout(const Duration(seconds: 15));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(utf8.decode(res.bodyBytes));
+        if (data is Map) {
+          final usuario = Usuario.fromJson(Map<String, dynamic>.from(data));
+          AuthService.role = usuario.role;
+          AuthService.premium = usuario.isPremium;
+          return usuario;
+        }
+      }
+      return null;
+    } catch (e) {
+      if (kDebugMode) debugPrint('Erro ao cancelar premium: $e');
+      return null;
+    }
+  }
+
+  Future<Map<String, dynamic>?> obterLimites() async {
+    try {
+      final res = await http.get(
+        Uri.parse('$baseUrl/usuarios/me/limites'),
+        headers: {'Content-Type': 'application/json; charset=UTF-8'},
+      ).timeout(const Duration(seconds: 10));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(utf8.decode(res.bodyBytes));
+        if (data is Map) {
+          return Map<String, dynamic>.from(data);
+        }
+      }
+      return null;
+    } catch (e) {
+      if (kDebugMode) debugPrint('Erro ao obter limites: $e');
+      return null;
     }
   }
 

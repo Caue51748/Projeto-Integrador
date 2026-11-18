@@ -18,6 +18,7 @@ class Evento {
   final String? imagemCapa;
   final double? latitude;
   final double? longitude;
+  final bool? criadorPremium;
 
   const Evento({
     required this.id,
@@ -39,6 +40,7 @@ class Evento {
     this.imagemCapa,
     this.latitude,
     this.longitude,
+    this.criadorPremium,
   });
 
   static int? _intOrNull(dynamic v) {
@@ -118,6 +120,7 @@ class Evento {
       imagemCapa: (json['imagemCapa'] ?? json['capa'])?.toString(),
       latitude: coordsValidas ? lat : null,
       longitude: coordsValidas ? lng : null,
+      criadorPremium: _bool(json['criadorPremium'] ?? json['criador_premium']),
     );
   }
 

@@ -27,6 +27,8 @@ import org.springframework.web.server.ResponseStatusException;
 import com.backendpi.backend.dto.AlterarSenhaRequest;
 import com.backendpi.backend.dto.UsuarioPerfilDTO;
 import com.backendpi.backend.model.Usuario;
+import com.backendpi.backend.repository.ComunidadeRepository;
+import com.backendpi.backend.repository.EventoRepository;
 import com.backendpi.backend.repository.UsuarioRepository;
 import com.backendpi.backend.security.JwtService;
 import com.backendpi.backend.security.SecuritySanitizerService;
@@ -46,6 +48,8 @@ public class UsuarioController {
     private final SecuritySanitizerService sanitizerService;
     private final AuthSessionService authSessionService;
     private final CloudinaryImageStorageService imageStorage;
+    private final EventoRepository eventoRepository;
+    private final ComunidadeRepository comunidadeRepository;
 
     public UsuarioController(
             UsuarioRepository usuarioRepository,
@@ -53,7 +57,9 @@ public class UsuarioController {
             JwtService jwtService,
             SecuritySanitizerService sanitizerService,
             AuthSessionService authSessionService,
-            CloudinaryImageStorageService imageStorage) {
+            CloudinaryImageStorageService imageStorage,
+            EventoRepository eventoRepository,
+            ComunidadeRepository comunidadeRepository) {
 
         this.usuarioRepository = usuarioRepository;
         this.usuarioService = usuarioService;
@@ -61,6 +67,8 @@ public class UsuarioController {
         this.sanitizerService = sanitizerService;
         this.authSessionService = authSessionService;
         this.imageStorage = imageStorage;
+        this.eventoRepository = eventoRepository;
+        this.comunidadeRepository = comunidadeRepository;
     }
 
     @GetMapping
@@ -129,20 +137,7 @@ public class UsuarioController {
 
         AuthenticatedUserContext.requireUserId();
         return usuarioRepository.findById(id)
-                .map(usuario -> {
-
-                    UsuarioPerfilDTO perfil
-                            = new UsuarioPerfilDTO(
-                                    usuario.getIdUsuario(),
-                                    usuario.getNome(),
-                                    usuario.getUsername(),
-                                    usuario.getBio(),
-                                    usuario.getFotoPerfil(),
-                                    usuario.getInteresses()
-                            );
-
-                    return ResponseEntity.ok(perfil);
-                })
+                .map(usuario -> ResponseEntity.ok(criarPerfil(usuario)))
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -186,17 +181,7 @@ public class UsuarioController {
                     Usuario atualizado
                             = usuarioRepository.save(usuario);
 
-                    UsuarioPerfilDTO perfil
-                            = new UsuarioPerfilDTO(
-                                    atualizado.getIdUsuario(),
-                                    atualizado.getNome(),
-                                    atualizado.getUsername(),
-                                    atualizado.getBio(),
-                                    atualizado.getFotoPerfil(),
-                                    atualizado.getInteresses()
-                            );
-
-                    return ResponseEntity.ok(perfil);
+                    return ResponseEntity.ok(criarPerfil(atualizado));
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -332,8 +317,50 @@ public class UsuarioController {
         }
     }
 
+    @PostMapping("/me/upgrade-premium")
+    public ResponseEntity<UsuarioPerfilDTO> assinarPremium() {
+        Long idUsuario = AuthenticatedUserContext.requireUserId();
+        Usuario usuario = usuarioRepository.findById(idUsuario)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuário não encontrado"));
+
+        usuario.adicionarRole("premium");
+        Usuario atualizado = usuarioRepository.save(usuario);
+        return ResponseEntity.ok(criarPerfil(atualizado));
+    }
+
+    @PostMapping("/me/cancelar-premium")
+    public ResponseEntity<UsuarioPerfilDTO> cancelarPremium() {
+        Long idUsuario = AuthenticatedUserContext.requireUserId();
+        Usuario usuario = usuarioRepository.findById(idUsuario)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuário não encontrado"));
+
+        usuario.removerRole("premium");
+        Usuario atualizado = usuarioRepository.save(usuario);
+        return ResponseEntity.ok(criarPerfil(atualizado));
+    }
+
+    @GetMapping("/me/limites")
+    public ResponseEntity<Map<String, Object>> obterLimites() {
+        Long idUsuario = AuthenticatedUserContext.requireUserId();
+        Usuario usuario = usuarioRepository.findById(idUsuario)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuário não encontrado"));
+
+        boolean premium = usuario.isPremium();
+        long eventosCriados = eventoRepository.countByCriadorIdAndStatusNot(idUsuario, "CANCELADO");
+        long comunidadesCriadas = comunidadeRepository.countByCriadorId(idUsuario);
+
+        return ResponseEntity.ok(Map.of(
+                "premium", premium,
+                "role", usuario.getRole() == null ? "" : usuario.getRole(),
+                "eventosCriados", eventosCriados,
+                "limiteEventos", premium ? -1 : 3,
+                "comunidadesCriadas", comunidadesCriadas,
+                "limiteComunidades", premium ? -1 : 3
+        ));
+    }
+
     private UsuarioPerfilDTO criarPerfil(Usuario usuario) {
-        return new UsuarioPerfilDTO(
+        UsuarioPerfilDTO dto = new UsuarioPerfilDTO(
                 usuario.getIdUsuario(),
                 usuario.getNome(),
                 usuario.getUsername(),
@@ -341,6 +368,9 @@ public class UsuarioController {
                 usuario.getFotoPerfil(),
                 usuario.getInteresses()
         );
+        dto.setRole(usuario.getRole());
+        dto.setPremium(usuario.isPremium());
+        return dto;
     }
 
     private UsuarioPerfilDTO criarPerfilComSessao(Usuario usuario) {
