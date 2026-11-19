@@ -129,6 +129,58 @@ export class ApiService {
         return user ? (user.idUsuario || user.id_usuario || user.id) : null;
     }
 
+    static isUsuarioPremium() {
+        const user = this.getUsuarioLogado();
+        if (!user) return false;
+        if (user.premium === true) return true;
+        if (typeof user.role === 'string' && user.role.toLowerCase().includes('premium')) return true;
+        return false;
+    }
+
+    static async assinarPremium() {
+        const res = await this.request(`${this.API_URL}/usuarios/me/upgrade-premium`, {
+            method: 'POST'
+        });
+        if (!res.ok) {
+            let msg = 'Erro ao processar assinatura Premium.';
+            try {
+                const erro = await res.json();
+                if (erro.message) msg = erro.message;
+            } catch (_) {}
+            throw new Error(msg);
+        }
+        const userAtualizado = await res.json();
+        this.salvarSessao(userAtualizado);
+        return userAtualizado;
+    }
+
+    static async cancelarPremium() {
+        const res = await this.request(`${this.API_URL}/usuarios/me/cancelar-premium`, {
+            method: 'POST'
+        });
+        if (!res.ok) {
+            let msg = 'Erro ao cancelar assinatura Premium.';
+            try {
+                const erro = await res.json();
+                if (erro.message) msg = erro.message;
+            } catch (_) {}
+            throw new Error(msg);
+        }
+        const userAtualizado = await res.json();
+        this.salvarSessao(userAtualizado);
+        return userAtualizado;
+    }
+
+    static async obterLimitesUsuario() {
+        try {
+            const res = await this.request(`${this.API_URL}/usuarios/me/limites`);
+            if (!res.ok) return null;
+            return await res.json();
+        } catch (_) {
+            return null;
+        }
+    }
+
     static getToken() {
         const user = this.getUsuarioLogado();
         return user ? (user.token || user.jwt || user.authToken || null) : null;
@@ -171,7 +223,7 @@ export class ApiService {
         }
 
         if (foto.startsWith('uploads/')) {
-            if (!/^uploads\/(perfis|eventos)\/[A-Za-z0-9_-]+\.(jpg|jpeg|png|webp)$/i.test(foto)) {
+            if (!/^uploads\/(perfis|eventos|comunidades)\/[A-Za-z0-9_.-]+\.(jpg|jpeg|png|webp)$/i.test(foto)) {
                 return null;
             }
             const url = new URL(foto, `${this.API_URL}/`);
@@ -1014,7 +1066,21 @@ if (typeof window !== 'undefined' && window.fetch) {
                 }
             }
         } catch (_) {}
-        return originalFetch(resource, init);
+        const resposta = await originalFetch(resource, init);
+        if (resposta && resposta.status === 401) {
+            try {
+                const url = typeof resource === 'string' ? resource : (resource && resource.url ? resource.url : '');
+                if (url && !url.includes('/login') && ApiService.getUsuarioLogado()) {
+                    console.warn('Sessão expirada ou não autorizada (401). Limpando sessão local...');
+                    ApiService.fazerLogout();
+                    if (typeof window !== 'undefined' && window.app) {
+                        window.app.mostrarFeedbackGlobal('Sua sessão expirou. Por favor, entre novamente.', 'error');
+                        window.app.mostrarTelaBoasVindas();
+                    }
+                }
+            } catch (_) {}
+        }
+        return resposta;
     };
 }
 const fetch = (input, init) => ApiService.request(input, init);

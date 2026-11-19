@@ -9887,3 +9887,382 @@ html[data-theme="dark"] .form-feedback {
     background: rgba(255, 113, 139, .1);
     color: #ff9bab;
 }
+
+/* ============================================================
+   SISTEMA DE PLANO PREMIUM (SELO, MODAL, CARDS E ANÚNCIOS)
+   ============================================================ */
+
+/* Selos Premium */
+.badge-premium {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 800;
+    border-radius: 6px;
+    letter-spacing: 0.5px;
+    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.35);
+    vertical-align: middle;
+}
+.badge-premium .material-icons {
+    font-size: 14px;
+}
+
+.badge-card-premium {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+    color: #ffffff;
+    font-size: 10px;
+    font-weight: 800;
+    border-radius: 6px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+    z-index: 2;
+    text-transform: uppercase;
+}
+.badge-card-premium .material-icons {
+    font-size: 12px;
+}
+
+.badge-comunidade-premium {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 2px 7px;
+    background: rgba(245, 158, 11, 0.15);
+    color: #D97706;
+    border: 1px solid rgba(245, 158, 11, 0.35);
+    font-size: 10px;
+    font-weight: 800;
+    border-radius: 5px;
+}
+
+.tag-premium-rec {
+    display: inline-block;
+    padding: 1px 5px;
+    background: #FEF3C7;
+    color: #B45309;
+    border-radius: 4px;
+    font-size: 9px;
+    font-weight: 800;
+    margin-left: 4px;
+}
+
+/* Anúncio nos Cards de Evento (para usuários não premium) */
+.evento-card-ad {
+    margin: 12px 0 14px 0;
+    padding: 10px 12px;
+    background: linear-gradient(135deg, #F9FAFB 0%, #F3F4F6 100%);
+    border: 1px dashed #CBD5E1;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.ad-tag-badge {
+    align-self: flex-start;
+    padding: 2px 6px;
+    background: #94A3B8;
+    color: #ffffff;
+    font-size: 9px;
+    font-weight: 700;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.ad-body-text {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.ad-body-text p {
+    margin: 0;
+    font-size: 12px;
+    color: var(--text-muted, #4B5563);
+    line-height: 1.3;
+}
+
+.btn-ad-upgrade {
+    padding: 5px 11px;
+    background: linear-gradient(135deg, #EA3F74 0%, #D8265D 100%);
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.btn-ad-upgrade:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 3px 10px rgba(234, 63, 116, 0.3);
+}
+
+/* Modal Plano Premium */
+.plano-premium-modal {
+    max-width: 520px;
+    width: 95%;
+    padding: 24px;
+    border-radius: 16px;
+    background: #ffffff;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+}
+
+.premium-modal-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.premium-modal-badge-icon {
+    width: 54px;
+    height: 54px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%);
+    border: 1px solid #FDE68A;
+    color: #F59E0B;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.premium-modal-badge-icon .material-icons {
+    font-size: 32px;
+}
+
+.premium-pricing-card {
+    position: relative;
+    padding: 18px 20px;
+    background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%);
+    border: 2px solid #F59E0B;
+    border-radius: 12px;
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.premium-pricing-badge {
+    position: absolute;
+    top: -11px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #F59E0B;
+    color: #ffffff;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 2px 10px;
+    border-radius: 12px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.premium-price-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 4px;
+}
+
+.premium-price-currency {
+    font-size: 20px;
+    font-weight: 800;
+    color: #B45309;
+}
+
+.premium-price-value {
+    font-size: 38px;
+    font-weight: 900;
+    color: #92400E;
+    letter-spacing: -1px;
+}
+
+.premium-price-period {
+    font-size: 14px;
+    font-weight: 600;
+    color: #B45309;
+}
+
+.premium-pricing-sub {
+    font-size: 12px;
+    color: #78350F;
+    margin-top: 4px;
+}
+
+.premium-benefits-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.premium-benefit-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.premium-benefit-item .benefit-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: rgba(245, 158, 11, 0.12);
+    color: #D97706;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.premium-benefit-item .benefit-icon .material-icons {
+    font-size: 18px;
+}
+
+.premium-benefit-item .benefit-text strong {
+    display: block;
+    font-size: 13px;
+    color: var(--text-main, #1F2937);
+}
+
+.premium-benefit-item .benefit-text span {
+    font-size: 11px;
+    color: var(--text-muted, #6B7280);
+    line-height: 1.3;
+}
+
+.premium-metodos-pagamento {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.premium-metodo-opcao {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    border: 1px solid var(--border-color, #E5E7EB);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-main, #374151);
+    transition: border-color 0.15s, background 0.15s;
+}
+
+.premium-metodo-opcao:hover {
+    border-color: #F59E0B;
+}
+
+.premium-metodo-opcao input[type="radio"] {
+    accent-color: #F59E0B;
+}
+
+.premium-modal-acoes {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.btn-premium-action {
+    background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%) !important;
+    border-color: #D97706 !important;
+    color: #ffffff !important;
+    font-weight: 700;
+}
+
+.btn-premium-action:hover {
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4) !important;
+}
+
+/* Aviso de Limite nos Formulários */
+.form-limite-aviso {
+    margin-top: 8px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    display: none;
+}
+.form-limite-aviso.limite-ok {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #F3F4F6;
+    color: #4B5563;
+    border: 1px solid #E5E7EB;
+}
+.form-limite-aviso.limite-atingido {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #FEF2F2;
+    color: #DC2626;
+    border: 1px solid #FCA5A5;
+}
+
+/* Botões no Perfil */
+.btn-perfil-upgrade {
+    background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%) !important;
+    color: #ffffff !important;
+    border: none !important;
+    font-weight: 700;
+    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+}
+
+.btn-perfil-premium-ativo {
+    background: #ECFDF5 !important;
+    color: #059669 !important;
+    border: 1px solid #A7F3D0 !important;
+    font-weight: 700;
+}
+
+/* Ajustes no Dark Theme */
+html[data-theme="dark"] .evento-card-ad {
+    background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%);
+    border-color: #334155;
+}
+html[data-theme="dark"] .plano-premium-modal {
+    background: #1E293B;
+}
+html[data-theme="dark"] .premium-modal-badge-icon {
+    background: #334155;
+    border-color: #475569;
+}
+html[data-theme="dark"] .premium-pricing-card {
+    background: linear-gradient(135deg, #3B2E1E 0%, #291F14 100%);
+    border-color: #D97706;
+}
+html[data-theme="dark"] .premium-benefit-item .benefit-text strong {
+    color: #F1F5F9;
+}
+html[data-theme="dark"] .premium-metodo-opcao {
+    border-color: #334155;
+    color: #E2E8F0;
+}
+html[data-theme="dark"] .form-limite-aviso.limite-ok {
+    background: #1E293B;
+    color: #94A3B8;
+    border-color: #334155;
+}
+html[data-theme="dark"] .btn-perfil-premium-ativo {
+    background: rgba(16, 185, 129, 0.15) !important;
+    color: #34D399 !important;
+    border-color: rgba(16, 185, 129, 0.3) !important;
+}

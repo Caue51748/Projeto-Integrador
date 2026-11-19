@@ -107,6 +107,16 @@ class AppController {
             if (!evento.target.closest('.account-menu')) {
                 document.querySelector('.account-menu')?.classList.remove('open');
             }
+            if (evento.target.classList && evento.target.classList.contains('modal-overlay')) {
+                this.fecharModal(evento.target.id);
+            }
+        });
+
+        window.addEventListener('popstate', () => {
+            const hash = window.location.hash.replace('#', '');
+            if (['feed', 'eventos', 'comunidades', 'busca', 'salvos'].includes(hash)) {
+                this.ativarAba(hash);
+            }
         });
 
         const chatForm =
@@ -193,6 +203,10 @@ class AppController {
                 await this.carregarNotificacoesEventos();
                 this.iniciarAtualizacaoNotificacoes();
                 await this.abrirPostPeloLink();
+                const hashInicial = window.location.hash.replace('#', '');
+                if (['feed', 'eventos', 'comunidades', 'busca', 'salvos'].includes(hashInicial) && hashInicial !== 'feed') {
+                    this.ativarAba(hashInicial);
+                }
             } catch (erro) {
                 console.error(
                     "Erro ao carregar dados iniciais:",
@@ -577,6 +591,15 @@ class AppController {
 
     ativarAba(nomeAba) {
         this.salvarViewAtual(nomeAba);
+        if (typeof window !== 'undefined' && ['feed', 'eventos', 'comunidades', 'busca', 'salvos'].includes(nomeAba)) {
+            if (window.location.hash !== '#' + nomeAba) {
+                try {
+                    window.history.pushState({ aba: nomeAba }, '', '#' + nomeAba);
+                } catch (_) {
+                    window.location.hash = nomeAba;
+                }
+            }
+        }
         document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
         document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
 
@@ -622,6 +645,9 @@ class AppController {
             <div class="account-dropdown-label">Conta conectada</div>
             <button class="account-menu-item" role="menuitem" onclick="app.abrirMeuPerfil()">
                 <i class="material-icons">person_outline</i> Meu perfil
+            </button>
+            <button class="account-menu-item account-menu-premium" role="menuitem" onclick="app.abrirModalPlanoPremium()">
+                <i class="material-icons" style="color: #F59E0B;">workspace_premium</i> ${ApiService.isUsuarioPremium() ? 'Meu Plano Premium ⭐' : 'Seja Premium ✨'}
             </button>
               <button
         class="account-menu-item"
@@ -684,6 +710,16 @@ class AppController {
             this.prepararModalEvento();
         }
 
+        if (id === 'comunidade-modal') {
+            if (!ApiService.getUsuarioLogado()) {
+                this.definirModoAuth(false);
+                this.abrirModal('auth-modal');
+                this.mostrarAuthFeedback("Faça login para criar uma comunidade.");
+                return;
+            }
+            this.prepararModalComunidade();
+        }
+
         modal.style.display = 'flex';
         if (id === 'auth-modal') {
             setTimeout(() => {
@@ -695,6 +731,32 @@ class AppController {
         }
     }
 
+    prepararModalComunidade() {
+        const aviso = document.getElementById('comunidade-limite-aviso');
+        if (!aviso) return;
+        const idUsuario = ApiService.getIdUsuarioLogado();
+        const isPremium = ApiService.isUsuarioPremium();
+        if (isPremium) {
+            aviso.innerHTML = '<i class="material-icons">workspace_premium</i> <strong>Plano Premium:</strong> Criação ilimitada de comunidades!';
+            aviso.className = 'form-limite-aviso limite-ok';
+            aviso.style.display = 'flex';
+        } else {
+            const count = (this.listaComunidades || []).filter(c => {
+                const criadorId = c.criador?.idUsuario || c.criador?.id;
+                return String(criadorId) === String(idUsuario);
+            }).length;
+            if (count >= 3) {
+                aviso.innerHTML = `<i class="material-icons">warning</i> <span><strong>Limite atingido (${count}/3):</strong> Seja Premium para criar comunidades ilimitadas!</span> <button type="button" class="btn-ad-upgrade" onclick="app.abrirModalPlanoPremium(event)">Upgrade ✨</button>`;
+                aviso.className = 'form-limite-aviso limite-atingido';
+                aviso.style.display = 'flex';
+            } else {
+                aviso.innerHTML = `<i class="material-icons">info</i> <span>Plano Gratuito: ${count}/3 comunidades criadas.</span> <a href="#" onclick="app.abrirModalPlanoPremium(event)" style="color:#F59E0B; margin-left:6px; font-weight:700;">Seja Premium ⭐</a>`;
+                aviso.className = 'form-limite-aviso limite-ok';
+                aviso.style.display = 'flex';
+            }
+        }
+    }
+
     abrirModalEvento() {
         this.abrirModal('evento-modal');
     }
@@ -702,6 +764,28 @@ class AppController {
     prepararModalEvento() {
         this.popularComunidadesEvento(this.comunidadeAtivaId || null);
         this.mostrarEventoFeedback('');
+
+        const aviso = document.getElementById('evento-limite-aviso');
+        if (aviso) {
+            const idUsuario = ApiService.getIdUsuarioLogado();
+            const isPremium = ApiService.isUsuarioPremium();
+            if (isPremium) {
+                aviso.innerHTML = '<i class="material-icons">workspace_premium</i> <strong>Plano Premium:</strong> Criação ilimitada de eventos com prioridade nas pesquisas!';
+                aviso.className = 'form-limite-aviso limite-ok';
+                aviso.style.display = 'flex';
+            } else {
+                const count = (this.listaEventos || []).filter(e => String(e.criadorId) === String(idUsuario) && e.status !== 'CANCELADO').length;
+                if (count >= 3) {
+                    aviso.innerHTML = `<i class="material-icons">warning</i> <span><strong>Limite atingido (${count}/3):</strong> Seja Premium para criar eventos ilimitados!</span> <button type="button" class="btn-ad-upgrade" onclick="app.abrirModalPlanoPremium(event)">Upgrade ✨</button>`;
+                    aviso.className = 'form-limite-aviso limite-atingido';
+                    aviso.style.display = 'flex';
+                } else {
+                    aviso.innerHTML = `<i class="material-icons">info</i> <span>Plano Gratuito: ${count}/3 eventos criados.</span> <a href="#" onclick="app.abrirModalPlanoPremium(event)" style="color:#F59E0B; margin-left:6px; font-weight:700;">Seja Premium ⭐</a>`;
+                    aviso.className = 'form-limite-aviso limite-ok';
+                    aviso.style.display = 'flex';
+                }
+            }
+        }
 
         const hojeIso = new Date().toISOString().split('T')[0];
         const dataInput = document.getElementById('evento-data');
@@ -1588,13 +1672,18 @@ class AppController {
         const recomendados = [];
 
         this.listaComunidades.forEach(comunidade => {
-            const score = this.getInteresseScore(comunidade, interesses);
+            let score = this.getInteresseScore(comunidade, interesses);
+            const criadorPremium = comunidade.criador?.premium || (typeof comunidade.criador?.role === 'string' && comunidade.criador.role.toLowerCase().includes('premium'));
+            if (criadorPremium) {
+                score += 1000;
+            }
             if (score > 0) {
                 recomendados.push({
                     tipo: 'comunidade',
                     titulo: comunidade.nome,
                     subtitulo: comunidade.categoria || 'Comunidade',
                     score,
+                    isPremium: !!criadorPremium,
                     id: comunidade.idComunidade || comunidade.id,
                     descricao: comunidade.descricao || 'Comunidade com afinidade ao seu perfil.'
                 });
@@ -1602,13 +1691,18 @@ class AppController {
         });
 
         this.listaEventos.forEach(evento => {
-            const score = this.getInteresseScore(evento, interesses);
+            let score = this.getInteresseScore(evento, interesses);
+            const criadorPremium = evento.criadorPremium === true;
+            if (criadorPremium) {
+                score += 1000;
+            }
             if (score > 0) {
                 recomendados.push({
                     tipo: 'evento',
                     titulo: evento.titulo,
                     subtitulo: evento.categoria || 'Evento',
                     score,
+                    isPremium: !!criadorPremium,
                     id: evento.id,
                     descricao: evento.localEvento || 'Evento com perfil parecido com você.'
                 });
@@ -1626,7 +1720,7 @@ class AppController {
 
         container.innerHTML = itens.map(item => `
             <button class="feed-recomendado-item" onclick="${item.tipo === 'evento' ? `app.abrirDetalhesEvento(${item.id})` : `app.entrarSubreddit(${item.id})`}" type="button">
-                <span>${this.escaparHtmlDestaque(item.subtitulo)}</span>
+                <span>${this.escaparHtmlDestaque(item.subtitulo)} ${item.isPremium ? '<b class="tag-premium-rec">⭐ Premium</b>' : ''}</span>
                 <strong>${this.escaparHtmlDestaque(item.titulo)}</strong>
                 <small>${this.escaparHtmlDestaque(item.descricao)}</small>
             </button>
@@ -2041,6 +2135,10 @@ class AppController {
                     'Geral'
                 )}
                 </span>
+                ${(comunidade.criador?.premium || (typeof comunidade.criador?.role === 'string' && comunidade.criador.role.toLowerCase().includes('premium')))
+                    ? '<span class="badge-comunidade-premium" title="Criador Premium"><i class="material-icons">workspace_premium</i> Premium</span>'
+                    : ''
+                }
 
             </div>
 
@@ -2346,8 +2444,11 @@ class AppController {
                 const err = await res.json();
                 if (err.message) msg = err.message;
             } catch (_) {}
-            alert(msg);
-            this.mostrarFeedbackGlobal("Não foi possível criar a comunidade.");
+            this.mostrarFeedbackGlobal(msg);
+            if (res.status === 403 || msg.toLowerCase().includes('premium')) {
+                this.fecharModal('comunidade-modal');
+                this.abrirModalPlanoPremium();
+            }
         }
     }
 
@@ -3206,31 +3307,45 @@ class AppController {
     async alternarCurtida(idPost) {
         const idUsuario = ApiService.getIdUsuarioLogado();
         if (!idUsuario) return this.mostrarFeedbackGlobal('Faça login para curtir publicações.');
-        const voto = this.votoDoUsuario(idPost);
-        const resposta = voto
-            ? await ApiService.deletarVoto(voto.idVoto)
-            : await ApiService.criarVoto(idUsuario, idPost);
-        if (!resposta.ok) return this.mostrarFeedbackGlobal('Não foi possível atualizar a curtida.');
-        this.votos = voto ? this.votos.filter(item => item.idVoto !== voto.idVoto) : [...this.votos, await resposta.json()];
-        this.renderizarFeedGeral();
+        if (this.travasCurtidas && this.travasCurtidas[idPost]) return;
+        this.travasCurtidas = this.travasCurtidas || {};
+        this.travasCurtidas[idPost] = true;
+        try {
+            const voto = this.votoDoUsuario(idPost);
+            const resposta = voto
+                ? await ApiService.deletarVoto(voto.idVoto)
+                : await ApiService.criarVoto(idUsuario, idPost);
+            if (!resposta.ok) return this.mostrarFeedbackGlobal('Não foi possível atualizar a curtida.');
+            this.votos = voto ? this.votos.filter(item => item.idVoto !== voto.idVoto) : [...this.votos, await resposta.json()];
+            this.renderizarFeedGeral();
+        } finally {
+            delete this.travasCurtidas[idPost];
+        }
     }
 
     async alternarPostSalvo(idPost) {
         const idUsuario = ApiService.getIdUsuarioLogado();
         if (!idUsuario) return this.mostrarFeedbackGlobal('Faça login para salvar publicações.');
-        const salvo = this.postEstaSalvo(idPost);
-        const resposta = salvo
-            ? await ApiService.removerPostSalvo(salvo.id)
-            : await ApiService.salvarPost(idUsuario, idPost);
-        if (!resposta.ok) return this.mostrarFeedbackGlobal('Não foi possível atualizar os salvos.');
-        this.postsSalvos = salvo ? this.postsSalvos.filter(item => item.id !== salvo.id) : [...this.postsSalvos, await resposta.json()];
-        this.renderizarFeedGeral();
-        if (
-            document
-                .getElementById('view-salvos')
-                ?.classList.contains('active')
-        ) {
-            this.renderizarItensSalvos();
+        if (this.travasSalvos && this.travasSalvos[idPost]) return;
+        this.travasSalvos = this.travasSalvos || {};
+        this.travasSalvos[idPost] = true;
+        try {
+            const salvo = this.postEstaSalvo(idPost);
+            const resposta = salvo
+                ? await ApiService.removerPostSalvo(salvo.id)
+                : await ApiService.salvarPost(idUsuario, idPost);
+            if (!resposta.ok) return this.mostrarFeedbackGlobal('Não foi possível atualizar os salvos.');
+            this.postsSalvos = salvo ? this.postsSalvos.filter(item => item.id !== salvo.id) : [...this.postsSalvos, await resposta.json()];
+            this.renderizarFeedGeral();
+            if (
+                document
+                    .getElementById('view-salvos')
+                    ?.classList.contains('active')
+            ) {
+                this.renderizarItensSalvos();
+            }
+        } finally {
+            delete this.travasSalvos[idPost];
         }
     }
 
@@ -3498,8 +3613,7 @@ class AppController {
                 const err = await res.json();
                 if (err.message) msg = err.message;
             } catch (_) {}
-            alert(msg);
-            this.mostrarFeedbackGlobal("Não foi possível enviar o comentário.");
+            this.mostrarFeedbackGlobal(msg);
         }
     }
 
@@ -3677,7 +3791,7 @@ class AppController {
 
                 <div class="post-actions">
                     <button class="post-action ${curtido ? 'active' : ''}" onclick="app.alternarCurtida(${idPost})"><i class="material-icons">${curtido ? 'favorite' : 'favorite_border'}</i><span>${totalCurtidas}</span></button>
-                    <button class="post-action" onclick="document.getElementById('comentario-${idPost}').focus()"><i class="material-icons">chat_bubble_outline</i><span>${comentarios.length}</span></button>
+                    <button class="post-action" onclick="const input = document.getElementById('comentario-${idPost}'); if (input) { input.focus(); } else { app.abrirDetalhesPost(${idPost}); }"><i class="material-icons">chat_bubble_outline</i><span>${comentarios.length}</span></button>
                     <button class="post-action ${salvo ? 'active' : ''}" onclick="app.alternarPostSalvo(${idPost})"><i class="material-icons">${salvo ? 'bookmark' : 'bookmark_border'}</i></button>
                 </div>
 
@@ -4641,11 +4755,13 @@ ${ApiService.getIdUsuarioLogado() ? `
                             : 'Gratuito';
                     const idUsuario = ApiService.getIdUsuarioLogado();
                     const ehCriador = idUsuario && idUsuario == evento.criadorId;
+                    const isUsuarioPremium = ApiService.isUsuarioPremium();
                     const acao = ehCriador ? 'Organizador' : eventoLotado ? 'Evento lotado' : idUsuario ? 'Ver detalhes' : 'Entrar para participar';
                     div.innerHTML = `
                     <div class="evento-card-capa ${evento.imagemCapa ? '' : 'evento-card-capa-vazia'}" ${imagemCapaUrl ? `style="background-image:url('${imagemCapaUrl}')"` : ''}>
                         ${!evento.imagemCapa ? '<i class="material-icons">event</i>' : ''}
                         <span>${categoriaExibida}</span>
+                        ${evento.criadorPremium ? '<span class="badge-card-premium" title="Organizador Premium"><i class="material-icons">workspace_premium</i> Organizador Premium</span>' : ''}
                     </div>
                     <div class="evento-card-body">
                         <div class="evento-card-meta"><span>${horarioInicioFormatado} - ${horarioFimFormatado}</span><b>${this.escaparHtmlDestaque(statusExibido)}</b></div>
@@ -4670,6 +4786,15 @@ ${ApiService.getIdUsuarioLogado() ? `
     ${badgeDistanciaHtml}
 
 </div>
+                        ${!isUsuarioPremium ? `
+                        <div class="evento-card-ad">
+                            <div class="ad-tag-badge">Anúncio</div>
+                            <div class="ad-body-text">
+                                <p><strong>Crie eventos ilimitados e remova anúncios!</strong></p>
+                                <button type="button" class="btn-ad-upgrade" onclick="event.stopPropagation(); app.abrirModalPlanoPremium()">Seja Premium ✨</button>
+                            </div>
+                        </div>
+                        ` : ''}
                         <button class="btn-primary evento-card-action" onclick="app.abrirDetalhesEvento(${evento.id})">${acao}</button>
                     </div>
                 `;
@@ -4692,29 +4817,6 @@ ${ApiService.getIdUsuarioLogado() ? `
         return new Date(`${data}T00:00:00`).toLocaleDateString('pt-BR', {
             weekday: 'long', day: 'numeric', month: 'long'
         });
-    }
-
-    renderizarEventoDestaque(evento) {
-        const container = document.getElementById('evento-destaque');
-        if (!container) return;
-        if (!evento) {
-            container.innerHTML = '<div class="evento-destaque-vazio">Nenhum evento encontrado com esses filtros.</div>';
-            return;
-        }
-        const data = evento.dataEvento ? new Date(`${evento.dataEvento}T00:00:00`).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '') : '--';
-        const categoria = this.escaparHtmlDestaque(evento.categoria || 'Em destaque');
-        const titulo = this.escaparHtmlDestaque(evento.titulo || 'Evento');
-        const descricao = this.escaparHtmlDestaque(
-            evento.descricao || 'Uma nova experiência está esperando por você.'
-        );
-        const local = this.escaparHtmlDestaque(evento.localEvento || 'Local a confirmar');
-        const imagemCapaUrl = evento.imagemCapa
-            ? this.escaparHtmlDestaque(this.urlCapaEvento(evento.imagemCapa))
-            : '';
-        const idEvento = Number(evento.idEvento || evento.id);
-        container.innerHTML = `
-            <div class="evento-destaque-copy"><span class="section-kicker">${categoria}</span><h2>${titulo}</h2><p>${descricao}</p><div class="evento-destaque-details"><span>📅 ${this.escaparHtmlDestaque(data)} · ${this.escaparHtmlDestaque(evento.horarioInicio?.substring(0, 5) || '--:--')}</span><span>📍 ${local}</span></div><button class="btn-primary" onclick="app.abrirDetalhesEvento(${idEvento})">Ver detalhes <i class="material-icons">arrow_forward</i></button></div><div class="evento-destaque-art" ${imagemCapaUrl ? `style="background-image:linear-gradient(135deg,rgba(43,23,32,.2),rgba(234,63,116,.5)),url('${imagemCapaUrl}');background-size:cover;background-position:center;"` : ''}><i class="material-icons">celebration</i></div>
-        `;
     }
 
     urlCapaEvento(caminho) {
@@ -5269,6 +5371,11 @@ ${ApiService.getIdUsuarioLogado() ? `
                     if (err.message) msg = err.message;
                 } catch (_) {}
                 this.mostrarEventoFeedback(msg);
+                if (res.status === 403 || msg.toLowerCase().includes('premium')) {
+                    this.mostrarFeedbackGlobal(msg);
+                    this.fecharModal('evento-modal');
+                    this.abrirModalPlanoPremium();
+                }
             }
         } catch (error) {
             console.error(error);
@@ -7003,6 +7110,8 @@ ${ApiService.getIdUsuarioLogado() ? `
                     `
                     : '';
 
+            const isPerfilPremium = usuario.premium === true || (typeof usuario.role === 'string' && usuario.role.toLowerCase().includes('premium'));
+
             container.innerHTML = `
                 <section class="card perfil-hero">
                     <div class="perfil-capa" aria-hidden="true"></div>
@@ -7020,7 +7129,7 @@ ${ApiService.getIdUsuarioLogado() ? `
                 }
                                 </div>
                                 <div class="perfil-identidade-texto">
-                                    <h1>${this.escaparHtmlDestaque(nomeUsuario)}</h1>
+                                    <h1>${this.escaparHtmlDestaque(nomeUsuario)} ${isPerfilPremium ? '<span class="badge-premium" title="Membro Premium"><i class="material-icons">workspace_premium</i> PREMIUM</span>' : ''}</h1>
                                     <span class="perfil-username">@${this.escaparHtmlDestaque(usuario.username || 'usuario')}</span>
                                 </div>
                             </div>
@@ -7032,6 +7141,19 @@ ${ApiService.getIdUsuarioLogado() ? `
                                         <i class="material-icons" aria-hidden="true">edit</i>
                                         Editar perfil
                                     </button>
+                                    ${isPerfilPremium ? `
+                                        <button type="button" class="btn-perfil-acao btn-perfil-premium-ativo"
+                                            onclick="app.abrirModalPlanoPremium()">
+                                            <i class="material-icons" aria-hidden="true">verified</i>
+                                            Premium Ativo
+                                        </button>
+                                    ` : `
+                                        <button type="button" class="btn-perfil-acao btn-perfil-upgrade"
+                                            onclick="app.abrirModalPlanoPremium()">
+                                            <i class="material-icons" aria-hidden="true">workspace_premium</i>
+                                            Seja Premium
+                                        </button>
+                                    `}
                                 ` : idLogado ? `
                                     <button type="button"
                                         class="btn-perfil-acao btn-perfil-seguir ${this.usuariosSeguidos.has(Number(idUsuario)) ? 'seguindo' : ''}"
@@ -9350,38 +9472,93 @@ ${ApiService.getIdUsuarioLogado() ? `
             );
         }
 
-        // Obtém a posição do usuário no navegador
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    const userLat = position.coords.latitude;
-                    const userLng = position.coords.longitude;
+    }
 
-                    // Faz a chamada para a sua API enviando as coordenadas
-                    carregarEventosProximos(userLat, userLng);
-                },
-                (error) => {
-                    console.warn("Geolocalização recusada ou indisponível. Carregando sem filtro de distância.");
-                    carregarEventosProximos(null, null);
-                }
-            );
-        } else {
-            carregarEventosProximos(null, null);
+    abrirModalPlanoPremium(event) {
+        if (event && event.preventDefault) event.preventDefault();
+        if (!ApiService.getUsuarioLogado()) {
+            this.definirModoAuth(false);
+            this.abrirModal('auth-modal');
+            this.mostrarAuthFeedback("Faça login para assinar ou gerenciar o Plano Premium.");
+            return;
         }
 
-        function carregarEventosProximos(lat, lng) {
-            let url = `/api/eventos/buscar?page=0&size=12`;
+        const isPremium = ApiService.isUsuarioPremium();
+        const btnAssinar = document.getElementById('btn-confirmar-premium');
+        const btnCancelar = document.getElementById('btn-cancelar-premium');
+        const metodos = document.getElementById('premium-metodos-pagamento');
+        const badgeHeader = document.querySelector('.premium-modal-header .section-kicker');
 
-            if (lat && lng) {
-                url += `&lat=${lat}&lng=${lng}&raioKm=30`; // Busca eventos num raio de 30km
+        if (isPremium) {
+            if (badgeHeader) badgeHeader.textContent = 'ASSINATURA ATIVA';
+            if (btnAssinar) btnAssinar.style.display = 'none';
+            if (btnCancelar) btnCancelar.style.display = 'inline-flex';
+            if (metodos) metodos.style.display = 'none';
+        } else {
+            if (badgeHeader) badgeHeader.textContent = 'PLANO EXCLUSIVO';
+            if (btnAssinar) {
+                btnAssinar.style.display = 'inline-flex';
+                btnAssinar.innerHTML = '<i class="material-icons">star</i> Assinar Premium Agora';
             }
+            if (btnCancelar) btnCancelar.style.display = 'none';
+            if (metodos) metodos.style.display = 'grid';
+        }
 
-            fetch(url)
-                .then(res => res.json())
-                .then(data => {
-                    console.log("Eventos encontrados:", data.content);
-                    // Renderiza os cards na tela
-                });
+        this.abrirModal('plano-premium-modal');
+    }
+
+    async confirmarAssinaturaPremium() {
+        if (!ApiService.getUsuarioLogado()) return;
+        const btn = document.getElementById('btn-confirmar-premium');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="material-icons">hourglass_top</i> Ativando...';
+        }
+
+        try {
+            await ApiService.assinarPremium();
+            this.fecharModal('plano-premium-modal');
+            this.mostrarFeedbackGlobal('🎉 Parabéns! Você agora é um membro Premium do PI Social!');
+            this.atualizarUsuarioLogado();
+            await this.carregarEventos();
+            await this.carregarComunidades();
+            const idUsuario = ApiService.getIdUsuarioLogado();
+            if (idUsuario) {
+                const viewPerfil = document.getElementById('view-perfil');
+                if (viewPerfil && viewPerfil.classList.contains('active')) {
+                    await this.abrirPerfil(idUsuario);
+                }
+            }
+        } catch (erro) {
+            console.error('Erro ao assinar premium:', erro);
+            this.mostrarFeedbackGlobal(erro.message || 'Não foi possível concluir a assinatura.');
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="material-icons">star</i> Assinar Premium Agora';
+            }
+        }
+    }
+
+    async confirmarCancelamentoPremium() {
+        if (!ApiService.getUsuarioLogado()) return;
+        try {
+            await ApiService.cancelarPremium();
+            this.fecharModal('plano-premium-modal');
+            this.mostrarFeedbackGlobal('Assinatura Premium cancelada com sucesso.');
+            this.atualizarUsuarioLogado();
+            await this.carregarEventos();
+            await this.carregarComunidades();
+            const idUsuario = ApiService.getIdUsuarioLogado();
+            if (idUsuario) {
+                const viewPerfil = document.getElementById('view-perfil');
+                if (viewPerfil && viewPerfil.classList.contains('active')) {
+                    await this.abrirPerfil(idUsuario);
+                }
+            }
+        } catch (erro) {
+            console.error('Erro ao cancelar premium:', erro);
+            this.mostrarFeedbackGlobal(erro.message || 'Não foi possível cancelar a assinatura.');
         }
     }
 

@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../models/comunidade.dart';
 import '../services/comunidade_service.dart';
 import '../services/auth_service.dart';
+import 'plano_premium_page.dart';
 
 /// Tela de Comunidades Mobile — Fiel à Estilização Real da Tela WEB (.comunidade-card, .comunidade-mark, top-stripe, .comunidade-stats, .btn-primary).
 /// Fonte da Verdade: web/style.css
@@ -72,6 +73,13 @@ class _CommunitiesPageState extends State<CommunitiesPage> {
 
         return matchFiltro && matchTexto;
       }).toList();
+
+      // Prioridade para comunidades criadas por membros Premium
+      _comunidadesFiltradas.sort((a, b) {
+        final aPrem = a.isPremium ? 0 : 1;
+        final bPrem = b.isPremium ? 0 : 1;
+        return aPrem.compareTo(bPrem);
+      });
     });
   }
 
@@ -125,6 +133,39 @@ class _CommunitiesPageState extends State<CommunitiesPage> {
       _snack('Faça login para criar comunidades.',
           cor: const Color(0xFFEA3F74));
       return;
+    }
+
+    if (!AuthService.isPremium) {
+      final criadas = _comunidades.where((c) => c.criador?.idUsuario == AuthService.idUsuario).length;
+      if (criadas >= 3) {
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Row(children: [
+              Icon(Icons.workspace_premium_rounded, color: Color(0xFFF59E0B)),
+              SizedBox(width: 8),
+              Text('Limite Atingido'),
+            ]),
+            content: const Text('Usuários do plano gratuito podem criar no máximo 3 comunidades.\n\nFaça o upgrade para o Plano Premium para criar comunidades ilimitadas e ter prioridade nas buscas!'),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Voltar')),
+              FilledButton(
+                style: FilledButton.styleFrom(backgroundColor: const Color(0xFFF59E0B)),
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  final mudou = await Navigator.push(context, MaterialPageRoute(builder: (_) => const PlanoPremiumPage()));
+                  if (mudou == true) {
+                    setState(() {});
+                    _carregarComunidades();
+                  }
+                },
+                child: const Text('Ver Plano Premium ✨'),
+              ),
+            ],
+          ),
+        );
+        return;
+      }
     }
 
     final nomeCtrl = TextEditingController();
@@ -561,14 +602,38 @@ class _WebStyleComunidadeCard extends StatelessWidget {
                         ),
                         child: Icon(icone, color: Colors.white, size: 22),
                       ),
-                      Text(
-                        'COMUNIDADE',
-                        style: GoogleFonts.manrope(
-                          color: cor,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.8,
-                        ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (comunidade.isPremium) ...[
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFEF3C7),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: const Color(0xFFFDE68A)),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.workspace_premium_rounded, color: Color(0xFFD97706), size: 13),
+                                  SizedBox(width: 3),
+                                  Text('PREMIUM', style: TextStyle(color: Color(0xFFB45309), fontSize: 9, fontWeight: FontWeight.w800)),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                          ],
+                          Text(
+                            'COMUNIDADE',
+                            style: GoogleFonts.manrope(
+                              color: cor,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.8,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),

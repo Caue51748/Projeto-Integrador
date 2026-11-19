@@ -18,6 +18,7 @@ import 'public_profile_page.dart';
 import 'configuracoes_social_page.dart';
 import 'post_detail_screen.dart';
 import 'home_screen.dart';
+import 'plano_premium_page.dart';
 
 /// Tela de Perfil Mobile — Fiel à Estilização Real da Tela WEB (.perfil-tabs, .perfil-tab.active::after, .avatar, .card, .btn-primary).
 /// Fonte da Verdade: web/style.css
@@ -567,15 +568,62 @@ class _ProfilePageState extends State<ProfilePage>
             padding: const EdgeInsets.fromLTRB(19, 18, 19, 22),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(children: [
-                Expanded(child: Text(
-                  usuario.username == null || usuario.username!.isEmpty
-                      ? usuario.nome
-                      : '@${usuario.username}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.manrope(fontSize: 20, fontWeight: FontWeight.w800,
-                    color: const Color(0xFF202124)),
-                )),
+                Expanded(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          usuario.username == null || usuario.username!.isEmpty
+                              ? usuario.nome
+                              : '@${usuario.username}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.manrope(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            color: const Color(0xFF202124),
+                          ),
+                        ),
+                      ),
+                      if (usuario.isPremium) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
+                            ),
+                            borderRadius: BorderRadius.circular(6),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFFF59E0B).withOpacity(0.35),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.workspace_premium_rounded, color: Colors.white, size: 14),
+                              SizedBox(width: 4),
+                              Text(
+                                'PREMIUM',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
                 IconButton(
                   tooltip: 'Configurações',
                   onPressed: _abrirConfiguracoes,
@@ -655,6 +703,78 @@ class _ProfilePageState extends State<ProfilePage>
                   label: Text(_enviandoFoto ? 'Enviando...' : 'Alterar foto'),
                 )),
               ]),
+              const SizedBox(height: 12),
+              InkWell(
+                onTap: () async {
+                  final mudou = await Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const PlanoPremiumPage()),
+                  );
+                  if (mudou == true) {
+                    await _carregarDadosCompletos();
+                  }
+                },
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: usuario.isPremium
+                          ? [const Color(0xFFFFFBEB), const Color(0xFFFEF3C7)]
+                          : [const Color(0xFFFFF7ED), const Color(0xFFFED7AA)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: usuario.isPremium ? const Color(0xFFFDE68A) : const Color(0xFFFDBA74),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF59E0B),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.workspace_premium_rounded, color: Colors.white, size: 18),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              usuario.isPremium ? 'Membro Premium Ativo ⭐' : 'Faça Upgrade para o Premium ✨',
+                              style: GoogleFonts.manrope(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                                color: const Color(0xFF78350F),
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              usuario.isPremium
+                                  ? 'Criação ilimitada de eventos e comunidades'
+                                  : 'Eventos ilimitados, sem anúncios e prioridade',
+                              style: GoogleFonts.manrope(
+                                fontSize: 11,
+                                color: const Color(0xFF92400E),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Icon(
+                        Icons.chevron_right_rounded,
+                        color: const Color(0xFFB45309),
+                        size: 22,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ]),
           )),
           SliverToBoxAdapter(child: _sugestoesPerfis()),

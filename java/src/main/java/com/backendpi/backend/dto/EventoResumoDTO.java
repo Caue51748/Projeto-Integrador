@@ -27,6 +27,7 @@ public class EventoResumoDTO {
     private Boolean taxaRepassadaComprador;
     private Double latitude;
     private Double longitude;
+    private Boolean criadorPremium = false;
 
     public EventoResumoDTO(
             Long id,
@@ -190,5 +191,13 @@ public class EventoResumoDTO {
 
     public Double getLongitude() {
         return longitude;
+    }
+
+    public Boolean getCriadorPremium() {
+        return criadorPremium;
+    }
+
+    public void setCriadorPremium(Boolean criadorPremium) {
+        this.criadorPremium = criadorPremium;
     }
 }

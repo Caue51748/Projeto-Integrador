@@ -20,4 +20,20 @@ public interface ComunidadeRepository extends JpaRepository<Comunidade, Long> {
     List<Comunidade> findByMembroId(
             @Param("idUsuario") Long idUsuario
     );
+
+    @Query("""
+        SELECT c
+        FROM Comunidade c
+        LEFT JOIN c.criador u
+        ORDER BY
+            CASE
+                WHEN LOWER(COALESCE(u.role, '')) LIKE '%premium%' THEN 0
+                ELSE 1
+            END ASC,
+            c.nome ASC
+        """)
+    List<Comunidade> findAllOrderByPremium();
+
+    @Query("SELECT COUNT(c) FROM Comunidade c WHERE c.criador.idUsuario = :criadorId")
+    long countByCriadorId(@Param("criadorId") Long criadorId);
 }
